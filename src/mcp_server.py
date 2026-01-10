@@ -267,6 +267,14 @@ def run_mcp_server():
             params = message.get("params", {})
             msg_id = message.get("id")
             
+            # Handle notifications (no response needed)
+            if msg_id is None:
+                # Notifications don't get responses
+                if method == "notifications/initialized":
+                    # Client confirms initialization - no response needed
+                    pass
+                continue
+            
             # Handle MCP methods
             if method == "initialize":
                 response = {

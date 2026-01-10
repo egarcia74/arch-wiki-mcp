@@ -12,6 +12,7 @@ from typing import Dict, List, Optional, Tuple
 from urllib.request import urlopen, Request
 from urllib.parse import urlencode, quote
 import json
+import os
 
 API_ENDPOINT = "https://wiki.archlinux.org/api.php"
 USER_AGENT = "ArchWikiMCP/1.0 (Constitutional Extractor; +https://github.com/user/arch-wiki-mcp)"
@@ -51,6 +52,7 @@ class CodeBlock:
     content: str
     content_hash: str
     block_type: str  # "preformatted", "pre_tag", "code_tag", "shell"
+    source_pattern: str  # e.g., "indented_block", "fenced_tag", "shell_heuristic"
     language: Optional[str] = None
     revid: Optional[int] = None
 
@@ -92,19 +94,31 @@ def hash_content(text: str) -> str:
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
 
+def _fetch_offline(params: Dict) -> Dict:
+    """Retrieve API response from local fixtures for offline testing."""
+    fixtures_dir = os.environ.get("ARCHWIKI_FIXTURES", "tests/fixtures")
+    # Identify fixture by action and page/query
+    action = params.get("action", "unknown")
+    if action == "parse":
+        key = params.get("page", "unknown")
+    else:
+        key = params.get("srsearch", "unknown")
+    
+    # Sanitize key for filesystem
+    safe_key = "".join([c if c.isalnum() else "_" for c in key])
+    fixture_path = os.path.join(fixtures_dir, f"{action}_{safe_key}.json")
+    
+    if not os.path.exists(fixture_path):
+        raise FileNotFoundError(f"Offline mode enabled but fixture missing: {fixture_path}")
+    
+    with open(fixture_path, "r") as f:
+        return json.load(f)
+
+
 def fetch_wiki_parse(page_title: str, timeout: int = 30) -> Dict:
     """
     Fetch page wikitext, sections, and revision ID from MediaWiki API.
-    
-    Args:
-        page_title: Wiki page title (e.g., "GRUB" or "Installation_guide")
-        timeout: Request timeout in seconds
-        
-    Returns:
-        MediaWiki parse API response dict
-        
-    Raises:
-        ValueError: If page not found or API error
+    Supports ARCHWIKI_OFFLINE environment variable for deterministic testing.
     """
     params = {
         "action": "parse",
@@ -112,12 +126,14 @@ def fetch_wiki_parse(page_title: str, timeout: int = 30) -> Dict:
         "prop": "wikitext|sections|revid",
         "format": "json",
     }
-    url = f"{API_ENDPOINT}?{urlencode(params)}"
     
-    request = Request(url, headers={"User-Agent": USER_AGENT})
-    
-    with urlopen(request, timeout=timeout) as response:
-        data = json.loads(response.read().decode("utf-8"))
+    if os.environ.get("ARCHWIKI_OFFLINE"):
+        data = _fetch_offline(params)
+    else:
+        url = f"{API_ENDPOINT}?{urlencode(params)}"
+        request = Request(url, headers={"User-Agent": USER_AGENT})
+        with urlopen(request, timeout=timeout) as response:
+            data = json.loads(response.read().decode("utf-8"))
     
     if "error" in data:
         raise ValueError(f"API Error: {data['error'].get('info', data['error'])}")
@@ -224,11 +240,11 @@ def _extract_indented_blocks(lines: List[str], revid: Optional[int] = None) -> L
             current.append(line[1:])
         elif current:
             c = "\n".join(current)
-            blocks.append(CodeBlock(c, hash_content(c), "preformatted", None, revid))
+            blocks.append(CodeBlock(c, hash_content(c), "preformatted", "indented_block", None, revid))
             current = []
     if current:
         c = "\n".join(current)
-        blocks.append(CodeBlock(c, hash_content(c), "preformatted", None, revid))
+        blocks.append(CodeBlock(c, hash_content(c), "preformatted", "indented_block", None, revid))
     return blocks
 
 def _extract_shell_blocks(lines: List[str], revid: Optional[int] = None) -> List[CodeBlock]:
@@ -242,36 +258,52 @@ def _extract_shell_blocks(lines: List[str], revid: Optional[int] = None) -> List
         elif current:
             # Ensure the block looks like shell (starts with prompt)
             c = "\n".join(current)
-            blocks.append(CodeBlock(c, hash_content(c), "shell", "bash", revid))
+            # Only emit if it looks like a real block (more than one line or has space after prompt)
+            is_valid = len(current) > 1 or " " in current[0]
+            if is_valid:
+                blocks.append(CodeBlock(c, hash_content(c), "shell", "shell_heuristic", "bash", revid))
             current = []
     if current:
         c = "\n".join(current)
-        blocks.append(CodeBlock(c, hash_content(c), "shell", "bash", revid))
+        if len(current) > 1 or " " in current[0]:
+            blocks.append(CodeBlock(c, hash_content(c), "shell", "shell_heuristic", "bash", revid))
     return blocks
 
 def parse_code_blocks(wikitext: str, revid: Optional[int] = None) -> List[CodeBlock]:
     """
-    Parse code blocks from wikitext using multiple patterns.
-    Returns list of code blocks with hashes and revid.
+    STRICT EXTRACTION: Only returns formal wiki code constructs.
+    - Indented blocks (space-prefixed)
+    - <pre> and <code> tags
     """
     lines = wikitext.split("\n")
-    code_blocks = _extract_indented_blocks(lines, revid)
-    code_blocks.extend(_extract_shell_blocks(lines, revid))
+    code_blocks = []
     
-    # Pattern 3: <pre>...</pre> blocks
+    # Pattern 1: Indented blocks
+    code_blocks.extend(_extract_indented_blocks(lines, revid))
+    
+    # Pattern 2: <pre>...</pre> blocks
     pre_pattern = r'<pre>(.*?)</pre>'
     for match in re.finditer(pre_pattern, wikitext, re.DOTALL):
         content = match.group(1).strip()
-        code_blocks.append(CodeBlock(content, hash_content(content), "pre_tag", None, revid))
+        code_blocks.append(CodeBlock(content, hash_content(content), "pre_tag", "fenced_tag", None, revid))
     
-    # Pattern 4: <code>...</code> blocks (only if multi-line)
+    # Pattern 3: <code>...</code> blocks (only if multi-line)
     code_pattern = r'<code>(.*?)</code>'
     for match in re.finditer(code_pattern, wikitext, re.DOTALL):
         content = match.group(1).strip()
         if "\n" in content:
-            code_blocks.append(CodeBlock(content, hash_content(content), "code_tag", None, revid))
+            code_blocks.append(CodeBlock(content, hash_content(content), "code_tag", "fenced_tag", None, revid))
     
     return code_blocks
+
+
+def parse_shell_heuristics(wikitext: str, revid: Optional[int] = None) -> List[CodeBlock]:
+    """
+    HEURISTIC EXTRACTION: Attempts to find shell prompts in prose.
+    Returns blocks that LOOK like commands but aren't formally fenced.
+    """
+    lines = wikitext.split("\n")
+    return _extract_shell_blocks(lines, revid)
 
 
 def parse_internal_links(wikitext: str, source_page: str) -> List[InternalLink]:
@@ -329,12 +361,14 @@ def search(query: str, limit: int = 10, timeout: int = 30) -> List[Dict]:
         "srlimit": limit,
         "format": "json",
     }
-    url = f"{API_ENDPOINT}?{urlencode(params)}"
     
-    request = Request(url, headers={"User-Agent": USER_AGENT})
-    
-    with urlopen(request, timeout=timeout) as response:
-        data = json.loads(response.read().decode("utf-8"))
+    if os.environ.get("ARCHWIKI_OFFLINE"):
+        data = _fetch_offline(params)
+    else:
+        url = f"{API_ENDPOINT}?{urlencode(params)}"
+        request = Request(url, headers={"User-Agent": USER_AGENT})
+        with urlopen(request, timeout=timeout) as response:
+            data = json.loads(response.read().decode("utf-8"))
     
     if "error" in data:
         raise ValueError(f"Search API Error: {data['error'].get('info', data['error'])}")
@@ -439,34 +473,108 @@ def section(title: str, anchor: str) -> ExtractedBlock:
 
 def commands(title: str, anchor: Optional[str] = None) -> List[Dict]:
     """
-    MCP Tool: Extract code blocks from page or section.
-    
-    Returns list of CodeBlock dicts with content and hashes.
+    MCP Tool: Extract formal code blocks from page or section.
+    These are structural elements (indented or tagged).
     """
-    if anchor:
-        extracted = section(title, anchor)
-        wikitext = extracted.content
-        url_base = extracted.url
-        revid = extracted.revid
-    else:
-        page_data = page(title)
-        wikitext = page_data["wikitext"]
-        url_base = page_data["url"]
-        revid = page_data["revid"]
-    
-    blocks = parse_code_blocks(wikitext, revid)
-    
-    return [
-        {
-            "content": block.content,
-            "content_hash": block.content_hash,
-            "block_type": block.block_type,
-            "language": block.language,
-            "source_url": url_base,
-            "revid": block.revid
-        }
-        for block in blocks
-    ]
+    try:
+        parse_data = fetch_wiki_parse(title)
+        full_wikitext = parse_data["wikitext"]["*"]
+        url_base = make_wiki_url(title)
+        revid = parse_data.get("revid")
+        
+        if anchor:
+            # Find section by anchor
+            target_section = None
+            next_section_offset = None
+            section_list = parse_data["sections"]
+            for i, sect in enumerate(section_list):
+                if sect["anchor"] == anchor:
+                    target_section = sect
+                    if i + 1 < len(section_list):
+                        next_section_offset = section_list[i + 1]["byteoffset"]
+                    break
+            
+            if target_section is None:
+                return [] # Section not found, return empty list
+            
+            wikitext_to_parse = extract_section_wikitext(
+                full_wikitext,
+                target_section["byteoffset"],
+                next_section_offset
+            )
+            url_base = f"{url_base}#{anchor}"
+        else:
+            wikitext_to_parse = full_wikitext
+            
+        code_blocks = parse_code_blocks(wikitext_to_parse, revid)
+        
+        return [
+            {
+                "content": block.content,
+                "content_hash": block.content_hash,
+                "block_type": block.block_type,
+                "source_pattern": block.source_pattern,
+                "language": block.language,
+                "source_url": url_base,
+                "revid": block.revid
+            }
+            for block in code_blocks
+        ]
+    except Exception:
+        return []
+
+
+def examples(title: str, anchor: Optional[str] = None) -> List[Dict]:
+    """
+    MCP Tool: Extract heuristic shell examples from prose.
+    Less reliable than commands(), used for snippets that LOOK like commands.
+    """
+    try:
+        parse_data = fetch_wiki_parse(title)
+        full_wikitext = parse_data["wikitext"]["*"]
+        url_base = make_wiki_url(title)
+        revid = parse_data.get("revid")
+        
+        if anchor:
+            # Find section by anchor
+            target_section = None
+            next_section_offset = None
+            section_list = parse_data["sections"]
+            for i, sect in enumerate(section_list):
+                if sect["anchor"] == anchor:
+                    target_section = sect
+                    if i + 1 < len(section_list):
+                        next_section_offset = section_list[i + 1]["byteoffset"]
+                    break
+            
+            if target_section is None:
+                return [] # Section not found, return empty list
+            
+            wikitext_to_parse = extract_section_wikitext(
+                full_wikitext,
+                target_section["byteoffset"],
+                next_section_offset
+            )
+            url_base = f"{url_base}#{anchor}"
+        else:
+            wikitext_to_parse = full_wikitext
+            
+        blocks = parse_shell_heuristics(wikitext_to_parse, revid)
+        
+        return [
+            {
+                "content": block.content,
+                "content_hash": block.content_hash,
+                "block_type": block.block_type,
+                "source_pattern": block.source_pattern,
+                "language": block.language,
+                "source_url": url_base,
+                "revid": block.revid
+            }
+            for block in blocks
+        ]
+    except Exception:
+        return []
 
 
 def warnings(title: str, anchor: Optional[str] = None) -> List[Dict]:

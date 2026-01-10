@@ -1,0 +1,310 @@
+{
+  "parse": {
+    "title": "Installation guide",
+    "pageid": 14801,
+    "revid": 858613,
+    "sections": [
+      {
+        "toclevel": 1,
+        "level": "2",
+        "line": "Pre-installation",
+        "number": "1",
+        "index": "1",
+        "fromtitle": "Installation_guide",
+        "byteoffset": 2099,
+        "anchor": "Pre-installation",
+        "linkAnchor": "Pre-installation"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Acquire an installation image",
+        "number": "1.1",
+        "index": "2",
+        "fromtitle": "Installation_guide",
+        "byteoffset": 2123,
+        "anchor": "Acquire_an_installation_image",
+        "linkAnchor": "Acquire_an_installation_image"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Verify signature",
+        "number": "1.2",
+        "index": "3",
+        "fromtitle": "Installation_guide",
+        "byteoffset": 2336,
+        "anchor": "Verify_signature",
+        "linkAnchor": "Verify_signature"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Prepare an installation medium",
+        "number": "1.3",
+        "index": "4",
+        "fromtitle": "Installation_guide",
+        "byteoffset": 3622,
+        "anchor": "Prepare_an_installation_medium",
+        "linkAnchor": "Prepare_an_installation_medium"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Boot the live environment",
+        "number": "1.4",
+        "index": "5",
+        "fromtitle": "Installation_guide",
+        "byteoffset": 4051,
+        "anchor": "Boot_the_live_environment",
+        "linkAnchor": "Boot_the_live_environment"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Set the console keyboard layout and font",
+        "number": "1.5",
+        "index": "6",
+        "fromtitle": "Installation_guide",
+        "byteoffset": 6407,
+        "anchor": "Set_the_console_keyboard_layout_and_font",
+        "linkAnchor": "Set_the_console_keyboard_layout_and_font"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Verify the boot mode",
+        "number": "1.6",
+        "index": "7",
+        "fromtitle": "Installation_guide",
+        "byteoffset": 7062,
+        "anchor": "Verify_the_boot_mode",
+        "linkAnchor": "Verify_the_boot_mode"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Connect to the internet",
+        "number": "1.7",
+        "index": "8",
+        "fromtitle": "Installation_guide",
+        "byteoffset": 7813,
+        "anchor": "Connect_to_the_internet",
+        "linkAnchor": "Connect_to_the_internet"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Update the system clock",
+        "number": "1.8",
+        "index": "9",
+        "fromtitle": "Installation_guide",
+        "byteoffset": 8918,
+        "anchor": "Update_the_system_clock",
+        "linkAnchor": "Update_the_system_clock"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Partition the disks",
+        "number": "1.9",
+        "index": "10",
+        "fromtitle": "Installation_guide",
+        "byteoffset": 9328,
+        "anchor": "Partition_the_disks",
+        "linkAnchor": "Partition_the_disks"
+      },
+      {
+        "toclevel": 3,
+        "level": "4",
+        "line": "Example layouts",
+        "number": "1.9.1",
+        "index": "11",
+        "fromtitle": "Installation_guide",
+        "byteoffset": 11144,
+        "anchor": "Example_layouts",
+        "linkAnchor": "Example_layouts"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Format the partitions",
+        "number": "1.10",
+        "index": "12",
+        "fromtitle": "Installation_guide",
+        "byteoffset": 12323,
+        "anchor": "Format_the_partitions",
+        "linkAnchor": "Format_the_partitions"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Mount the file systems",
+        "number": "1.11",
+        "index": "13",
+        "fromtitle": "Installation_guide",
+        "byteoffset": 13312,
+        "anchor": "Mount_the_file_systems",
+        "linkAnchor": "Mount_the_file_systems"
+      },
+      {
+        "toclevel": 1,
+        "level": "2",
+        "line": "Installation",
+        "number": "2",
+        "index": "14",
+        "fromtitle": "Installation_guide",
+        "byteoffset": 14111,
+        "anchor": "Installation",
+        "linkAnchor": "Installation"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Select the mirrors",
+        "number": "2.1",
+        "index": "15",
+        "fromtitle": "Installation_guide",
+        "byteoffset": 14131,
+        "anchor": "Select_the_mirrors",
+        "linkAnchor": "Select_the_mirrors"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Install essential packages",
+        "number": "2.2",
+        "index": "16",
+        "fromtitle": "Installation_guide",
+        "byteoffset": 14973,
+        "anchor": "Install_essential_packages",
+        "linkAnchor": "Install_essential_packages"
+      },
+      {
+        "toclevel": 1,
+        "level": "2",
+        "line": "Configure the system",
+        "number": "3",
+        "index": "17",
+        "fromtitle": "Installation_guide",
+        "byteoffset": 17599,
+        "anchor": "Configure_the_system",
+        "linkAnchor": "Configure_the_system"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Fstab",
+        "number": "3.1",
+        "index": "18",
+        "fromtitle": "Installation_guide",
+        "byteoffset": 17627,
+        "anchor": "Fstab",
+        "linkAnchor": "Fstab"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Chroot",
+        "number": "3.2",
+        "index": "19",
+        "fromtitle": "Installation_guide",
+        "byteoffset": 17980,
+        "anchor": "Chroot",
+        "linkAnchor": "Chroot"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Time",
+        "number": "3.3",
+        "index": "20",
+        "fromtitle": "Installation_guide",
+        "byteoffset": 18187,
+        "anchor": "Time",
+        "linkAnchor": "Time"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Localization",
+        "number": "3.4",
+        "index": "21",
+        "fromtitle": "Installation_guide",
+        "byteoffset": 18778,
+        "anchor": "Localization",
+        "linkAnchor": "Localization"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Network configuration",
+        "number": "3.5",
+        "index": "22",
+        "fromtitle": "Installation_guide",
+        "byteoffset": 19417,
+        "anchor": "Network_configuration",
+        "linkAnchor": "Network_configuration"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Initramfs",
+        "number": "3.6",
+        "index": "23",
+        "fromtitle": "Installation_guide",
+        "byteoffset": 20124,
+        "anchor": "Initramfs",
+        "linkAnchor": "Initramfs"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Root password",
+        "number": "3.7",
+        "index": "24",
+        "fromtitle": "Installation_guide",
+        "byteoffset": 20618,
+        "anchor": "Root_password",
+        "linkAnchor": "Root_password"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Boot loader",
+        "number": "3.8",
+        "index": "25",
+        "fromtitle": "Installation_guide",
+        "byteoffset": 20765,
+        "anchor": "Boot_loader",
+        "linkAnchor": "Boot_loader"
+      },
+      {
+        "toclevel": 1,
+        "level": "2",
+        "line": "Reboot",
+        "number": "4",
+        "index": "26",
+        "fromtitle": "Installation_guide",
+        "byteoffset": 21032,
+        "anchor": "Reboot",
+        "linkAnchor": "Reboot"
+      },
+      {
+        "toclevel": 1,
+        "level": "2",
+        "line": "Post-installation",
+        "number": "5",
+        "index": "27",
+        "fromtitle": "Installation_guide",
+        "byteoffset": 21521,
+        "anchor": "Post-installation",
+        "linkAnchor": "Post-installation"
+      }
+    ],
+    "showtoc": "",
+    "wikitext": {
+      "*": "[[Category:Installation process]]\n[[ar:Installation guide]]\n[[bg:Installation guide]]\n[[ca:Installation guide]]\n[[cs:Installation guide]]\n[[de:Arch Install Scripts]]\n[[el:Installation guide]]\n[[es:Installation guide]]\n[[fi:Installation guide]]\n[[fr:Installation guide]]\n[[hu:Installation guide]]\n[[it:Installation guide]]\n[[ja:\u30a4\u30f3\u30b9\u30c8\u30fc\u30eb\u30ac\u30a4\u30c9]]\n[[ko:Installation guide]]\n[[lv:Installation guide]]\n[[pl:Installation guide]]\n[[pt:Installation guide]]\n[[ru:Installation guide]]\n[[sv:Installation guide]]\n[[th:Installation guide]]\n[[tr:Installation guide]]\n[[uk:Installation guide]]\n[[zh-hans:\u5b89\u88c5\u6307\u5357]]\n[[zh-hant:Installation guide]]\nThis document is a guide for installing [[Arch Linux]] using the live system booted from an installation medium made from an official installation image. The installation medium provides accessibility features which are described on the page [[Install Arch Linux with accessibility options]]. For alternative means of installation, see [[:Category:Installation process]].\n\nBefore installing, it would be advised to view the [[FAQ]]. For conventions used in this document, see [[Help:Reading]]. In particular, code examples may contain placeholders (formatted in {{ic|''italics''}}) that must be replaced manually.\n\nThis guide is kept concise and you are advised to follow the instructions in the presented order per section. For more detailed instructions, see the respective [[ArchWiki]] articles or the various programs' [[man page]]s, both linked from this guide. For interactive help, the [[IRC channel]] and the [https://bbs.archlinux.org/ forums] are also available.\n\nArch Linux should run on any [[Wikipedia:X86-64|x86_64]]-compatible machine with a minimum of 512 MiB RAM, though more memory is needed to boot the live system for installation.[https://lists.archlinux.org/archives/list/arch-releng@lists.archlinux.org/message/D5HSGOFTPGYI6IZUEB3ZNAX4D3F3ID37/] A basic installation should take less than 2 GiB of disk space. As the installation process needs to retrieve packages from a remote repository, this guide assumes a working internet connection is available.\n\n== Pre-installation ==\n\n=== Acquire an installation image ===\n\nVisit the [https://archlinux.org/download/ Download] page and, depending on how you want to boot, acquire the ISO file or a netboot image, and the respective PGP signature.\n\n=== Verify signature ===\n\nIt is recommended to verify the image signature before use, especially when downloading from an ''HTTP mirror'', where downloads are generally prone to be intercepted to [https://www2.cs.arizona.edu/stork/packagemanagersecurity/attacks-on-package-managers.html serve malicious images]. \n\nDownload the ''ISO PGP signature'' from https://archlinux.org/download/#checksums to the ISO directory and follow the instructions there to verify it.\n\nAlternatively, from an existing Arch Linux installation run:\n\n $ pacman-key -v archlinux-''version''-x86_64.iso.sig\n\n{{Note|\n* The signature itself could be manipulated if it is downloaded from a mirror site, instead of from [https://archlinux.org/download/ archlinux.org]. In this case, ensure that the public key, which is used to decode the signature, is signed by another, trustworthy key. The {{ic|gpg}} command will output the fingerprint of the public key. \n* Another method to verify the authenticity of the signature is to ensure that the public key's fingerprint is identical to the key fingerprint of the [https://archlinux.org/people/developers/ Arch Linux developer] who signed the ISO-file. See [[Wikipedia:Public-key cryptography]] for more information on the public-key process to authenticate keys.\n}}\n\n=== Prepare an installation medium ===\n\nThe ISO can be supplied to the target machine via a [[USB flash installation medium|USB flash drive]], an [[Optical disc drive#Burning|optical disc]] or a network with [[PXE]]: follow the appropriate article to prepare yourself an installation medium from the ISO file.\n\nFor the netboot image, follow [[Netboot#Boot from a USB flash drive]] to prepare a USB flash drive for UEFI booting.\n\n=== Boot the live environment ===\n\n{{Note|Arch Linux installation images do not support Secure Boot. You will need to [[Unified Extensible Firmware Interface/Secure Boot#Disabling Secure Boot|disable Secure Boot]] to boot the installation medium. If desired, [[Secure Boot]] can be set up after completing the installation.}}\n\n# Point the current boot device to the one which has the Arch Linux installation medium. Typically it is achieved by pressing a key during the [[Wikipedia:Power-on self test|POST]] phase, as indicated on the splash screen. Refer to your motherboard's manual for details.\n# When the installation medium's boot loader menu appears,\n#* if you used the ISO, select ''Arch Linux install medium'' and press {{ic|Enter}} to enter the installation environment. \n#* if you used the Netboot image, choose a geographically close mirror from ''Mirror'' menu, then select ''Boot Arch Linux'' and press {{ic|Enter}}. {{Tip|\n#** The ISO uses [[systemd-boot]] for UEFI and [[syslinux]] for BIOS booting. Use respectively {{ic|e}} or {{ic|Tab}} to enter the [[Kernel parameters#Boot loader configuration|boot parameters]]. The Netboot image uses iPXE and the boot parameters can be specified in the ''Boot options'' menu. See [https://gitlab.archlinux.org/archlinux/mkinitcpio/mkinitcpio-archiso/blob/master/docs/README.bootparams /usr/share/doc/mkinitcpio-archiso/README.bootparams] for a list.\n#** A common example of manually defined boot parameter would be the font size. For better readability on HiDPI screens\u2014when they are not already recognized as such\u2014using {{ic|1=fbcon=font:TER16x32}} can help. See [[HiDPI#Linux console (tty)]] for a detailed explanation.\n#}}\n# You will be logged in on the first [[Wikipedia:Virtual console|virtual console]] as the root user, and presented with a [[Zsh]] shell prompt.\n\nTo switch to a different console\u2014for example, to view this guide with [https://lynx.invisible-island.net/lynx_help/Lynx_users_guide.html Lynx] alongside the installation\u2014use the {{ic|Alt+''arrow''}} [[Linux console#Keyboard shortcuts|keyboard shortcut]]. To [[textedit|edit]] configuration files, {{man|1|mcedit}}, [[nano#Usage|nano]] and [[vim#Usage|vim]] are available. See [https://geo.mirror.pkgbuild.com/iso/latest/arch/pkglist.x86_64.txt pkglist.x86_64.txt] for a list of the packages included in the installation medium.\n\n=== Set the console keyboard layout and font ===\n\nThe default [[console keymap]] is [[Wikipedia:File:KB United States-NoAltGr.svg|US]]. Available layouts can be listed with:\n\n # localectl list-keymaps\n\nTo set the keyboard layout, pass its name to {{man|1|loadkeys}}. For example, to set a [[Wikipedia:File:KB Germany.svg|German]] keyboard layout:\n\n # loadkeys de-latin1\n\n[[Console fonts]] are located in {{ic|/usr/share/kbd/consolefonts/}} and can likewise be set with {{man|8|setfont}} omitting the path and file extension. For example, to use one of the largest fonts suitable for [[HiDPI#Linux console (tty)|HiDPI screens]], run:\n\n # setfont ter-132b\n\n=== Verify the boot mode ===\n\nTo verify the boot mode, check the [[Unified Extensible Firmware Interface#UEFI firmware bitness|UEFI bitness]]:\n\n # cat /sys/firmware/efi/fw_platform_size\n\n* If the command returns {{ic|64}}, the system is booted in UEFI mode and has a 64-bit x64 UEFI.\n* If the command returns {{ic|32}}, the system is booted in UEFI mode and has a 32-bit IA32 UEFI. While this is supported, it will limit the boot loader choice to those that support mixed mode booting.\n\n* If it returns {{ic|No such file or directory}}, the system may be booted in [[Wikipedia:BIOS|BIOS]] (or [[Wikipedia:Compatibility Support Module|CSM]]) mode.\nIf the system did not boot in the mode you desired (UEFI vs BIOS), refer to your motherboard's manual.\n\n=== Connect to the internet ===\n\nTo set up a network connection in the live environment, go through the following steps:\n\n# Ensure your [[network interface]] is listed and enabled, for example with {{man|8|ip-link}}: {{bc|# ip link}}\n# For wireless and WWAN, make sure the card is not blocked with [[rfkill]].\n# Connect to the network:\n#* Ethernet\u2014plug in the cable.\n#* Wi-Fi\u2014authenticate to the wireless network using [[iwctl]].\n#* Mobile broadband modem\u2014connect to the mobile network with the [[mmcli]] utility.\n# Configure your network connection:\n#* [[DHCP]]: dynamic IP address and DNS server assignment (provided by [[systemd-networkd]] and [[systemd-resolved]]) should work out of the box for Ethernet, WLAN, and WWAN network interfaces.\n#* Static IP address: follow [[Network configuration#Static IP address]].\n# The connection may be verified with [[ping]]: {{bc|# ping ping.archlinux.org}}\n\n{{Note|In the installation image, [[systemd-networkd]], [[systemd-resolved]], [[iwd]] and [[ModemManager]] are preconfigured and enabled by default. That will not be the case for the installed system.}}\n\n=== Update the system clock ===\n\nThe live system needs accurate time to prevent package signature verification failures and TLS certificate errors. The [[systemd-timesyncd]] service is enabled by default in the live environment and time will be synchronized automatically once a connection to the internet is established.\n\nUse {{man|1|timedatectl}} to ensure the system clock is synchronized:\n\n # timedatectl\n\n=== Partition the disks ===\n\nWhen recognized by the live system, disks are assigned to a [[block device]] such as {{ic|/dev/sda}}, {{ic|/dev/nvme0n1}} or {{ic|/dev/mmcblk0}}. To identify these devices, use [[lsblk]] or ''fdisk''.\n\n # fdisk -l\n\nResults ending in {{ic|rom}}, {{ic|loop}} or {{ic|airootfs}} may be ignored. {{ic|mmcblk*}} devices ending in {{ic|rpmb}}, {{ic|boot0}} and {{ic|boot1}} can be ignored.\n\n{{Note|If the disk does not show up, [[Partitioning#Drives are not visible when firmware RAID is enabled|make sure the disk controller is not in RAID mode]].}}\n\n{{Tip|Check that your NVMe drives and Advanced Format hard disk drives are using the [[Advanced Format|optimal logical sector size]] before partitioning.}}\n\nThe following [[partition]]s are '''required''' for a chosen device:\n\n* One partition for the [[Wikipedia:Root directory|root directory]] {{ic|/}}.\n* For booting in [[UEFI]] mode: an [[EFI system partition]].\n\nUse a [[Partitioning#Partitioning tools|partitioning tool]] like [[fdisk]] to modify partition tables. For example:\n\n # fdisk ''/dev/the_disk_to_be_partitioned''\n\n{{Note|\n* Take time to plan a long-term partitioning scheme to avoid risky and complicated conversion or re-partitioning procedures in the future.\n* If you want to create any stacked block devices for [[Install Arch Linux on LVM|LVM]], [[dm-crypt|system encryption]] or [[RAID]], do it now.\n* If the disk from which you want to boot [[EFI system partition#Check for an existing partition|already has an EFI system partition]], do not create another one, but use the existing partition instead.\n* [[Swap]] space can be set on a [[swap file]] for file systems supporting it. Alternatively, disk based swap can be avoided entirely by setting up [[zram#Usage as swap|swap on zram]] after installing the system.\n}}\n\n==== Example layouts ====\n\n{| class=\"wikitable\"\n|+ UEFI with [[GPT]]\n|-\n! Mount point on the installed system\n! Partition\n! [[Wikipedia:GUID Partition Table#Partition type GUIDs|Partition type]]\n! Suggested size\n|-\n| {{ic|/boot}}<sup>1</sup>\n| {{ic|/dev/''efi_system_partition''}}\n| [[EFI system partition]]\n| 1 GiB\n|-\n| {{ic|[SWAP]}}\n| {{ic|/dev/''swap_partition''}}\n| Linux swap\n| At least 4 GiB\n|-\n| {{ic|/}}\n| {{ic|/dev/''root_partition''}}\n| Linux x86-64 root (/)\n| Remainder of the device. At least 23\u201332 GiB.\n|}\n\n# [[EFI system partition#Typical mount points|Other mount points]], such as {{ic|/efi}}, are possible, provided that the used boot loader is capable of loading the kernel and initramfs images from the root volume. See the warning in [[Arch boot process#Boot loader]].\n\n{| class=\"wikitable\"\n|+ BIOS with [[MBR]]\n|-\n! Mount point on the installed system\n! Partition\n! [[Wikipedia:Partition type|Partition type]]\n! Suggested size\n|-\n| {{ic|[SWAP]}}\n| {{ic|/dev/''swap_partition''}}\n| Linux swap\n| At least 4 GiB\n|-\n| {{ic|/}}\n| {{ic|/dev/''root_partition''}}\n| Linux\n| Remainder of the device. At least 23\u201332 GiB.\n|}\n\nSee also [[Partitioning#Example layouts]].\n\n=== Format the partitions ===\n\nOnce the partitions have been created, each newly created partition must be formatted with an appropriate [[file system]]. See [[File systems#Create a file system]] for details.\n\nFor example, to create an [[Ext4]] file system on {{ic|/dev/''root_partition''}}, run:\n\n # mkfs.ext4 /dev/''root_partition''\n\nIf you created a partition for [[swap]], initialize it with {{man|8|mkswap}}:\n\n # mkswap /dev/''swap_partition''\n\n{{Note|For stacked block devices replace {{ic|/dev/''*_partition''}} with the appropriate block device path.}}\n\nIf you created an EFI system partition, [[EFI system partition#Format the partition|format it]] to FAT32 using {{man|8|mkfs.fat}}.\n\n{{Warning|Only format the EFI system partition if you created it during the partitioning step. If there already was an EFI system partition on disk beforehand, reformatting it can destroy the boot loaders of other installed operating systems.}}\n\n # mkfs.fat -F 32 /dev/''efi_system_partition''\n\n=== Mount the file systems ===\n\n[[Mount]] the root volume to {{ic|/mnt}}. For example, if the root volume is {{ic|/dev/''root_partition''}}:\n\n # mount /dev/''root_partition'' /mnt\n\nCreate any remaining mount points under {{ic|/mnt}} (such as {{ic|/mnt/boot}} for {{ic|/boot}}) and mount the volumes in their corresponding hierarchical order.\n\n{{Tip|Run {{man|8|mount}} with the {{ic|--mkdir}} option to create the specified mount point. Alternatively, create it using {{man|1|mkdir}} beforehand.}}\n\nFor UEFI systems, mount the EFI system partition. For example:\n\n # mount --mkdir /dev/''efi_system_partition'' /mnt/boot\n\nIf you created a [[swap]] volume, enable it with {{man|8|swapon}}:\n\n # swapon /dev/''swap_partition''\n\n{{man|8|genfstab}} will later detect mounted file systems and swap space.\n\n== Installation ==\n\n=== Select the mirrors ===\n\nPackages to be installed must be downloaded from [[Mirrors|mirror servers]], which are defined in {{ic|/etc/pacman.d/mirrorlist}}. The higher a mirror is placed in the list, the more priority it is given when downloading a package.\n\nOn the live system, all HTTPS mirrors are enabled (i.e. uncommented). The topmost worldwide mirror should be fast enough for most people, but you may still want to inspect the file to see if it is satisfactory. If it is not, [[textedit|edit]] the file accordingly, and move the geographically closest mirrors to the top of the list, although other criteria should be taken into account. Alternatively, you can use [[reflector]] to create a mirrorlist file based on various criteria.\n\nThis file will later be copied to the new system by ''pacstrap'', so it is worth getting right.\n\n=== Install essential packages ===\n\nNo configuration (except for {{ic|/etc/pacman.d/mirrorlist}}) gets carried over from the live environment to the installed system. The only mandatory package to install is {{Pkg|base}}, which '''does not''' include all tools from the live installation, so installing more packages is frequently necessary.\n\nIn particular, review the following software and install everything that you need:\n\n* CPU [[microcode]] updates\u2014{{Pkg|amd-ucode}} or {{Pkg|intel-ucode}}\u2014for hardware bug and security fixes,\n* [[File systems|userspace utilities for file systems]] that will be used on the system\u2014for the purposes of e.g. file system creation and [[fsck]],\n* utilities for accessing and managing [[RAID#Installation|RAID]] or [[LVM#Installation|LVM]] if they will be used on the system,\n* specific [[firmware]] for other devices not included in {{Pkg|linux-firmware}} (e.g. {{Pkg|sof-firmware}} for [[Advanced Linux Sound Architecture#Firmware|onboard audio]], {{Pkg|linux-firmware-marvell}} for Marvell wireless and any of the multiple firmware packages for [[Broadcom wireless]]),\n* software necessary for [[networking]] (e.g. [[Network configuration#Network managers|a network manager or a standalone DHCP client]], [[Network configuration/Wireless#Authentication|authentication software]] for Wi-Fi, [[ModemManager]] for mobile broadband connections),\n* a [[List of applications/Documents#Console|console text editor]] (e.g [[nano]]) to allow editing configuration files from the console,\n* packages for accessing documentation in [[man]] and [[info]] pages: {{Pkg|man-db}}, {{Pkg|man-pages}} and {{Pkg|texinfo}}.\n\nFor comparison, packages available in the live system can be found in [https://geo.mirror.pkgbuild.com/iso/latest/arch/pkglist.x86_64.txt pkglist.x86_64.txt].\n\nTo install more packages or package groups, append the names to the {{man|8|pacstrap}} command below (space separated) or use [[pacman]] to [[install]] them while [[#Chroot|chrooted into the new system]].\n\nFor example, a basic installation with the Linux [[kernel]] and firmware for common hardware:\n\n # pacstrap -K /mnt base linux linux-firmware\n\n{{Tip|\n* You can substitute {{Pkg|linux}} with a [[kernel]] package of your choice, or you could omit it entirely when installing in a [[Wikipedia:Container (virtualization)|container]].\n* You could omit the installation of the firmware package when installing in a virtual machine or container.\n* This initial package selection in pacstrap only needs to include what is required for the system to boot; all other software can be installed or replaced post-installation.\n}}\n\n== Configure the system ==\n\n=== Fstab ===\n\nTo get needed file systems (like the one used for the boot directory {{ic|/boot}}) mounted on startup, generate an [[fstab]] file. Use {{ic|-U}} or {{ic|-L}} to define by [[UUID]] or labels, respectively:\n\n # genfstab -U /mnt >> /mnt/etc/fstab\n\nCheck the resulting {{ic|/mnt/etc/fstab}} file, and [[textedit|edit]] it in case of errors.\n\n=== Chroot ===\n\nTo directly interact with the new system's environment, tools, and configurations for the next steps as if you were booted into it, [[change root]] into the new system:\n\n # arch-chroot /mnt\n\n=== Time ===\n\nFor human convenience (e.g. showing the correct local time or handling Daylight Saving Time), set the [[time zone]]:\n\n # ln -sf /usr/share/zoneinfo/''Area''/''Location'' /etc/localtime\n\nRun {{man|8|hwclock}} to generate {{ic|/etc/adjtime}}:\n\n # hwclock --systohc\n\nThis command assumes the hardware clock is set to [[Wikipedia:UTC|UTC]]. See [[System time#Time standard]] for details.\n\nTo prevent clock drift and ensure accurate time, set up [[time synchronization]] using a [[Wikipedia:Network Time Protocol|Network Time Protocol]] (NTP) client such as [[systemd-timesyncd]].\n\n=== Localization ===\n\nTo use the correct region and language specific formatting (like dates, currency, decimal separators), [[textedit|edit]] {{ic|/etc/locale.gen}} and uncomment the UTF-8 [[locale]]s you will be using. Generate the locales by running:\n\n # locale-gen\n\n[[Create]] the {{man|5|locale.conf}} file, and [[Locale#Setting the system locale|set the LANG variable]] accordingly:\n\n{{hc|1=/etc/locale.conf|2=\nLANG=''en_US.UTF-8''\n}}\n\nIf you [[#Set the console keyboard layout and font|set the console keyboard layout]], make the changes persistent in {{man|5|vconsole.conf}}:\n\n{{hc|1=/etc/vconsole.conf|2=\nKEYMAP=''de-latin1''\n}}\n\n=== Network configuration ===\n\nTo assign a consistent, identifiable name to your system (particularly useful in a networked environment), [[create]] the [[hostname]] file:\n\n{{hc|/etc/hostname|\n''yourhostname''\n}}\n\n{{Tip|For advice on choosing a hostname, see [[RFC:1178|RFC 1178]]. As explained in {{man|7|hostname}}, it must contain from 1 to 63 characters, using only lowercase {{ic|a}} to {{ic|z}}, {{ic|0}} to {{ic|9}}, and {{ic|-}}, and must not start with {{ic|-}}.}}\n\nComplete the [[network configuration]] for the newly installed environment. That may include installing suitable [[network management]] software, configuring it if necessary and enabling its systemd unit so that it starts at boot.\n\n=== Initramfs ===\n\nCreating a new ''initramfs'' is usually not required, because [[mkinitcpio]] was run on installation of the [[kernel]] package with ''pacstrap''.\n\nFor [[Install Arch Linux on LVM#Adding mkinitcpio hooks|LVM]], [[dm-crypt|system encryption]] or [[RAID#Configure mkinitcpio|RAID]], modify {{man|5|mkinitcpio.conf}} and recreate the initramfs image. If you have [[#Localization|changed the default console keymap]], only recreating the initramfs is required:\n\n # mkinitcpio -P\n\n=== Root password ===\n\nSet a secure [[password]] for the [[Wikipedia:Superuser|root user]] to allow performing administrative actions:\n\n # passwd\n\n=== Boot loader ===\n\nChoose a boot loader applicable to your partitioning scheme and install it. See the explanations and the comparison table in [[Arch boot process#Boot loader]] to make your choice, then follow the installation instructions on its dedicated page.\n\n== Reboot ==\n\nExit the chroot environment by typing {{ic|exit}} or pressing {{ic|Ctrl+d}}.\n\nOptionally manually unmount all the partitions with {{ic|umount -R /mnt}}: this allows noticing any \"busy\" partitions, and finding the cause with {{man|1|fuser}}.\n\nFinally, restart the machine by typing {{ic|reboot}}: any partitions still mounted will be automatically unmounted by ''systemd''. Remember to remove the installation medium and then login into the new system with the root account.\n\n== Post-installation ==\n\nSee [[General recommendations]] for system management directions and post-installation tutorials (like creating unprivileged user accounts, setting up a graphical user interface, sound or a touchpad).\n\nFor a list of applications that may be of interest, see [[List of applications]]."
+    }
+  }
+}

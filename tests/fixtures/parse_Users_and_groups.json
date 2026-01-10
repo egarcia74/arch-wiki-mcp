@@ -1,0 +1,233 @@
+{
+  "parse": {
+    "title": "Users and groups",
+    "pageid": 10864,
+    "revid": 859746,
+    "sections": [
+      {
+        "toclevel": 1,
+        "level": "2",
+        "line": "Overview",
+        "number": "1",
+        "index": "1",
+        "fromtitle": "Users_and_groups",
+        "byteoffset": 912,
+        "anchor": "Overview",
+        "linkAnchor": "Overview"
+      },
+      {
+        "toclevel": 1,
+        "level": "2",
+        "line": "Permissions and ownership",
+        "number": "2",
+        "index": "2",
+        "fromtitle": "Users_and_groups",
+        "byteoffset": 2243,
+        "anchor": "Permissions_and_ownership",
+        "linkAnchor": "Permissions_and_ownership"
+      },
+      {
+        "toclevel": 1,
+        "level": "2",
+        "line": "Shadow",
+        "number": "3",
+        "index": "3",
+        "fromtitle": "Users_and_groups",
+        "byteoffset": 6934,
+        "anchor": "Shadow",
+        "linkAnchor": "Shadow"
+      },
+      {
+        "toclevel": 1,
+        "level": "2",
+        "line": "File list",
+        "number": "4",
+        "index": "4",
+        "fromtitle": "Users_and_groups",
+        "byteoffset": 7107,
+        "anchor": "File_list",
+        "linkAnchor": "File_list"
+      },
+      {
+        "toclevel": 1,
+        "level": "2",
+        "line": "User management",
+        "number": "5",
+        "index": "5",
+        "fromtitle": "Users_and_groups",
+        "byteoffset": 7640,
+        "anchor": "User_management",
+        "linkAnchor": "User_management"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Example adding a user",
+        "number": "5.1",
+        "index": "6",
+        "fromtitle": "Users_and_groups",
+        "byteoffset": 9648,
+        "anchor": "Example_adding_a_user",
+        "linkAnchor": "Example_adding_a_user"
+      },
+      {
+        "toclevel": 3,
+        "level": "4",
+        "line": "Changing user defaults",
+        "number": "5.1.1",
+        "index": "7",
+        "fromtitle": "Users_and_groups",
+        "byteoffset": 11957,
+        "anchor": "Changing_user_defaults",
+        "linkAnchor": "Changing_user_defaults"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Example adding a system user",
+        "number": "5.2",
+        "index": "8",
+        "fromtitle": "Users_and_groups",
+        "byteoffset": 12861,
+        "anchor": "Example_adding_a_system_user",
+        "linkAnchor": "Example_adding_a_system_user"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Change a user's login name or home directory",
+        "number": "5.3",
+        "index": "9",
+        "fromtitle": "Users_and_groups",
+        "byteoffset": 13596,
+        "anchor": "Change_a_user's_login_name_or_home_directory",
+        "linkAnchor": "Change_a_user's_login_name_or_home_directory"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Other examples of user management",
+        "number": "5.4",
+        "index": "10",
+        "fromtitle": "Users_and_groups",
+        "byteoffset": 16181,
+        "anchor": "Other_examples_of_user_management",
+        "linkAnchor": "Other_examples_of_user_management"
+      },
+      {
+        "toclevel": 1,
+        "level": "2",
+        "line": "User database",
+        "number": "6",
+        "index": "11",
+        "fromtitle": "Users_and_groups",
+        "byteoffset": 17053,
+        "anchor": "User_database",
+        "linkAnchor": "User_database"
+      },
+      {
+        "toclevel": 1,
+        "level": "2",
+        "line": "Automatic integrity checks",
+        "number": "7",
+        "index": "12",
+        "fromtitle": "Users_and_groups",
+        "byteoffset": 19834,
+        "anchor": "Automatic_integrity_checks",
+        "linkAnchor": "Automatic_integrity_checks"
+      },
+      {
+        "toclevel": 1,
+        "level": "2",
+        "line": "Keeping users on the live system in parity with systemd sysuser.d defaults",
+        "number": "8",
+        "index": "13",
+        "fromtitle": "Users_and_groups",
+        "byteoffset": 20598,
+        "anchor": "Keeping_users_on_the_live_system_in_parity_with_systemd_sysuser.d_defaults",
+        "linkAnchor": "Keeping_users_on_the_live_system_in_parity_with_systemd_sysuser.d_defaults"
+      },
+      {
+        "toclevel": 1,
+        "level": "2",
+        "line": "Group management",
+        "number": "9",
+        "index": "14",
+        "fromtitle": "Users_and_groups",
+        "byteoffset": 21418,
+        "anchor": "Group_management",
+        "linkAnchor": "Group_management"
+      },
+      {
+        "toclevel": 1,
+        "level": "2",
+        "line": "Group list",
+        "number": "10",
+        "index": "15",
+        "fromtitle": "Users_and_groups",
+        "byteoffset": 23632,
+        "anchor": "Group_list",
+        "linkAnchor": "Group_list"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "User groups",
+        "number": "10.1",
+        "index": "16",
+        "fromtitle": "Users_and_groups",
+        "byteoffset": 24174,
+        "anchor": "User_groups",
+        "linkAnchor": "User_groups"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "System groups",
+        "number": "10.2",
+        "index": "17",
+        "fromtitle": "Users_and_groups",
+        "byteoffset": 25931,
+        "anchor": "System_groups",
+        "linkAnchor": "System_groups"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Pre-systemd groups",
+        "number": "10.3",
+        "index": "18",
+        "fromtitle": "Users_and_groups",
+        "byteoffset": 27184,
+        "anchor": "Pre-systemd_groups",
+        "linkAnchor": "Pre-systemd_groups"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Unused groups",
+        "number": "10.4",
+        "index": "19",
+        "fromtitle": "Users_and_groups",
+        "byteoffset": 30397,
+        "anchor": "Unused_groups",
+        "linkAnchor": "Unused_groups"
+      },
+      {
+        "toclevel": 1,
+        "level": "2",
+        "line": "Other tools related to these databases",
+        "number": "11",
+        "index": "20",
+        "fromtitle": "Users_and_groups",
+        "byteoffset": 31124,
+        "anchor": "Other_tools_related_to_these_databases",
+        "linkAnchor": "Other_tools_related_to_these_databases"
+      }
+    ],
+    "showtoc": "",
+    "wikitext": {
+      "*": "[[Category:Security]]\n[[ar:Users and groups]]\n[[de:Benutzer und Gruppen]]\n[[es:Users and groups]]\n[[fr:Users and groups]]\n[[hu:Users and groups]]\n[[ja:\u30e6\u30fc\u30b6\u30fc\u3068\u30b0\u30eb\u30fc\u30d7]]\n[[pt:Users and groups]]\n[[ru:Users and groups]]\n[[zh-hans:Users and groups]]\n{{Related articles start}}\n{{Related|DeveloperWiki:UID / GID Database}}\n{{Related|Sudo}}\n{{Related|Polkit}}\n{{Related|Running GUI applications as root}}\n{{Related|File permissions and attributes}}\n{{Related|systemd-homed}}\n{{Related|Reset lost root password}}\n{{Related|Identity management}}\n{{Related articles end}}\n\nUsers and groups are used on GNU/Linux for [[Wikipedia:access control#Computer security|access control]]\u2014that is, to control access to the system's files, directories, and peripherals. Linux offers relatively simple/coarse access control mechanisms by default. For more advanced options, see [[ACL]], [[Capabilities]] and [[PAM#Configuration How-Tos]].\n\n== Overview ==\n\nA ''user'' is anyone who uses a computer. In this case, we are describing the names which represent those users. It may be Mary or Bill, and they may use the names Dragonlady or Pirate in place of their real name. All that matters is that the computer has a name for each account it creates, and it is this name by which a person gains access to use the computer. Some system services also run using restricted or privileged user accounts.\n\nManaging users is done for the purpose of security by limiting access in certain specific ways. The [[Wikipedia:Superuser|superuser]] (root) has complete access to the operating system and its configuration; it is intended for administrative use only. Unprivileged users can use several programs for controlled [[List of applications/Security#Privilege elevation|privilege elevation]].\n\nAny individual may have more than one account as long as they use a different name for each account they create. Further, there are some reserved names which may not be used such as \"root\".\n\nUsers may be grouped together into a \"group\", and users may be added to an existing group to utilize the privileged access it grants.\n\n{{Note|The beginner should use these tools carefully and stay away from having anything to do with any other ''existing'' user account, other than their own.}}\n\n== Permissions and ownership ==\n\nFrom [https://web.archive.org/web/20190816135930/http://ph7spot.com/musings/in-unix-everything-is-a-file In UNIX Everything is a File]:\n\n:The UNIX operating system crystallizes a couple of unifying ideas and concepts that shaped its design, user interface, culture and evolution. One of the most important of these is probably the mantra: \"everything is a file,\" widely regarded as one of the defining points of UNIX.\n\n:This key design principle consists of providing a unified paradigm for accessing a wide range of input/output resources: documents, directories, hard-drives, CD-ROMs, modems, keyboards, printers, monitors, terminals and even some inter-process and network communications. The trick is to provide a common abstraction for all of these resources, each of which the UNIX fathers called a \"file.\" Since every \"file\" is exposed through the same API, you can use the same set of basic commands to read/write to a disk, keyboard, document or network device.\n\nFrom [https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=bb95638cdcae4f1a88354734f96a868704bb6684 Extending UNIX File Abstraction for General-Purpose Networking]:\n\n:A fundamental and very powerful, consistent abstraction provided in UNIX and compatible operating systems is the file abstraction. Many OS services and device interfaces are implemented to provide a file or file system metaphor to applications. This enables new uses for, and greatly increases the power of, existing applications \u2014 simple tools designed with specific uses in mind can, with UNIX file abstractions, be used in novel ways. A simple tool, such as cat, designed to read one or more files and output the contents to standard output, can be used to read from I/O devices through special device files, typically found under the {{ic|/dev}} directory. On many systems, audio recording and playback can be done simply with the commands, \"{{ic|cat /dev/audio > myfile}}\" and \"{{ic|cat myfile > /dev/audio}},\" respectively.\n\nEvery file on a GNU/Linux system is owned by a user and a group. In addition, there are three types of access permissions: read, write, and execute. Different access permissions can be applied to a file's owning user, owning group, and others (those without ownership). One can determine a file's owners and permissions by viewing the long listing format of the [[ls]] command:\n\n{{hc|$ ls -l /boot/|total 13740\ndrwxr-xr-x 2 root root    4096 Jan 12 00:33 grub\n-rw-r--r-- 1 root root 8570335 Jan 12 00:33 initramfs-linux-fallback.img\n-rw-r--r-- 1 root root 1821573 Jan 12 00:31 initramfs-linux.img\n-rw-r--r-- 1 root root 1457315 Jan  8 08:19 System.map26\n-rw-r--r-- 1 root root 2209920 Jan  8 08:19 vmlinuz-linux\n}}\n\nThe first column displays the file's permissions (for example, the file {{ic|initramfs-linux.img}} has permissions {{ic|-rw-r--r--}}). The third and fourth columns display the file's owning user and group, respectively. In this example, all files are owned by the ''root'' user and the ''root'' group.\n\n{{hc|$ ls -l /media/|total 16\ndrwxrwx--- 1 root vboxsf 16384 Jan 29 11:02 sf_Shared\n}}\n\nIn this example, the {{ic|sf_Shared}} directory is owned by the ''root'' user and the ''vboxsf'' group. It is also possible to determine a file's owners and permissions using the stat command:\n\nOwning user:\n\n{{hc|$ stat -c %U /media/sf_Shared/|\nroot\n}}\n\nOwning group:\n\n{{hc|$ stat -c %G /media/sf_Shared/|\nvboxsf\n}}\n\nAccess rights:\n\n{{hc|$ stat -c %A /media/sf_Shared/|\ndrwxrwx---\n}}\n\nAccess permissions are displayed in three groups of characters, representing the permissions of the owning user, owning group, and others, respectively. For example, the characters {{ic|-rw-r--r--}} indicate that the file's owner has read and write permission, but not execute ({{ic|rw-}}), whilst users belonging to the owning group and other users have only read permission ({{ic|r--}} and {{ic|r--}}). Meanwhile, the characters {{ic|drwxrwx---}} indicate that the file's owner and users belonging to the owning group all have read, write, and execute permissions ({{ic|rwx}} and {{ic|rwx}}), whilst other users are denied access ({{ic|---}}). The first character represents the file's type.\n\nList files owned by a user or group with the [[find]] utility:\n\n # find / -group ''groupname''\n\n # find / -group ''groupnumber''\n\n # find / -user ''user''\n\nA file's owning user and group can be changed with the [[chown]] (change owner) command. A file's access permissions can be changed with the [[chmod]] (change mode) command.\n\nSee {{man|1|chown}}, {{man|1|chmod}}, and [https://www.linux.com/tutorials/understanding-linux-file-permissions Linux file permissions] for additional detail.\n\n== Shadow ==\n\nThe user, group and password management tools on Arch Linux come from the {{Pkg|shadow}} package, which is a dependency of the {{Pkg|base}} [[meta package]].\n\n== File list ==\n\n{{Warning|Do not edit these files by hand. There are utilities that properly handle locking and avoid invalidating the format of the database. See [[#User management]] and [[#Group management]] for an overview.}}\n\n{| class=\"wikitable\"\n! File || Purpose\n|-\n| {{ic|/etc/shadow}} || Secure user account information\n|-\n| {{ic|/etc/passwd}} || User account information\n|-\n| {{ic|/etc/gshadow}} || Contains the shadowed information for group accounts\n|-\n| {{ic|/etc/group}} || Defines the groups to which users belong\n|}\n\n== User management ==\n\nTo list users currently logged on the system, the ''who'' command can be used. To list all existing user accounts including their properties stored in the [[#User database|user database]], run {{ic|passwd -Sa}} as root. See {{man|1|passwd}} for the description of the output format.\n\nTo add a new user, use the ''useradd'' command:\n\n # useradd -m -G ''additional_groups'' -s ''login_shell'' ''username''\n\n; {{ic|-m}}/{{ic|--create-home}}: the user's home directory is created as {{ic|/home/''username''}}. The directory is populated by the files in the skeleton directory. The created files are owned by the new user.\n; {{ic|-G}}/{{ic|--groups}}: a comma separated list of supplementary groups which the user is also a member of. The default is for the user to belong only to the initial group.\n; {{ic|-s}}/{{ic|--shell}}: a path to the user's login shell. Ensure the chosen shell is installed if choosing something other than [[Bash]]. The default shell for newly created user can be set in {{ic|/etc/default/useradd}}.\n\n{{Warning|In order to be able to log in, the login shell must be one of those listed in {{ic|/etc/shells}}, otherwise the [[PAM]] module {{man|8|pam_shells}} will deny the login request.}}\n\n{{Note|The password for the newly created user must then be defined, using ''passwd'' as shown in [[#Example adding a user]].}}\n\nIf an initial login group is specified by name or number, it must refer to an already existing group. If not specified, the behaviour of ''useradd'' will depend on the {{ic|USERGROUPS_ENAB}} variable contained in {{ic|/etc/login.defs}}. The default behaviour ({{ic|USERGROUPS_ENAB yes}}) is to create a group with the same name as the username.\n\nWhen the login shell is intended to be non-functional, for example when the user account is created for a specific service, {{ic|/usr/bin/nologin}} may be specified in place of a regular shell to politely refuse a login (see {{man|8|nologin}}).\n\nSee {{man|8|useradd}} for other supported options.\n\n=== Example adding a user ===\n\nTo add a new user named {{ic|archie}}, creating its home directory and otherwise using all the defaults in terms of groups, directory names, shell used and various other parameters:\n\n # useradd -m archie\n\nAlthough it is not required to protect the newly created user {{ic|archie}} with a password, it is highly recommended to do so:\n\n # passwd archie\n\nThe above ''useradd'' command will also automatically create a group called {{ic|archie}} and makes this the default group for the user {{ic|archie}}. Making each user have their own group (with the group name same as the user name) is the preferred way to add users.\n\nYou could also make the default group something else using the {{ic|-g}} option, but note that, in multi-user systems, using a single default group (e.g. {{ic|users}}) for every user is not recommended. The reason is that typically, the method for facilitating shared write access for specific groups of users is setting user [[umask]] value to {{ic|002}}, which means that the default group will by default always have write access to any file you create. See also [https://web.archive.org/web/20210724233134/https://security.ias.edu/node/441 User Private Groups]. If a user must be a member of a specific group specify that group as a supplementary group when creating the user.\n\nIn the recommended scenario, where the default group has the same name as the user name, all files are by default writeable only for the user who created them. To allow write access to a specific group, shared files/directories can be made writeable by default for everyone in this group and the owning group can be automatically fixed to the group which owns the parent directory by setting the [[File permissions and attributes|setgid]] bit on this directory:\n\n # chmod g+s ''our_shared_directory''\n\nOtherwise the file creator's default group (usually the same as the user name) is used. \n\nIf a GID change is required temporarily you can also use the ''newgrp'' command to change the user's default GID to another GID at runtime. For example, after executing {{ic|newgrp ''groupname''}} files created by the user will be associated with the {{ic|''groupname''}} GID, without requiring a re-login. To change back to the default GID, execute ''newgrp'' without a groupname.\n\n==== Changing user defaults ==== \n\nThe default values used for creating new accounts are set in {{ic|/etc/default/useradd}} and can be displayed using {{ic|useradd --defaults}}. For example, to change the default shell globally, set {{ic|SHELL{{=}}/usr/bin/''shell''}}. A different shell can also be specified individually with the {{ic|-s}}/{{ic|--shell}} option. Use {{ic|chsh -l}} to list valid login shells.\n\nFiles can also be specified to be added to newly created user home directories in {{ic|/etc/skel}}. This is useful for minimalist window managers where config files need manual configuration to reach DE-familiar behavior. For example, to set up default shortcuts for all newly created users:\n\n # mkdir /etc/skel/.config\n # cp ~archie/.config/sxhkd /etc/skel/.config\n\nSee also: [[Display manager#Run ~/.xinitrc as a session]] to add xinitrc as an option to all users on the display manager.\n\n=== Example adding a system user ===\n\nSystem users can be used to run processes/daemons under a different user,  protecting (e.g. with [[chown]]) files and/or directories and more examples of computer hardening.\n\nWith the following command a system user without shell access and without a {{ic|home}} directory is created (optionally append the  {{ic|-U}} parameter to create a group with the same name as the user, and add the user to this group):\n\n # useradd --system -s /usr/bin/nologin ''username''\n\nIf the system user requires a specific user and group ID, specify them with the {{ic|-u}}/{{ic|--uid}} and {{ic|-g}}/{{ic|--gid}} options when creating the user:\n\n # useradd --system -u 850 -g 850 -s /usr/bin/nologin ''username''\n\n=== Change a user's login name or home directory ===\n\nTo change a user's home directory:\n\n # usermod -d ''/my/new/home'' -m ''username''\n\nThe {{ic|-m}} option also automatically creates the new directory and moves the content there.\n\n{{Tip|You can create a link from the user's former home directory to the new one. Doing this will allow programs to find files that have hardcoded paths.\n\n # ln -s /my/new/home/ /my/old/home\n\nMake sure there is '''no''' trailing {{ic|/}} on {{ic|/my/old/home}}.\n}}\n\nTo change a user's login name:\n\n # usermod -l ''newname'' ''oldname''\n\n{{Warning|Make certain that you are not logged in as the user whose name you are about to change. Open a new tty (e.g. {{ic|Ctrl+Alt+F6}}) and log in as root or as another user and [[List of applications/Security#Privilege elevation|elevate to root]]. ''usermod'' should prevent you from doing this by mistake.}}\n\nChanging a username is safe and easy when done properly, just use the [[#Other examples of user management|usermod]] command. If the user is associated to a group with the same name, you can rename this with the [[#Group management|groupmod]] command.\n\nAlternatively, the {{ic|/etc/passwd}} file can be edited directly, see [[#User database]] for an introduction to its format.\n\nAlso keep in mind the following notes:\n\n* If you are using [[sudo]] make sure you update your {{ic|/etc/sudoers}} to reflect the new username(s) (via the ''visudo'' command as root).\n* Personal [[cron#Crontab format|crontabs]] need to be adjusted by renaming the user's file in {{ic|/var/spool/cron}} from the old to the new name, and then opening {{ic|crontab -e}} to change any relevant paths and have it adjust the file permissions accordingly.\n* [[Wine|Wine's]] personal directories/files' contents in {{ic|~/.wine/drive_c/users}}, {{ic|~/.local/share/applications/wine/Programs}} and possibly more need to be manually renamed/edited.\n* Certain Thunderbird addons, like [https://www.enigmail.net/index.php/en/ Enigmail], may need to be reinstalled.\n* Anything on your system (desktop shortcuts, shell scripts, etc.) that uses an absolute path to your home dir (i.e. {{ic|/home/oldname}}) will need to be changed to reflect your new name. To avoid these problems in shell scripts, simply use the {{ic|~}} or {{ic|$HOME}} variables for home directories.\n* Also do not forget to edit accordingly the configuration files in {{ic|/etc/}} that relies on your absolute path (e.g. Samba, CUPS, so on). A nice way to learn what files you need to update involves using the grep command this way: {{ic|grep -r ''old_user'' *}}\n\n=== Other examples of user management ===\n\nTo enter user information for the [[#User database|GECOS]] comment (e.g. the full user name), type:\n\n # chfn ''username''\n\n(this way ''chfn'' runs in interactive mode).\n\nAlternatively the GECOS comment can be set more liberally with:\n\n # usermod -c \"Comment\" ''username''\n\nTo mark a user's password as expired, requiring them to create a new password the first time they log in, type:\n\n # chage -d 0 ''username''\n\nUser accounts may be deleted with the ''userdel'' command:\n\n # userdel -r ''username''\n\nThe {{ic|-r}} option specifies that the user's home directory and mail spool should also be deleted.\n\nTo change the user's login shell:\n\n # usermod -s ''/usr/bin/bash'' ''username''\n\n{{Tip|The {{AUR|adduser}} script allows carrying out the jobs of ''useradd'', ''chfn'' and ''passwd'' interactively. See also {{Bug|32893}}.}}\n\n== User database ==\n\nLocal user information is stored in the plain-text {{ic|/etc/passwd}} file: each of its lines represents a user account, and has seven fields delimited by colons.\n\n ''account:password:UID:GID:GECOS:directory:shell''\n\nWhere:\n\n* {{ic|''account''}} is the user name. This field cannot be blank. Standard *NIX naming rules apply.\n* {{ic|''password''}} is the user password. {{Warning|1=The {{ic|passwd}} file is world-readable, so storing passwords (hashed or otherwise) in this file is insecure. Instead, Arch Linux uses [[Security#Password hashes|shadowed passwords]]: the {{ic|password}} field will contain a placeholder character ({{ic|x}}) indicating that the hashed password is saved in the access-restricted file {{ic|/etc/shadow}}. For this reason it is recommended to always change passwords using the '''passwd''' command.}}\n* {{ic|''UID''}} is the numerical user ID. In Arch, the first login name (after root) for a so called normal user, as opposed to services, is UID 1000 by default; subsequent UID entries for users should be greater than 1000.\n* {{ic|''GID''}} is the numerical primary group ID for the user. Numeric values for GIDs are listed in [[#Group management|/etc/group]].\n* {{ic|''GECOS''}} is an optional field used for informational purposes; usually it contains the full user name, but it can also be used by services such as ''finger'' and managed with the [[#Other examples of user management|chfn]] command. This field is optional and may be left blank.\n* {{ic|''directory''}} is used by the login command to set the {{ic|$HOME}} environment variable. Several services with their own users use {{ic|/}}, but normal users usually set a directory under {{ic|/home}}.\n* {{ic|''shell''}} is the path to the user's default [[command shell]]. This field is optional and defaults to {{ic|/usr/bin/bash}}.\n\nExample:\n\n archie:x:1001:1003:Archie,''some comment here'',,:/home/archie:/usr/bin/bash\n\nBroken down, this means: user {{ic|archie}}, whose password is in {{ic|/etc/shadow}}, whose UID is 1001 and whose primary group is 1003. Archie is their full name and there is a comment associated to their account; their home directory is {{ic|/home/archie}} and they are using [[Bash]].\n\nThe ''pwck'' command can be used to verify the integrity of the user database. It can sort the user list by UID at the same time, which can be helpful for comparison:\n\n # pwck -s\n\n{{Warning|Arch Linux defaults of the files are created as [[pacnew files]] by new releases of the {{Pkg|filesystem}} package. Unless Pacman outputs related messages for action, these ''.pacnew'' files can, and should, be disregarded/removed. New required default users and groups are added or re-added as needed by {{man|8|systemd-sysusers}} or the package install script.}}\n\n== Automatic integrity checks ==\n\nInstead of running {{ic|pwck}}/{{ic|grpck}} manually, the [[systemd timer]] {{ic|shadow.timer}}, which is part of, and is enabled by, installation of the {{Pkg|shadow}} package, will start {{ic|shadow.service}} daily. {{ic|shadow.service}} will run {{man|8|pwck}} and {{man|8|grpck}} to verify the integrity of both password and group files.\n\nIf discrepancies are reported, group can be edited with the {{man|8|vigr}} command and users with {{man|8|vipw}}. This provides an extra margin of protection in that these commands lock the databases for editing. Note that the default text editor is vi, but an alternative editor will be used if the {{ic|EDITOR}} [[environment variable]] is set, then that editor will be used instead.\n\n== Keeping users on the live system in parity with systemd sysuser.d defaults ==\n\n{{Warning|systemd does not provide any official way to migrate existing accounts to fully locked system accounts [https://github.com/systemd/systemd/issues/37179].}}\n\nAs packages adopt the [https://archlinux.org/todo/change-sysusers-to-fully-locked-system-accounts/ change-sysusers-to-fully-locked-system-accounts], package created system users generated in the past will not inherit new package defaults for the increased security of locked/expired status. These users need to be modified manually for this change. [https://github.com/graysky2/user-analysis user-analysis.sh] does just that.\n\nIn addition, the script also identifies orphaned users (those created by a package no longer on the system) and can automatically delete them.\n\n== Group management ==\n\n{{ic|/etc/group}} is the file that defines the groups on the system (see {{man|5|group}} for details). There is also its companion {{ic|gshadow}} which is rarely used. Its details are at {{man|5|gshadow}}.\n\nDisplay group membership with the ''groups'' command:\n\n $ groups ''user''\n\nIf {{ic|''user''}} is omitted, the current user's group names are displayed.\n\nThe ''id'' command provides additional detail, such as the user's UID and associated GIDs:\n\n $ id ''user''\n\nTo list all groups on the system:\n\n $ cat /etc/group\n\nCreate new groups with the ''groupadd'' command:\n\n # groupadd ''group''\n\n{{Note|If the user is currently logged in, they must log out and in again for changes to take effect.}}\n\nAdd users to a group with the ''gpasswd'' command (see {{Bug|58262}} regarding errors):\n\n # gpasswd -a ''user'' ''group''\n\nAlternatively, add a user to additional groups with ''usermod'' (replace {{ic|''additional_groups''}} with a comma-separated list):\n\n # usermod -aG ''additional_groups'' ''username''\n\n{{Warning|If the {{ic|-a}} option is omitted in the ''usermod'' command above, the user is removed from all groups not listed in {{ic|''additional_groups''}} (i.e. the user will be member only of those groups listed in {{ic|''additional_groups''}}).}}\n\nModify an existing group with the ''groupmod'' command, e.g. to rename the {{ic|''old_group''}} group to {{ic|''new_group''}}:\n\n # groupmod -n ''new_group'' ''old_group''\n\n{{Note|This will change a group name but not the numerical GID of the group. Hence, all files previously owned by {{ic|''old_group''}} will be owned by {{ic|''new_group''}}.}}\n\nTo delete existing groups:\n\n # groupdel ''group''\n\nTo remove users from a group:\n\n # gpasswd -d ''user'' ''group''\n\nThe ''grpck'' command can be used to verify the integrity of the system's group files.\n\n{{Warning|Arch Linux defaults of the files are created as ''.pacnew'' files by new releases of the {{Pkg|filesystem}} package. Unless Pacman outputs related messages for action, these ''.pacnew'' files can, and should, be disregarded/removed. New required default users and groups are added or re-added as needed by {{man|8|systemd-sysusers}} or the package install script.}}\n\n== Group list ==\n\nThis section explains the purpose of the essential groups from the {{Pkg|filesystem}} package. There are many other groups, which will be created with [[DeveloperWiki:UID / GID Database|correct GID]] when the relevant package is installed. See the main page for the software for details.\n\n{{Note|A later removal of a package does not remove the automatically created user/group (UID/GID) again. This is intentional because any files created during its usage would otherwise be left orphaned as a potential security risk.}}\n\n=== User groups ===\n\nNon-root workstation/desktop users often need to be added to some of following groups to allow access to hardware peripherals and facilitate system administration:\n\n{| class=\"wikitable\"\n! Group || Affected files || Purpose\n|-\n| adm || || Administration group, commonly used to give read access to protected logs. It has full read access to [[journal]] files.\n|-\n| ftp || {{ic|/srv/ftp/}} || Access to files served by [[List of applications/Internet#FTP servers|FTP servers]].\n|-\n| games || {{ic|/var/games}} || Access to some game software.\n|-\n| http || {{ic|/srv/http/}} || Access to files served by [[List of applications/Internet#Web servers|HTTP servers]].\n|-\n| log || || Access to log files in {{ic|/var/log/}} created by [[syslog-ng]].\n|-\n| rfkill || {{ic|/dev/rfkill}} || Right to control wireless devices power state (used by [[rfkill]]).\n|-\n| sys || || Right to administer printers in [[CUPS]].\n|-\n| systemd-journal || {{ic|/var/log/journal/*}} || Can be used to provide read-only access to the systemd logs, as an alternative to {{ic|adm}} and {{ic|wheel}} [https://github.com/systemd/systemd/blob/19aadacf92ad86967ffb678e37b2ff9e83cb9480/README#L161]. Otherwise, only user generated messages are displayed.\n|-\n| uucp || {{ic|/dev/ttyS[0-9]+}}, {{ic|/dev/tts/[0-9]+}}, {{ic|/dev/ttyUSB[0-9]+}}, {{ic|/dev/ttyACM[0-9]+}}, {{ic|/dev/rfcomm[0-9]+}} || [[Wikipedia:RS-232|RS-232]] serial ports and devices connected to them.\n|-\n| wheel || || Administration group, commonly used to give privileges to perform administrative actions. It has full read access to [[journal]] files and the right to administer printers in [[CUPS]]. Can also be used to give access to the [[sudo]] and [[su]] utilities (neither uses it by default).\n|}\n\n=== System groups ===\n\nThe following groups are used for system purposes, an assignment to users is only required for dedicated purposes:\n\n{| class=\"wikitable\"\n! Group || Affected files || Purpose\n|-\n| dbus || || used internally by {{Pkg|dbus}}\n|-\n| kmem || {{ic|/dev/port}}, {{ic|/dev/mem}}, {{ic|/dev/kmem}} ||\n|-\n| locate || {{ic|/usr/bin/locate}}, {{ic|/var/lib/locate}}, {{ic|/var/lib/mlocate}}, {{ic|/var/lib/slocate}} || See [[Locate]].\n|-\n| lp || {{ic|/dev/lp[0-9]*}}, {{ic|/dev/parport[0-9]*}} || Access to parallel port devices (printers and others).\n|-\n| mail || {{ic|/usr/bin/mail}} ||\n|-\n| nobody || || Unprivileged group.\n|-\n| proc || {{ic|/proc/''pid''/}} || A group authorized to learn processes information otherwise prohibited by {{ic|1=hidepid=}} mount option of the [https://docs.kernel.org/filesystems/proc.html proc file system]. The group must be explicitly set with the {{ic|1=gid=}} mount option.\n|-\n| root || {{ic|/*}} || Complete system administration and control (root, admin).\n|-\n| smmsp || || [[sendmail]] group.\n|-\n| tty || {{ic|/dev/tty}}, {{ic|/dev/vcc}}, {{ic|/dev/vc}}, {{ic|/dev/ptmx}} ||\n|-\n| utmp || {{ic|/run/utmp}}, {{ic|/var/log/btmp}}, {{ic|/var/log/wtmp}} || See [[Wikipedia:utmp#utmp, wtmp and btmp]].\n|-\n|}\n\n=== Pre-systemd groups ===\n\nBefore arch migrated to [[systemd]], users had to be manually added to these groups in order to be able to access the corresponding devices. This way has been deprecated in favour of [[udev]] marking the devices with a {{ic|uaccess}} [https://github.com/systemd/systemd/blob/main/rules.d/70-uaccess.rules.in tag] and ''logind'' assigning the permissions to users dynamically via [[ACL]]s according to which session is currently active. Note that the session must not be broken for this to work (see [[General troubleshooting#Session permissions]] to check it).\n\nThere are some notable exceptions which require adding a user to some of these groups: for example if you want to allow users to access the device even when they are not logged in. However, note that adding users to the groups can even cause some functionality to break (for example, the {{ic|audio}} group will break fast user switching and allows applications to block software mixing).\n\n{| class=\"wikitable\"\n! Group || Affected files || Purpose\n|-\n| audio || {{ic|/dev/audio}}, {{ic|/dev/snd/*}}, {{ic|/dev/rtc0}} || Direct access to sound hardware, for all sessions. It is still required to make [[ALSA]] and [[OSS]] work in remote sessions, see [[ALSA#User privileges]], otherwise not recommended. Unlike on certain other distros, this group is not used for [[Realtime process management#Configuring PAM|realtime privileges]].\n|-\n| disk || {{ic|/dev/sd[a-zA-Z]*[1-9]*}}, {{ic|/dev/nvme[0-9]*p[1-9]*}}, {{ic|/dev/mmcblk[0-9]*p[1-9]*}} || Access to block devices not affected by other groups such as {{ic|optical}}, {{ic|floppy}}, and {{ic|storage}}.\n|-\n| floppy || {{ic|/dev/fd[0-9]*}} || Access to floppy drives.\n|-\n| input || {{ic|/dev/input/event[0-9]*}}, {{ic|/dev/input/mouse[0-9]*}} || Access to input devices. Introduced in systemd 215 [https://lists.freedesktop.org/archives/systemd-commits/2014-June/006343.html].\n|-\n| kvm || {{ic|/dev/kvm}} || Access to virtual machines using [[KVM]].\n|-\n| optical || {{ic|/dev/sr[0-9]}}, {{ic|/dev/sg[0-9]}} || Access to optical devices such as CD and DVD drives.\n|-\n| scanner || {{ic|/var/lock/sane}} || Access to scanner hardware.\n|-\n| storage || {{ic|/dev/st[0-9]*[lma]*}}, {{ic|/dev/nst[0-9]*[lma]*}}|| Used to gain access to removable drives such as USB hard drives, flash/jump drives, MP3 players; enables the user to mount storage devices.[https://lists.archlinux.org/archives/list/arch-dev-public@lists.archlinux.org/thread/7ITKMBKKHUB4SUN5SCS7FLSTEILKGIJH/#IEZCAXRIBMXGOMMW7C4Z3ADED32W24ZI]\nNow solely for direct access to tapes if no custom udev rules is involved.[https://gitlab.archlinux.org/archlinux/packaging/packages/systemd/-/blob/main/0001-Use-Arch-Linux-device-access-groups.patch][https://github.com/systemd/systemd/blame/aaaf42cb44d4fcd598fca441a11856f3e8dd06d8/rules.d/50-udev-default.rules.in#L69][https://elixir.bootlin.com/linux/v5.5.6/source/include/scsi/scsi_proto.h#L251].\n\nAlso required for manipulating some devices via [[Udisks|udisks/udisksctl]].\n|-\n| video || {{ic|/dev/fb/0}}, {{ic|/dev/misc/agpgart}} || Access to video capture devices, 2D/3D hardware acceleration, framebuffer ([[X]] can be used ''without'' belonging to this group).\n|}\n\n=== Unused groups ===\n\nThe following groups are currently not used for any purpose: \n\n{| class=\"wikitable\"\n! Group || Affected files || Purpose\n|-\n| bin || none || Historical\n|-\n| daemon || ||\n|-\n| lock || || Used for lockfile access. Required by e.g. {{AUR|gnokii}}.\n|-\n| mem || ||\n|-\n| network || || Unused by default. Can be used e.g. for granting access to NetworkManager (see [[NetworkManager#Set up PolicyKit permissions]]). \n|-\n| power || ||\n|-\n| uuidd || ||\n|-\n| users || || The primary group for users when user private groups are not used (generally not recommended), e.g. when creating users with {{ic|USERGROUPS_ENAB no}} in {{ic|/etc/login.defs}} or the {{ic|-N}}/{{ic|--no-user-group}} option of ''useradd''.\n|}\n\n== Other tools related to these databases ==\n\n{{Merge|#Shadow|Separate section does not make sense.}}\n\n{{Accuracy|Does Arch Linux really prefer ''chage'' over {{ic|vipw -s}} and {{ic|vigr -s}}.|section=Utilities to handle the shadow file in acrh}}\n\n{{man|1|getent}} can be used to read a particular record.\n\n $ getent group tty\n\nAs warned in [[#User database]], using specific utilities such as {{ic|passwd}} and {{ic|chfn}}, is a better way to change the databases. Nevertheless, there are times when editing them directly is looked after. For those times, {{ic|vipw}}, {{ic|vigr}} are provided. It is strongly recommended to use these tailored editors over using a general text editor as they lock the databases against concurrent editing. They also help prevent invalid entries and/or syntax errors. Note that Arch Linux prefers usage of specific tools, such as ''chage'', for modifying the shadow database over using {{ic|vipw -s}} and {{ic|vigr -s}} from {{pkg|util-linux}}. See also {{bug|31414}}.\n\n{{man|1|lslogins}} and {{man|1|lastlog2}}{{Dead link|2026|01|01}} are some of the tools for viewing utmp related files."
+    }
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "batchcomplete": "",
+  "continue": {
+    "sroffset": 5,
+    "continue": "-||"
+  },
+  "query": {
+    "searchinfo": {
+      "totalhits": 14
+    },
+    "search": [
+      {
+        "ns": 0,
+        "title": "C",
+        "pageid": 26804,
+        "size": 3407,
+        "wordcount": 476,
+        "snippet": "[[es:<span class=\"searchmatch\">C</span>]]\n[[hu:<span class=\"searchmatch\">C</span>]]\n",
+        "timestamp": "2026-01-07T06:12:02Z"
+      },
+      {
+        "ns": 0,
+        "title": "C++",
+        "pageid": 26819,
+        "size": 15,
+        "wordcount": 2,
+        "snippet": "#redirect [[<span class=\"searchmatch\">C</span>]]\n",
+        "timestamp": "2018-08-14T12:03:20Z"
+      },
+      {
+        "ns": 0,
+        "title": "C (Espa\u00f1ol)",
+        "pageid": 27346,
+        "size": 3905,
+        "wordcount": 577,
+        "snippet": "[[en:<span class=\"searchmatch\">C</span>]]\n[[ja:<span class=\"searchmatch\">C</span>]]\n",
+        "timestamp": "2025-12-20T19:56:16Z"
+      },
+      {
+        "ns": 0,
+        "title": "C++ (Espa\u00f1ol)",
+        "pageid": 27347,
+        "size": 26,
+        "wordcount": 4,
+        "snippet": "#redirect [[<span class=\"searchmatch\">C</span> (Espa\u00f1ol)]]\n",
+        "timestamp": "2018-10-07T09:09:35Z"
+      },
+      {
+        "ns": 0,
+        "title": "C++ (\u7b80\u4f53\u4e2d\u6587)",
+        "pageid": 30506,
+        "size": 23,
+        "wordcount": 3,
+        "snippet": "#redirect [[zh-hans:<span class=\"searchmatch\">C</span>]]\n",
+        "timestamp": "2022-12-06T05:06:01Z"
+      }
+    ]
+  }
+}

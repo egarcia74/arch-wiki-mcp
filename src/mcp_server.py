@@ -181,19 +181,21 @@ def tool_warnings(title_or_url: str, anchor: Optional[str] = None) -> dict:
 def tool_links(title_or_url: str, anchor: Optional[str] = None) -> dict:
     """
     Extract internal links from page or section.
-    
-    Args:
-        title_or_url: Page title or wiki URL
-        anchor: Optional section anchor
-        
-    Returns:
-        {
-            "links": List[Dict{target_page, display_text, source_page, source_url}]
-        }
     """
     title = extract_title_from_url(title_or_url)
     links = extractor.links(title, anchor)
     return {"links": links}
+
+
+# MCP Tool: examples
+def tool_examples(title_or_url: str, anchor: Optional[str] = None) -> dict:
+    """
+    Extract heuristic shell examples from prose.
+    Use this when commands() is empty but instructions appear to be in prose.
+    """
+    title = extract_title_from_url(title_or_url)
+    examples = extractor.examples(title, anchor)
+    return {"examples": examples}
 
 
 # MCP Server Implementation
@@ -236,6 +238,12 @@ def handle_tool_call(tool_name: str, arguments: dict) -> dict:
         
         elif tool_name == "links":
             return tool_links(
+                arguments["title_or_url"],
+                arguments.get("anchor")
+            )
+        
+        elif tool_name == "examples":
+            return tool_examples(
                 arguments["title_or_url"],
                 arguments.get("anchor")
             )
@@ -292,109 +300,36 @@ def _handle_prompts_get(msg_id: int, params: dict) -> dict:
                     "role": "user",
                     "content": {
                         "type": "text",
-                        "text": """# Arch Wiki MCP: Agent Constitutional Instructions
+                        "text": """You are an AI agent using the Arch Wiki MCP.
 
-## Core Principle
+NON-NEGOTIABLE RULES (Truth Perimeter)
+1) You must use the MCP as your only source for Arch Linux instructions in this workflow.
+2) You must not synthesize commands, flags, paths, or steps that are not explicitly returned by the MCP.
+3) Every claim or command you present must include provenance:
+   - source_url (with anchor if applicable)
+   - revid
+   - content_hash
+   - extraction_method (if provided)
+4) If commands() returns an empty list, you MUST NOT infer a pacman command from prose.
+   - Instead: call section() and quote the exact sentence(s) that describe what to do.
+5) If a page/section is missing, you must fail closed:
+   - return NotFound / empty result
+   - do not suggest “closest match”
+6) You must surface warnings and notes returned by warnings() before presenting related commands.
+7) You must not merge multiple pages into a “unified guide” unless the user explicitly requests multi-page output AND you preserve page-level provenance per fragment.
 
-The Arch Wiki MCP is a **citability engine**.
+A) Evidence relay: verbatim structural blocks from commands() with provenance.
+B) Heuristic inference: shell examples from examples() with an explicit warning: "These commands were extracted via heuristic from prose."
+C) Pointer: "The wiki does not provide structural commands for this step" + quote from section() with provenance.
+D) Failure: NotFound / Ambiguous anchor / empty results.
 
-It exists so AI agents can retrieve:
-- Arch Linux documentation
-- With provenance
-- With revision IDs
-- With content hashes
-- With zero hallucination
+Output format (strict):
+- Start with a short statement of what MCP calls you made.
+- Then provide extracted evidence grouped by Phase.
+- For every code block or quoted instruction, attach provenance immediately below it.
+- Do not add extra “helpful context” unless it is itself quoted evidence from the wiki.
 
-**Agents are not allowed to invent Linux knowledge when this MCP is available.**
-
-## What the MCP Provides
-
-The MCP exposes the Arch Linux Wiki as structured tools:
-
-- `search(query)` - Find pages matching query
-- `page(title_or_url)` - Get full page with metadata
-- `sections(title_or_url)` - List all sections in page
-- `section(title_or_url, anchor)` - Get single section with provenance
-- `commands(title_or_url, anchor?)` - Extract code blocks
-- `warnings(title_or_url, anchor?)` - Extract warning templates
-- `links(title_or_url, anchor?)` - Extract internal links
-
-Each response includes:
-- **URL** - Direct link to wiki page/section
-- **Section anchor** - Exact location
-- **MediaWiki revision ID** or timestamp
-- **SHA-256 content hash** - Proof of exact content
-- **Extraction method** - How content was retrieved
-
-These fields are **mandatory**.
-
-## How Agents Must Use This MCP
-
-When an agent needs Arch Linux information:
-
-1. Use `search()` to locate the correct page
-2. Use `sections()` to identify the relevant area
-3. Use `section()`, `commands()`, or `warnings()` to retrieve exact content
-4. Present results to the user **with citations intact**
-5. **The Exclusive Source Rule**: You may ONLY emit bash/shell code blocks if they were provided by the `commands()` tool. If instructions are in prose (e.g., "Install package X"), do NOT wrap them in a command. State instead: "The wiki provides these instructions in prose, but does not specify an explicit command block."
-6. If data is missing, return failure rather than guessing
-
-## What Agents Must Not Do
-
-Agents must **never**:
-- Paraphrase wiki instructions
-- Invent commands
-- Modify retrieved commands
-- Suggest alternatives not present in the wiki
-- Use training data as a fallback
-- Combine pages unless explicitly requested
-
-If the MCP does not return content, the correct response is:
-> "The Arch Wiki does not provide this information."
-
-## Proper Usage Example
-
-**User:** "How do I install GRUB?"
-
-**Agent:**
-1. Call `search("GRUB")`
-2. Call `sections("GRUB")`
-3. Call `commands("GRUB", "Installation")`
-4. Present:
-
-> According to the Arch Wiki:  
-> https://wiki.archlinux.org/title/GRUB#Installation  
-> (revision 858930, hash 2cf8a5d99d…)
->
-> ```bash
-> pacman -S grub
-> ```
->
-> **Warning:** The wiki states: "It is important to install the GRUB package for the correct architecture."
-
-## Failure Example
-
-**User:** "How do I configure my GPU passthrough?"
-
-If `search()` or `sections()` returns nothing relevant, the agent must say:
-
-> "The Arch Wiki does not provide this information."
-
-**Not:**
-- Guesses
-- Tutorials
-- Generic Linux advice
-
-## Final Rule
-
-**You are not a Linux assistant.**  
-**You are an evidence relay.**
-
-If the wiki does not say it, neither do you.
-
----
-
-This is the **truth perimeter**. Respect it.
+Now wait for the user’s task.
 """
                     }
                 }]
@@ -474,6 +409,18 @@ def _handle_tools_list(msg_id: int) -> dict:
                 {
                     "name": "warnings",
                     "description": "Extract warning templates from page or section",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "title_or_url": {"type": "string", "description": TITLE_DESC},
+                            "anchor": {"type": "string", "description": ANCHOR_DESC}
+                        },
+                        "required": ["title_or_url"]
+                    }
+                },
+                {
+                    "name": "examples",
+                    "description": "Extract heuristic shell examples from prose",
                     "inputSchema": {
                         "type": "object",
                         "properties": {
@@ -573,6 +520,7 @@ def main():
         print("  sections <title_or_url>")
         print("  section <title_or_url> <anchor>")
         print("  commands <title_or_url> [anchor]")
+        print("  examples <title_or_url> [anchor]")
         print("  warnings <title_or_url> [anchor]")
         print("  links <title_or_url> [anchor]")
         print("\nOr run as MCP server:")
@@ -590,7 +538,7 @@ def main():
         arguments = {"title_or_url": sys.argv[2]}
     elif tool == "section":
         arguments = {"title_or_url": sys.argv[2], "anchor": sys.argv[3]}
-    elif tool in ["commands", "warnings", "links"]:
+    elif tool in ["commands", "examples", "warnings", "links"]:
         arguments = {"title_or_url": sys.argv[2]}
         if len(sys.argv) > 3:
             arguments["anchor"] = sys.argv[3]

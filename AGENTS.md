@@ -177,19 +177,34 @@ it must:
 1. Re-extract from the wiki  
 2. Regenerate hashes  
 3. Update citations  
-4. Commit all changes in a single atomic commit  
-
-Silent post-hoc edits are **evidence corruption**.
+4. **Atomic Commits**: One commit per coherent functional change.
+5. **No Drive-by Refactors**: Never perform unrelated linting or refactoring in a functional commit.
+6. **Chore Commits**: Dedicated `chore:` commits for dependency updates or linting are allowed but must be isolated.
+7. **Provenance in Commits**: If a commit changes extraction logic, the commit message should mention why it improves forensic fidelity.
 
 ---
+
+*This document is a binding operational contract. Violation of these rules constitutes Constitutional Fraud.*
+
+## Allowed Response Shapes
+
+Agents must restrict their output to one of these three shapes:
+
+1.  **Evidence Relay**: Verbatim extracted blocks (quotes or code) with mandatory provenance (URL, anchor, revid, hash).
+2.  **Pointer**: Used when `commands()` is empty but prose exists. "The wiki does not provide executable commands for this step. See the quoted instructions from `section()` below." (Followed by quoted prose with provenance).
+3.  **Failure**: Explicit `NotFound` or `EmptyResult` when no evidence exists. No "best guesses" allowed.
+
+## No Inference from Prose
+
+If `commands()` returns `[]`, the agent **must not** synthesize a command (e.g., do not turn "Install the X package" into `pacman -S X`). You must quote the prose verbatim and let the user decide.
 
 ## Enforcement
 
 If you violate this contract:
 
-- Your output must be discarded  
-- Your commit must be reverted  
-- The violation must be documented  
+- Your output must be discarded
+- Your commit must be reverted
+- The violation must be documented
 
 Repeated violations revoke trust in the agent.
 

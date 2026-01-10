@@ -223,7 +223,7 @@ curl "https://wiki.archlinux.org/api.php?action=parse&page=GRUB&prop=wikitext|se
 ### Constitutional Verification
 
 | Requirement | API Response | Status |
-|-------------|--------------|--------|
+| ----------- | ------------ | ------ |
 | Revision ID | `"revid": 858930` | ✅ Delivered |
 | Section anchors | `"anchor": "Installation"` | ✅ Delivered |
 | Byte offsets | `"byteoffset": 2652` | ✅ Delivered |

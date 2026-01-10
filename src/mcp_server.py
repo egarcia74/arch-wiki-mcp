@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Arch Wiki MCP Server
 Thin wrapper around constitutional extractor - exposes wiki as MCP tools.
@@ -8,7 +7,7 @@ import sys
 import json
 from typing import Optional
 from urllib.parse import urlparse
-import extractor
+from . import extractor
 
 
 def extract_title_from_url(title_or_url: str) -> str:

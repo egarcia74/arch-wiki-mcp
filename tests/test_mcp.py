@@ -1,11 +1,12 @@
-#!/usr/bin/env python3
 """
 MCP Server Integration Tests
 Tests that MCP tools return extractor output verbatim with full provenance.
 """
 
 import json
-from server import (
+import sys
+sys.path.insert(0, '..')
+from src.mcp_server import (
     tool_page,
     tool_sections,
     tool_section,

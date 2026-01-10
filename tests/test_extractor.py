@@ -1,11 +1,12 @@
-#!/usr/bin/env python3
 """
 Hash Stability Regression Test
 Tests constitutional requirement: hash determinism for same revid
 """
 
 import json
-from extractor import page, section, commands, warnings, links, hash_content
+import sys
+sys.path.insert(0, '..')
+from src.extractor import page, section, commands, warnings, links, hash_content
 
 def test_hash_stability():
     """

@@ -4,10 +4,14 @@ Thin wrapper around constitutional extractor - exposes wiki as MCP tools.
 """
 
 import sys
+import os
 import json
 from typing import Optional
 from urllib.parse import urlparse
-from . import extractor
+
+# Add parent directory to path for extractor import
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import extractor
 
 
 def extract_title_from_url(title_or_url: str) -> str:
@@ -255,6 +259,7 @@ def main():
     if len(sys.argv) < 2:
         print("Usage: python server.py <tool> <args...>")
         print("\nAvailable tools:")
+        print("  search <query> [limit]")
         print("  page <title_or_url>")
         print("  sections <title_or_url>")
         print("  section <title_or_url> <anchor>")
@@ -266,7 +271,11 @@ def main():
     tool = sys.argv[1]
     
     # Build arguments dict
-    if tool == "page" or tool == "sections":
+    if tool == "search":
+        arguments = {"query": sys.argv[2]}
+        if len(sys.argv) > 3:
+            arguments["limit"] = int(sys.argv[3])
+    elif tool == "page" or tool == "sections":
         arguments = {"title_or_url": sys.argv[2]}
     elif tool == "section":
         arguments = {"title_or_url": sys.argv[2], "anchor": sys.argv[3]}

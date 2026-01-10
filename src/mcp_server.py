@@ -246,16 +246,198 @@ def handle_tool_call(tool_name: str, arguments: dict) -> dict:
         return {"error": f"{type(e).__name__}: {str(e)}"}
 
 
+def run_mcp_server():
+    """
+    Run as MCP server - JSON-RPC over stdio.
+    
+    Handles MCP protocol messages:
+    - initialize
+    - tools/list
+    - tools/call
+    """
+    import sys
+    
+    # Read JSON-RPC messages from stdin
+    for line in sys.stdin:
+        try:
+            message = json.loads(line)
+            
+            # Extract JSON-RPC fields
+            method = message.get("method")
+            params = message.get("params", {})
+            msg_id = message.get("id")
+            
+            # Handle MCP methods
+            if method == "initialize":
+                response = {
+                    "jsonrpc": "2.0",
+                    "id": msg_id,
+                    "result": {
+                        "protocolVersion": "2024-11-05",
+                        "serverInfo": {
+                            "name": "arch-wiki-mcp",
+                            "version": "1.0.0"
+                        },
+                        "capabilities": {
+                            "tools": {}
+                        }
+                    }
+                }
+                print(json.dumps(response), flush=True)
+            
+            elif method == "tools/list":
+                response = {
+                    "jsonrpc": "2.0",
+                    "id": msg_id,
+                    "result": {
+                        "tools": [
+                            {
+                                "name": "search",
+                                "description": "Search Arch Wiki pages",
+                                "inputSchema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "query": {"type": "string", "description": "Search query"},
+                                        "limit": {"type": "number", "description": "Max results (default 10)"}
+                                    },
+                                    "required": ["query"]
+                                }
+                            },
+                            {
+                                "name": "page",
+                                "description": "Get full page with metadata",
+                                "inputSchema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "title_or_url": {"type": "string", "description": "Page title or URL"}
+                                    },
+                                    "required": ["title_or_url"]
+                                }
+                            },
+                            {
+                                "name": "sections",
+                                "description": "List all sections in page",
+                                "inputSchema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "title_or_url": {"type": "string", "description": "Page title or URL"}
+                                    },
+                                    "required": ["title_or_url"]
+                                }
+                            },
+                            {
+                                "name": "section",
+                                "description": "Get single section with provenance",
+                                "inputSchema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "title_or_url": {"type": "string", "description": "Page title or URL"},
+                                        "anchor": {"type": "string", "description": "Section anchor"}
+                                    },
+                                    "required": ["title_or_url", "anchor"]
+                                }
+                            },
+                            {
+                                "name": "commands",
+                                "description": "Extract code blocks from page or section",
+                                "inputSchema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "title_or_url": {"type": "string", "description": "Page title or URL"},
+                                        "anchor": {"type": "string", "description": "Optional section anchor"}
+                                    },
+                                    "required": ["title_or_url"]
+                                }
+                            },
+                            {
+                                "name": "warnings",
+                                "description": "Extract warning templates from page or section",
+                                "inputSchema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "title_or_url": {"type": "string", "description": "Page title or URL"},
+                                        "anchor": {"type": "string", "description": "Optional section anchor"}
+                                    },
+                                    "required": ["title_or_url"]
+                                }
+                            },
+                            {
+                                "name": "links",
+                                "description": "Extract internal links from page or section",
+                                "inputSchema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "title_or_url": {"type": "string", "description": "Page title or URL"},
+                                        "anchor": {"type": "string", "description": "Optional section anchor"}
+                                    },
+                                    "required": ["title_or_url"]
+                                }
+                            }
+                        ]
+                    }
+                }
+                print(json.dumps(response), flush=True)
+            
+            elif method == "tools/call":
+                tool_name = params.get("name")
+                arguments = params.get("arguments", {})
+                
+                # Call tool handler
+                result = handle_tool_call(tool_name, arguments)
+                
+                # Return result
+                response = {
+                    "jsonrpc": "2.0",
+                    "id": msg_id,
+                    "result": {
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": json.dumps(result, indent=2, ensure_ascii=False)
+                            }
+                        ]
+                    }
+                }
+                print(json.dumps(response), flush=True)
+            
+            else:
+                # Unknown method
+                response = {
+                    "jsonrpc": "2.0",
+                    "id": msg_id,
+                    "error": {
+                        "code": -32601,
+                        "message": f"Method not found: {method}"
+                    }
+                }
+                print(json.dumps(response), flush=True)
+        
+        except Exception as e:
+            # Error handling
+            response = {
+                "jsonrpc": "2.0",
+                "id": msg_id if 'msg_id' in locals() else None,
+                "error": {
+                    "code": -32603,
+                    "message": f"Internal error: {str(e)}"
+                }
+            }
+            print(json.dumps(response), flush=True)
+
+
 def main():
     """
-    Simple CLI for testing MCP tools.
+    Entry point - detect MCP mode vs CLI mode.
     
-    Usage:
-        python server.py page GRUB
-        python server.py sections Installation_guide
-        python server.py section GRUB Installation
-        python server.py commands GRUB Installation
+    MCP mode: Running via stdio (no args)
+    CLI mode: Direct invocation with args
     """
+    # If no args, assume MCP stdio mode
+    if len(sys.argv) == 1 or (len(sys.argv) == 2 and sys.argv[1] == "--stdio"):
+        run_mcp_server()
+        return
+    
+    # Otherwise, CLI mode for testing
     if len(sys.argv) < 2:
         print("Usage: python server.py <tool> <args...>")
         print("\nAvailable tools:")
@@ -266,6 +448,8 @@ def main():
         print("  commands <title_or_url> [anchor]")
         print("  warnings <title_or_url> [anchor]")
         print("  links <title_or_url> [anchor]")
+        print("\nOr run as MCP server:")
+        print("  python server.py --stdio")
         sys.exit(1)
     
     tool = sys.argv[1]

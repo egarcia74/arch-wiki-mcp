@@ -13,6 +13,10 @@ from urllib.parse import urlparse
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import extractor
 
+# Schema documentation constants
+TITLE_DESC = "Page title or URL"
+ANCHOR_DESC = "Optional section anchor"
+
 
 def extract_title_from_url(title_or_url: str) -> str:
     """
@@ -246,83 +250,49 @@ def handle_tool_call(tool_name: str, arguments: dict) -> dict:
         return {"error": f"{type(e).__name__}: {str(e)}"}
 
 
-def run_mcp_server():
-    """
-    Run as MCP server - JSON-RPC over stdio.
-    
-    Handles MCP protocol messages:
-    - initialize
-    - tools/list
-    - tools/call
-    """
-    import sys
-    
-    # Read JSON-RPC messages from stdin
-    for line in sys.stdin:
-        try:
-            message = json.loads(line)
-            
-            # Extract JSON-RPC fields
-            method = message.get("method")
-            params = message.get("params", {})
-            msg_id = message.get("id")
-            
-            # Handle notifications (no response needed)
-            if msg_id is None:
-                # Notifications don't get responses
-                if method == "notifications/initialized":
-                    # Client confirms initialization - no response needed
-                    pass
-                continue
-            
-            # Handle MCP methods
-            if method == "initialize":
-                response = {
-                    "jsonrpc": "2.0",
-                    "id": msg_id,
-                    "result": {
-                        "protocolVersion": "2024-11-05",
-                        "serverInfo": {
-                            "name": "arch-wiki-mcp",
-                            "version": "1.0.0"
-                        },
-                        "capabilities": {
-                            "tools": {},
-                            "prompts": {}
-                        }
-                    }
-                }
-                print(json.dumps(response), flush=True)
-            
-            elif method == "prompts/list":
-                response = {
-                    "jsonrpc": "2.0",
-                    "id": msg_id,
-                    "result": {
-                        "prompts": [
-                            {
-                                "name": "arch-wiki-usage",
-                                "description": "How to use Arch Wiki MCP without becoming a liar",
-                                "arguments": []
-                            }
-                        ]
-                    }
-                }
-                print(json.dumps(response), flush=True)
-            
-            elif method == "prompts/get":
-                prompt_name = params.get("name")
-                if prompt_name == "arch-wiki-usage":
-                    response = {
-                        "jsonrpc": "2.0",
-                        "id": msg_id,
-                        "result": {
-                            "messages": [
-                                {
-                                    "role": "user",
-                                    "content": {
-                                        "type": "text",
-                                        "text": """# Arch Wiki MCP: Agent Constitutional Instructions
+def _send_response(response: dict):
+    """Send JSON-RPC response to stdout."""
+    print(json.dumps(response), flush=True)
+
+
+def _handle_initialize(msg_id: int) -> dict:
+    return {
+        "jsonrpc": "2.0",
+        "id": msg_id,
+        "result": {
+            "protocolVersion": "2024-11-05",
+            "serverInfo": {"name": "arch-wiki-mcp", "version": "1.0.0"},
+            "capabilities": {"tools": {}, "prompts": {}}
+        }
+    }
+
+
+def _handle_prompts_list(msg_id: int) -> dict:
+    return {
+        "jsonrpc": "2.0",
+        "id": msg_id,
+        "result": {
+            "prompts": [{
+                "name": "arch-wiki-usage",
+                "description": "How to use Arch Wiki MCP without becoming a liar",
+                "arguments": []
+            }]
+        }
+    }
+
+
+def _handle_prompts_get(msg_id: int, params: dict) -> dict:
+    prompt_name = params.get("name")
+    if prompt_name == "arch-wiki-usage":
+        return {
+            "jsonrpc": "2.0",
+            "id": msg_id,
+            "result": {
+                "messages": [{
+                    "role": "user",
+                    "content": {
+                        "type": "text",
+                        "text": """# Arch Wiki MCP: Agent Constitutional Instructions
 
 ## Core Principle
 
@@ -366,7 +336,8 @@ When an agent needs Arch Linux information:
 2. Use `sections()` to identify the relevant area
 3. Use `section()`, `commands()`, or `warnings()` to retrieve exact content
 4. Present results to the user **with citations intact**
-5. If data is missing, return failure rather than guessing
+5. **The Exclusive Source Rule**: You may ONLY emit bash/shell code blocks if they were provided by the `commands()` tool. If instructions are in prose (e.g., "Install package X"), do NOT wrap them in a command. State instead: "The wiki provides these instructions in prose, but does not specify an explicit command block."
+6. If data is missing, return failure rather than guessing
 
 ## What Agents Must Not Do
 
@@ -425,161 +396,160 @@ If the wiki does not say it, neither do you.
 
 This is the **truth perimeter**. Respect it.
 """
-                                    }
-                                }
-                            ]
-                        }
                     }
-                    print(json.dumps(response), flush=True)
-                else:
-                    response = {
-                        "jsonrpc": "2.0",
-                        "id": msg_id,
-                        "error": {
-                            "code": -32602,
-                            "message": f"Unknown prompt: {prompt_name}"
-                        }
+                }]
+            }
+        }
+    return {
+        "jsonrpc": "2.0",
+        "id": msg_id,
+        "error": {"code": -32602, "message": f"Unknown prompt: {prompt_name}"}
+    }
+
+
+def _handle_tools_list(msg_id: int) -> dict:
+    return {
+        "jsonrpc": "2.0",
+        "id": msg_id,
+        "result": {
+            "tools": [
+                {
+                    "name": "search",
+                    "description": "Search Arch Wiki pages",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "query": {"type": "string", "description": "Search query"},
+                            "limit": {"type": "number", "description": "Max results (default 10)"}
+                        },
+                        "required": ["query"]
                     }
-                    print(json.dumps(response), flush=True)
+                },
+                {
+                    "name": "page",
+                    "description": "Get full page with metadata",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "title_or_url": {"type": "string", "description": TITLE_DESC}
+                        },
+                        "required": ["title_or_url"]
+                    }
+                },
+                {
+                    "name": "sections",
+                    "description": "List all sections in page",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "title_or_url": {"type": "string", "description": TITLE_DESC}
+                        },
+                        "required": ["title_or_url"]
+                    }
+                },
+                {
+                    "name": "section",
+                    "description": "Get single section with provenance",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "title_or_url": {"type": "string", "description": TITLE_DESC},
+                            "anchor": {"type": "string", "description": "Section anchor"}
+                        },
+                        "required": ["title_or_url", "anchor"]
+                    }
+                },
+                {
+                    "name": "commands",
+                    "description": "Extract code blocks from page or section",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "title_or_url": {"type": "string", "description": TITLE_DESC},
+                            "anchor": {"type": "string", "description": ANCHOR_DESC}
+                        },
+                        "required": ["title_or_url"]
+                    }
+                },
+                {
+                    "name": "warnings",
+                    "description": "Extract warning templates from page or section",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "title_or_url": {"type": "string", "description": TITLE_DESC},
+                            "anchor": {"type": "string", "description": ANCHOR_DESC}
+                        },
+                        "required": ["title_or_url"]
+                    }
+                },
+                {
+                    "name": "links",
+                    "description": "Extract internal links from page or section",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "title_or_url": {"type": "string", "description": TITLE_DESC},
+                            "anchor": {"type": "string", "description": ANCHOR_DESC}
+                        },
+                        "required": ["title_or_url"]
+                    }
+                }
+            ]
+        }
+    }
+
+
+def _handle_tools_call(msg_id: int, params: dict) -> dict:
+    tool_name = params.get("name")
+    arguments = params.get("arguments", {})
+    result = handle_tool_call(tool_name, arguments)
+    return {
+        "jsonrpc": "2.0",
+        "id": msg_id,
+        "result": {
+            "content": [{
+                "type": "text",
+                "text": json.dumps(result, indent=2, ensure_ascii=False)
+            }]
+        }
+    }
+
+
+def run_mcp_server():
+    """Run as MCP server - JSON-RPC over stdio."""
+    for line in sys.stdin:
+        try:
+            message = json.loads(line)
+            method = message.get("method")
+            params = message.get("params", {})
+            msg_id = message.get("id")
             
+            if msg_id is None:
+                continue
+                
+            if method == "initialize":
+                _send_response(_handle_initialize(msg_id))
+            elif method == "prompts/list":
+                _send_response(_handle_prompts_list(msg_id))
+            elif method == "prompts/get":
+                _send_response(_handle_prompts_get(msg_id, params))
             elif method == "tools/list":
-                response = {
-                    "jsonrpc": "2.0",
-                    "id": msg_id,
-                    "result": {
-                        "tools": [
-                            {
-                                "name": "search",
-                                "description": "Search Arch Wiki pages",
-                                "inputSchema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "query": {"type": "string", "description": "Search query"},
-                                        "limit": {"type": "number", "description": "Max results (default 10)"}
-                                    },
-                                    "required": ["query"]
-                                }
-                            },
-                            {
-                                "name": "page",
-                                "description": "Get full page with metadata",
-                                "inputSchema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "title_or_url": {"type": "string", "description": "Page title or URL"}
-                                    },
-                                    "required": ["title_or_url"]
-                                }
-                            },
-                            {
-                                "name": "sections",
-                                "description": "List all sections in page",
-                                "inputSchema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "title_or_url": {"type": "string", "description": "Page title or URL"}
-                                    },
-                                    "required": ["title_or_url"]
-                                }
-                            },
-                            {
-                                "name": "section",
-                                "description": "Get single section with provenance",
-                                "inputSchema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "title_or_url": {"type": "string", "description": "Page title or URL"},
-                                        "anchor": {"type": "string", "description": "Section anchor"}
-                                    },
-                                    "required": ["title_or_url", "anchor"]
-                                }
-                            },
-                            {
-                                "name": "commands",
-                                "description": "Extract code blocks from page or section",
-                                "inputSchema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "title_or_url": {"type": "string", "description": "Page title or URL"},
-                                        "anchor": {"type": "string", "description": "Optional section anchor"}
-                                    },
-                                    "required": ["title_or_url"]
-                                }
-                            },
-                            {
-                                "name": "warnings",
-                                "description": "Extract warning templates from page or section",
-                                "inputSchema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "title_or_url": {"type": "string", "description": "Page title or URL"},
-                                        "anchor": {"type": "string", "description": "Optional section anchor"}
-                                    },
-                                    "required": ["title_or_url"]
-                                }
-                            },
-                            {
-                                "name": "links",
-                                "description": "Extract internal links from page or section",
-                                "inputSchema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "title_or_url": {"type": "string", "description": "Page title or URL"},
-                                        "anchor": {"type": "string", "description": "Optional section anchor"}
-                                    },
-                                    "required": ["title_or_url"]
-                                }
-                            }
-                        ]
-                    }
-                }
-                print(json.dumps(response), flush=True)
-            
+                _send_response(_handle_tools_list(msg_id))
             elif method == "tools/call":
-                tool_name = params.get("name")
-                arguments = params.get("arguments", {})
-                
-                # Call tool handler
-                result = handle_tool_call(tool_name, arguments)
-                
-                # Return result
-                response = {
-                    "jsonrpc": "2.0",
-                    "id": msg_id,
-                    "result": {
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": json.dumps(result, indent=2, ensure_ascii=False)
-                            }
-                        ]
-                    }
-                }
-                print(json.dumps(response), flush=True)
-            
+                _send_response(_handle_tools_call(msg_id, params))
             else:
-                # Unknown method
-                response = {
+                _send_response({
                     "jsonrpc": "2.0",
                     "id": msg_id,
-                    "error": {
-                        "code": -32601,
-                        "message": f"Method not found: {method}"
-                    }
-                }
-                print(json.dumps(response), flush=True)
-        
+                    "error": {"code": -32601, "message": f"Method not found: {method}"}
+                })
         except Exception as e:
-            # Error handling
-            response = {
+            _send_response({
                 "jsonrpc": "2.0",
                 "id": msg_id if 'msg_id' in locals() else None,
-                "error": {
-                    "code": -32603,
-                    "message": f"Internal error: {str(e)}"
-                }
-            }
-            print(json.dumps(response), flush=True)
+                "error": {"code": -32603, "message": f"Internal error: {str(e)}"}
+            })
 
 
 def main():

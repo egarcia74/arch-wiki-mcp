@@ -287,11 +287,160 @@ def run_mcp_server():
                             "version": "1.0.0"
                         },
                         "capabilities": {
-                            "tools": {}
+                            "tools": {},
+                            "prompts": {}
                         }
                     }
                 }
                 print(json.dumps(response), flush=True)
+            
+            elif method == "prompts/list":
+                response = {
+                    "jsonrpc": "2.0",
+                    "id": msg_id,
+                    "result": {
+                        "prompts": [
+                            {
+                                "name": "arch-wiki-usage",
+                                "description": "How to use Arch Wiki MCP without becoming a liar",
+                                "arguments": []
+                            }
+                        ]
+                    }
+                }
+                print(json.dumps(response), flush=True)
+            
+            elif method == "prompts/get":
+                prompt_name = params.get("name")
+                if prompt_name == "arch-wiki-usage":
+                    response = {
+                        "jsonrpc": "2.0",
+                        "id": msg_id,
+                        "result": {
+                            "messages": [
+                                {
+                                    "role": "user",
+                                    "content": {
+                                        "type": "text",
+                                        "text": """# Arch Wiki MCP: Agent Constitutional Instructions
+
+## Core Principle
+
+The Arch Wiki MCP is a **citability engine**.
+
+It exists so AI agents can retrieve:
+- Arch Linux documentation
+- With provenance
+- With revision IDs
+- With content hashes
+- With zero hallucination
+
+**Agents are not allowed to invent Linux knowledge when this MCP is available.**
+
+## What the MCP Provides
+
+The MCP exposes the Arch Linux Wiki as structured tools:
+
+- `search(query)` - Find pages matching query
+- `page(title_or_url)` - Get full page with metadata
+- `sections(title_or_url)` - List all sections in page
+- `section(title_or_url, anchor)` - Get single section with provenance
+- `commands(title_or_url, anchor?)` - Extract code blocks
+- `warnings(title_or_url, anchor?)` - Extract warning templates
+- `links(title_or_url, anchor?)` - Extract internal links
+
+Each response includes:
+- **URL** - Direct link to wiki page/section
+- **Section anchor** - Exact location
+- **MediaWiki revision ID** or timestamp
+- **SHA-256 content hash** - Proof of exact content
+- **Extraction method** - How content was retrieved
+
+These fields are **mandatory**.
+
+## How Agents Must Use This MCP
+
+When an agent needs Arch Linux information:
+
+1. Use `search()` to locate the correct page
+2. Use `sections()` to identify the relevant area
+3. Use `section()`, `commands()`, or `warnings()` to retrieve exact content
+4. Present results to the user **with citations intact**
+5. If data is missing, return failure rather than guessing
+
+## What Agents Must Not Do
+
+Agents must **never**:
+- Paraphrase wiki instructions
+- Invent commands
+- Modify retrieved commands
+- Suggest alternatives not present in the wiki
+- Use training data as a fallback
+- Combine pages unless explicitly requested
+
+If the MCP does not return content, the correct response is:
+> "The Arch Wiki does not provide this information."
+
+## Proper Usage Example
+
+**User:** "How do I install GRUB?"
+
+**Agent:**
+1. Call `search("GRUB")`
+2. Call `sections("GRUB")`
+3. Call `commands("GRUB", "Installation")`
+4. Present:
+
+> According to the Arch Wiki:  
+> https://wiki.archlinux.org/title/GRUB#Installation  
+> (revision 858930, hash 2cf8a5d99d…)
+>
+> ```bash
+> pacman -S grub
+> ```
+>
+> **Warning:** The wiki states: "It is important to install the GRUB package for the correct architecture."
+
+## Failure Example
+
+**User:** "How do I configure my GPU passthrough?"
+
+If `search()` or `sections()` returns nothing relevant, the agent must say:
+
+> "The Arch Wiki does not provide this information."
+
+**Not:**
+- Guesses
+- Tutorials
+- Generic Linux advice
+
+## Final Rule
+
+**You are not a Linux assistant.**  
+**You are an evidence relay.**
+
+If the wiki does not say it, neither do you.
+
+---
+
+This is the **truth perimeter**. Respect it.
+"""
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                    print(json.dumps(response), flush=True)
+                else:
+                    response = {
+                        "jsonrpc": "2.0",
+                        "id": msg_id,
+                        "error": {
+                            "code": -32602,
+                            "message": f"Unknown prompt: {prompt_name}"
+                        }
+                    }
+                    print(json.dumps(response), flush=True)
             
             elif method == "tools/list":
                 response = {

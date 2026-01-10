@@ -5,7 +5,8 @@ Tests that MCP tools return extractor output verbatim with full provenance.
 
 import json
 import sys
-sys.path.insert(0, '..')
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from src.mcp_server import (
     tool_page,
     tool_sections,

@@ -10,7 +10,7 @@ import unicodedata
 from dataclasses import dataclass, asdict
 from typing import Dict, List, Optional, Tuple
 from urllib.request import urlopen, Request
-from urllib.parse import urlencode
+from urllib.parse import urlencode, quote
 import json
 
 API_ENDPOINT = "https://wiki.archlinux.org/api.php"
@@ -20,15 +20,15 @@ USER_AGENT = "ArchWikiMCP/1.0 (Constitutional Extractor; +https://github.com/use
 @dataclass
 class WikiSection:
     """Section metadata from MediaWiki parse response."""
-    line: str  # Section heading text
-    anchor: str  # URL anchor
-    level: str  # Heading level (2, 3, 4...)
-    toclevel: int  # Table of contents level
-    number: str  # Section number (e.g., "2.1")
-    index: str  # Section index
-    byteoffset: int  # Byte offset in wikitext
-    fromtitle: str  # Source page title
-    link_anchor: str  # Link anchor (may differ from anchor)
+    line: str = ""  # Section heading text
+    anchor: str = ""  # URL anchor
+    level: str = "1"  # Heading level
+    toclevel: int = 1
+    number: str = ""
+    index: str = ""
+    byteoffset: int = 0
+    fromtitle: str = ""
+    link_anchor: str = ""
 
 
 @dataclass
@@ -50,8 +50,9 @@ class CodeBlock:
     """Extracted code block with metadata."""
     content: str
     content_hash: str
-    block_type: str  # "preformatted", "pre_tag", "code_tag"
-    language: Optional[str]  # Language hint if detectable
+    block_type: str  # "preformatted", "pre_tag", "code_tag", "shell"
+    language: Optional[str] = None
+    revid: Optional[int] = None
 
 
 @dataclass
@@ -60,6 +61,7 @@ class WarningBlock:
     type: str  # WARNING, NOTE, TIP, CAUTION
     message: str
     content_hash: str
+    revid: Optional[int] = None
 
 
 @dataclass
@@ -68,6 +70,15 @@ class InternalLink:
     target_page: str
     display_text: Optional[str]
     source_page: str
+
+
+def make_wiki_url(title: str, anchor: Optional[str] = None) -> str:
+    """Safely construct an Arch Wiki URL."""
+    encoded_title = quote(title.replace(" ", "_"), safe=":/#")
+    url = f"https://wiki.archlinux.org/title/{encoded_title}"
+    if anchor:
+        url += f"#{quote(anchor, safe=':/#')}"
+    return url
 
 
 def hash_content(text: str) -> str:
@@ -144,94 +155,121 @@ def extract_section_wikitext(
     return section_bytes.decode("utf-8")
 
 
-def parse_templates(wikitext: str) -> List[WarningBlock]:
+def _find_template_end(wikitext: str, start_idx: int) -> int:
+    """Find the matching }} for a starting {{ at start_idx."""
+    depth = 0
+    for j in range(start_idx, len(wikitext) - 1):
+        if wikitext[j:j+2] == "{{":
+            depth += 1
+        elif wikitext[j:j+2] == "}}":
+            depth -= 1
+            if depth == 0:
+                return j + 2
+    return -1
+
+
+def _parse_single_template(content: str, supported: set, revid: Optional[int]) -> Optional[WarningBlock]:
+    """Parse the interior content of a template and return a WarningBlock if valid."""
+    parts = content.split("|", 1)
+    name = parts[0].strip().upper()
+    
+    if name in supported:
+        message = parts[1].strip() if len(parts) > 1 else ""
+        if message.startswith("1="):
+            message = message[2:].strip()
+            
+        return WarningBlock(
+            type=name,
+            message=message,
+            content_hash=hash_content(message),
+            revid=revid
+        )
+    return None
+
+
+def parse_templates(wikitext: str, revid: Optional[int] = None) -> List[WarningBlock]:
     """
-    Parse MediaWiki templates for warnings, notes, tips.
-    
-    Supports:
-    - {{Warning|message}}
-    - {{Note|message}}
-    - {{Tip|message}}
-    - {{Caution|message}}
-    
-    Multi-line templates are supported.
+    Robustly parse MediaWiki templates for warnings, notes, tips.
+    Handles nesting, multi-params, and |1= syntax.
     """
     warnings = []
+    supported = {"WARNING", "NOTE", "TIP", "CAUTION"}
     
-    # Match {{TemplateName|content}} including multi-line
-    pattern = r'\{\{(Warning|Note|Tip|Caution)\s*\|\s*([^}]+)\}\}'
-    
-    for match in re.finditer(pattern, wikitext, re.IGNORECASE | re.DOTALL):
-        template_type = match.group(1).upper()
-        message = match.group(2).strip()
+    i = 0
+    while i < len(wikitext):
+        start_idx = wikitext.find("{{", i)
+        if start_idx == -1:
+            break
+            
+        end_idx = _find_template_end(wikitext, start_idx)
+        if end_idx == -1:
+            i = start_idx + 2
+            continue
+            
+        content = wikitext[start_idx+2:end_idx-2]
+        i = end_idx
         
-        warnings.append(WarningBlock(
-            type=template_type,
-            message=message,
-            content_hash=hash_content(message)
-        ))
-    
+        block = _parse_single_template(content, supported, revid)
+        if block:
+            warnings.append(block)
+            
     return warnings
 
 
-def _extract_indented_blocks(lines: List[str]) -> List[CodeBlock]:
+def _extract_indented_blocks(lines: List[str], revid: Optional[int] = None) -> List[CodeBlock]:
     """Helper to extract leading-space preformatted blocks."""
     blocks, current = [], []
     for line in lines:
         if line.startswith(" ") and not line.strip().startswith("*"):
             current.append(line[1:])
         elif current:
-            blocks.append(CodeBlock("\n".join(current), hash_content("\n".join(current)), "preformatted", None))
+            c = "\n".join(current)
+            blocks.append(CodeBlock(c, hash_content(c), "preformatted", None, revid))
             current = []
     if current:
-        blocks.append(CodeBlock("\n".join(current), hash_content("\n".join(current)), "preformatted", None))
+        c = "\n".join(current)
+        blocks.append(CodeBlock(c, hash_content(c), "preformatted", None, revid))
     return blocks
 
-def _extract_shell_blocks(lines: List[str]) -> List[CodeBlock]:
+def _extract_shell_blocks(lines: List[str], revid: Optional[int] = None) -> List[CodeBlock]:
     """Helper to extract shell prompt blocks (# or $)."""
     blocks, current = [], []
     for line in lines:
         s = line.strip()
+        # Accept # or $ at start of line
         if s.startswith("#") or s.startswith("$"):
             current.append(s)
         elif current:
-            if current[0].startswith("# ") or current[0].startswith("$ "):
-                c = "\n".join(current)
-                blocks.append(CodeBlock(c, hash_content(c), "shell", "bash"))
+            # Ensure the block looks like shell (starts with prompt)
+            c = "\n".join(current)
+            blocks.append(CodeBlock(c, hash_content(c), "shell", "bash", revid))
             current = []
-    if current and (current[0].startswith("# ") or current[0].startswith("$ ")):
+    if current:
         c = "\n".join(current)
-        blocks.append(CodeBlock(c, hash_content(c), "shell", "bash"))
+        blocks.append(CodeBlock(c, hash_content(c), "shell", "bash", revid))
     return blocks
 
-def parse_code_blocks(wikitext: str) -> List[CodeBlock]:
+def parse_code_blocks(wikitext: str, revid: Optional[int] = None) -> List[CodeBlock]:
     """
     Parse code blocks from wikitext using multiple patterns.
-    
-    Patterns:
-    1. Leading-space preformatted blocks (baseline)
-    2. Shell prompt blocks (lines starting with # or $)
-    3. <pre>...</pre> blocks
-    4. <code>...</code> inline (if multi-line)
-    
-    Returns list of code blocks with hashes.
+    Returns list of code blocks with hashes and revid.
     """
     lines = wikitext.split("\n")
-    code_blocks = _extract_indented_blocks(lines)
-    code_blocks.extend(_extract_shell_blocks(lines))
+    code_blocks = _extract_indented_blocks(lines, revid)
+    code_blocks.extend(_extract_shell_blocks(lines, revid))
     
     # Pattern 3: <pre>...</pre> blocks
     pre_pattern = r'<pre>(.*?)</pre>'
     for match in re.finditer(pre_pattern, wikitext, re.DOTALL):
         content = match.group(1).strip()
-        code_blocks.append(CodeBlock(content, hash_content(content), "pre_tag", None))
+        code_blocks.append(CodeBlock(content, hash_content(content), "pre_tag", None, revid))
     
     # Pattern 4: <code>...</code> blocks (only if multi-line)
     code_pattern = r'<code>(.*?)</code>'
     for match in re.finditer(code_pattern, wikitext, re.DOTALL):
         content = match.group(1).strip()
         if "\n" in content:
-            code_blocks.append(CodeBlock(content, hash_content(content), "code_tag", None))
+            code_blocks.append(CodeBlock(content, hash_content(content), "code_tag", None, revid))
     
     return code_blocks
 
@@ -310,7 +348,7 @@ def search(query: str, limit: int = 10, timeout: int = 30) -> List[Dict]:
             "title": item["title"],
             "pageid": item["pageid"],
             "snippet": item.get("snippet", ""),
-            "url": f"https://wiki.archlinux.org/title/{item['title'].replace(' ', '_')}"
+            "url": make_wiki_url(item["title"])
         })
     
     return results
@@ -338,7 +376,7 @@ def page(title: str) -> Dict:
         "title": parse_data["title"],
         "pageid": parse_data["pageid"],
         "revid": parse_data["revid"],
-        "url": f"https://wiki.archlinux.org/title/{title}",
+        "url": make_wiki_url(parse_data["title"]),
         "wikitext": wikitext,
         "wikitext_hash": hash_content(wikitext),
         "sections": [asdict(WikiSection(**s)) for s in parse_data["sections"]]
@@ -388,7 +426,7 @@ def section(title: str, anchor: str) -> ExtractedBlock:
     
     return ExtractedBlock(
         title=parse_data["title"],
-        url=f"https://wiki.archlinux.org/title/{title}#{anchor}",
+        url=make_wiki_url(parse_data["title"], anchor),
         revid=parse_data["revid"],
         timestamp=None,
         section_anchor=anchor,
@@ -409,12 +447,14 @@ def commands(title: str, anchor: Optional[str] = None) -> List[Dict]:
         extracted = section(title, anchor)
         wikitext = extracted.content
         url_base = extracted.url
+        revid = extracted.revid
     else:
         page_data = page(title)
         wikitext = page_data["wikitext"]
         url_base = page_data["url"]
+        revid = page_data["revid"]
     
-    blocks = parse_code_blocks(wikitext)
+    blocks = parse_code_blocks(wikitext, revid)
     
     return [
         {
@@ -422,7 +462,8 @@ def commands(title: str, anchor: Optional[str] = None) -> List[Dict]:
             "content_hash": block.content_hash,
             "block_type": block.block_type,
             "language": block.language,
-            "source_url": url_base
+            "source_url": url_base,
+            "revid": block.revid
         }
         for block in blocks
     ]
@@ -438,19 +479,22 @@ def warnings(title: str, anchor: Optional[str] = None) -> List[Dict]:
         extracted = section(title, anchor)
         wikitext = extracted.content
         url_base = extracted.url
+        revid = extracted.revid
     else:
         page_data = page(title)
         wikitext = page_data["wikitext"]
         url_base = page_data["url"]
+        revid = page_data["revid"]
     
-    warning_blocks = parse_templates(wikitext)
+    warning_blocks = parse_templates(wikitext, revid)
     
     return [
         {
             "type": w.type,
             "message": w.message,
             "content_hash": w.content_hash,
-            "source_url": url_base
+            "source_url": url_base,
+            "revid": w.revid
         }
         for w in warning_blocks
     ]

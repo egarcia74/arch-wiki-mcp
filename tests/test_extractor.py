@@ -5,7 +5,8 @@ Tests constitutional requirement: hash determinism for same revid
 
 import json
 import sys
-sys.path.insert(0, '..')
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from src.extractor import page, section, commands, warnings, links, hash_content
 
 def test_hash_stability():
@@ -66,7 +67,7 @@ def test_hash_stability():
         
         print(f"✅ Code blocks found: {len(cmds1)}")
         print(f"✅ First block hash: {cmds1[0]['content_hash'][:16]}...")
-        print(f"✅ All block hashes stable across two fetches")
+        print("✅ All block hashes stable across two fetches")
     else:
         print("⚠️  No code blocks found in Installation section")
     print()
@@ -88,7 +89,7 @@ def test_hash_stability():
         print(f"✅ Warnings found: {len(warns1)}")
         print(f"✅ First warning type: {warns1[0]['type']}")
         print(f"✅ First warning hash: {warns1[0]['content_hash'][:16]}...")
-        print(f"✅ All warning hashes stable across two fetches")
+        print("✅ All warning hashes stable across two fetches")
     else:
         print("⚠️  No warnings found in Installation section")
     print()
@@ -109,7 +110,7 @@ def test_hash_stability():
         
         print(f"✅ Links found: {len(links1)}")
         print(f"✅ First link: [[{links1[0]['target_page']}]]")
-        print(f"✅ All links stable across two fetches")
+        print("✅ All links stable across two fetches")
     else:
         print("⚠️  No links found in Installation section")
     print()

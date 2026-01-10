@@ -63,11 +63,11 @@ The validation strategy followed a three-tier approach:
 
 ### Phase 3: Integrity & Provenance
 
-| Test Case        | Check                         | Expected Outcome  | Actual Outcome                                       | Status   |
-| :--------------- | :---------------------------- | :---------------- | :--------------------------------------------------- | :------- |
-| Hash Stability   | Repeat `GRUB#Installation` pull | Identical Hash    | `720f6d4b7f...` (Identical)                         | **PASS** |
-| Revision Locking | Check `revid` on return       | API RevID present | `revid: 858930`                                      | **PASS** |
-| Source Citation  | Deep link to section          | Valid wiki URL    | `https://wiki.archlinux.org/title/GRUB#Installation` | **PASS** |
+| Test Case        | Check                           | Expected Outcome  | Actual Outcome                                       | Status   |
+| :--------------- | :----------------------------   | :---------------- | :--------------------------------------------------- | :------- |
+| Hash Stability   | Repeat `GRUB#Installation` pull | Identical Hash    | `720f6d4b7f...` (Identical)                          | **PASS** |
+| Revision Locking | Check `revid` on return         | API RevID present | `revid: 858930`                                      | **PASS** |
+| Source Citation  | Deep link to section            | Valid wiki URL    | `https://wiki.archlinux.org/title/GRUB#Installation` | **PASS** |
 
 ---
 

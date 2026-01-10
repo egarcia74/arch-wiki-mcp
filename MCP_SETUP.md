@@ -83,6 +83,7 @@ Once configured, the following MCP tools are available:
 Search the Arch Wiki.
 
 **Example**:
+
 ```
 Search for "grub installation"
 ```
@@ -96,6 +97,7 @@ Search for "grub installation"
 Get full page content with metadata.
 
 **Example**:
+
 ```
 Get page "GRUB"
 ```
@@ -161,6 +163,7 @@ Get warnings from GRUB § Installation
 Extract internal wiki links.
 
 **Example**:
+
 ```
 Get links from GRUB § Installation
 ```
@@ -277,7 +280,7 @@ For production use, consider:
 
 ## License
 
-[To be determined]
+MIT License. See `ARCH_WIKI_MCP_CONSTITUTION.md` for full licensing details on documentation (CC BY-SA 4.0) and code.
 
 ---
 

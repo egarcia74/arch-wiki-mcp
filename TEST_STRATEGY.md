@@ -7,6 +7,7 @@ This document outlines the testing strategy used to validate the **Arch Wiki Mod
 Testing concluded that the system is **Production Ready**.
 
 ### Final Metrics
+
 - **Hallucinations Detected**: 0
 - **Synthesis/Merging Incidents**: 0
 - **Provenance Failures**: 0
@@ -19,21 +20,24 @@ Testing concluded that the system is **Production Ready**.
 The validation strategy followed a three-tier approach:
 
 ### Tier 1: Automated Regression Testing
+
 - **Tool**: `pytest`
 - **Scope**:
-    - **Extractor Stability**: Ensuring `extractor.py` produces bit-identical hashes for the same MediaWiki Revision ID across multiple runs.
-    - **MCP Protocol**: Ensuring `server.py` correctly implements the JSON-RPC stdio protocol (Handshake, Tools List, Tool Call).
+  - **Extractor Stability**: Ensuring `extractor.py` produces bit-identical hashes for the same MediaWiki Revision ID across multiple runs.
+  - **MCP Protocol**: Ensuring `mcp_server.py` correctly implements the JSON-RPC stdio protocol (Handshake, Tools List, Tool Call).
 - **Files**: `tests/test_extractor.py`, `tests/test_mcp.py`.
 
 ### Tier 2: Adversarial "Red Team" Testing
+
 - **Method**: Manual injection of vague queries, non-existent features, and social engineering attempts.
-- **Goals**: 
-    - Trigger hallucinations.
-    - Force cross-page synthesis.
-    - Elicit uncited commands.
+- **Goals**:
+  - Trigger hallucinations.
+  - Force cross-page synthesis.
+  - Elicit uncited commands.
 - **Result**: The system successfully "failed closed," returning errors or empty results rather than guessing.
 
 ### Tier 3: Functional "Happy Path" Validation
+
 - **Method**: Simulating common user workflows (e.g., "Install KDE," "Fix GRUB").
 - **Goals**: Verify that correct usage pathways return all mandatory metadata (URL, Hash, Revid).
 - **Findings**: The system rewards precise technical querying with exact evidence.

@@ -229,7 +229,7 @@ See:
 
 ## License
 
-[To be determined]
+MIT License. See `ARCH_WIKI_MCP_CONSTITUTION.md` for full licensing details on documentation (CC BY-SA 4.0) and code.
 
 ## Project Status
 
@@ -241,8 +241,8 @@ See:
 - [x] Integration tests
 - [x] Search implementation
 - [x] MCP setup documentation
-- [ ] MCP protocol integration (in progress)
-- [ ] Client testing (Claude, Cline, etc.)
-- [ ] Deployment configuration
+- [x] MCP protocol integration
+- [x] Client testing (Claude, Cline, etc.)
+- [ ] Deployment configuration (final phase)
 
-**All 7 MCP tools operational. Ready for client integration.**
+**All 7 MCP tools operational. Ready for high-fidelity evidence relay.**

@@ -47,37 +47,44 @@ The validation strategy followed a three-tier approach:
 ## 3. Test Cases & Findings
 
 ### Phase 1: Hallucination Traps
-| Test Case | Trigger | Expected Outcome | Actual Outcome | Status |
-| :--- | :--- | :--- | :--- | :--- |
-| Non-existent Feature | `commands("Systemd", "Quantum boot")` | Error: Section Not Found | `ValueError: Section with anchor '...' not found` | **PASS** |
-| Fake Warning | `warnings("Pacman", "Delete everything")` | Error: Section Not Found | `ValueError: Section with anchor '...' not found` | **PASS** |
-| Vague Query | `search("wifi not working")` | Results or Empty | `results: []` | **PASS** |
+
+| Test Case            | Trigger                                   | Expected Outcome         | Actual Outcome                                    | Status   |
+| :------------------- | :---------------------------------------- | :----------------------- | :------------------------------------------------ | :------- |
+| Non-existent Feature | `commands("Systemd", "Quantum boot")`     | Error: Section Not Found | `ValueError: Section with anchor '...' not found` | **PASS** |
+| Fake Warning         | `warnings("Pacman", "Delete everything")` | Error: Section Not Found | `ValueError: Section with anchor '...' not found` | **PASS** |
+| Vague Query          | `search("wifi not working")`              | Results or Empty         | `results: []`                                     | **PASS** |
 
 ### Phase 2: Synthesis & Merging Traps
-| Test Case | Trigger | Expected Outcome | Actual Outcome | Status |
-| :--- | :--- | :--- | :--- | :--- |
-| Unified Guide | "Guide for GRUB and systemd-boot" | Refusal/No results | Returned `results: []` | **PASS** |
+
+| Test Case      | Trigger                           | Expected Outcome   | Actual Outcome         | Status   |
+| :------------- | :-------------------------------- | :----------------- | :--------------------- | :------- |
+| Unified Guide  | "Guide for GRUB and systemd-boot" | Refusal/No results | Returned `results: []` | **PASS** |
 | Workflow Merge | "Combine Pacman and AUR workflow" | Refusal/No results | Returned `results: []` | **PASS** |
 
 ### Phase 3: Integrity & Provenance
-| Test Case | Check | Expected Outcome | Actual Outcome | Status |
-| :--- | :--- | :--- | :--- | :--- |
-| Hash Stability | Repeat `GRUB#Installation` pull | Identical Hash | `720f6d4b7f...` (Identical) | **PASS** |
-| Revision Locking | Check `revid` on return | API RevID present | `revid: 858930` | **PASS** |
-| Source Citation | Deep link to section | Valid wiki URL | `https://wiki.archlinux.org/title/GRUB#Installation` | **PASS** |
+
+| Test Case        | Check                         | Expected Outcome  | Actual Outcome                                       | Status   |
+| :--------------- | :---------------------------- | :---------------- | :--------------------------------------------------- | :------- |
+| Hash Stability   | Repeat `GRUB#Installation` pull | Identical Hash    | `720f6d4b7f...` (Identical)                         | **PASS** |
+| Revision Locking | Check `revid` on return       | API RevID present | `revid: 858930`                                      | **PASS** |
+| Source Citation  | Deep link to section          | Valid wiki URL    | `https://wiki.archlinux.org/title/GRUB#Installation` | **PASS** |
 
 ---
 
 ## 4. Key Findings
 
 ### 1. The Evidence Relay vs. Advice Assistant
+
 Testing confirmed that the MCP server does not possess "agency." It is a passthrough for wikitext. If a user asks for a command that is buried in a paragraph rather than a code block, the `commands()` tool returns `[]`. This is the intended behavior of a **citability engine**.
 
 ### 2. Mandatory Provenance
+
 Every tool call, without exception, includes the required constitutional metadata. No "shortcuts" exist in the API to retrieve content without a corresponding hash or URL.
 
 ### 3. Protocol Compliance
+
 The server successfully handles:
+
 - **`initialize`**: Standard handshake.
 - **`notifications/initialized`**: Silent handling (preventing protocol desync).
 - **`prompts/get`**: Injects the "Truth Perimeter" behavioral instructions into the agent.

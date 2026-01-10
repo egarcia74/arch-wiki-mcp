@@ -61,8 +61,7 @@ Returns section list with anchors and byte offsets:
       "line": "Installation",
       "anchor": "Installation",
       "byteoffset": 2652,
-      "level": "3",
-      ...
+      "level": "3"
     }
   ]
 }
@@ -158,12 +157,13 @@ Search the Arch Wiki using MediaWiki search API:
 
 Every response includes:
 
-✅ **Source URL** - Direct link to wiki page/section  
-✅ **Revision ID** - MediaWiki revision number  
-✅ **Content Hash** - SHA-256 of extracted text (NFC-normalized, whitespace preserved)  
-✅ **Extraction Method** - How content was extracted (e.g., `wikitext_byte_offset`)
+- **Source URL**: Direct link to wiki revision
+- **Revision ID**: MediaWiki revision number
+- **Content Hash**: SHA-256 fingerprint (NFC-normalized)
+- **Extraction Method**: How content was obtained (e.g., `wikitext_byte_offset`)
 
 This enables:
+
 - **Reproducibility**: Same revid → same hash
 - **Forensic soundness**: Prove exactly what was extracted
 - **Blame assignment**: Trace advice to exact wiki version
@@ -181,7 +181,7 @@ python3 tests/test_mcp.py
 
 ## Architecture
 
-```
+```text
 User → MCP Server → Extractor → MediaWiki API → Arch Linux Wiki
        (src/mcp_server.py)   (src/extractor.py)
           ↓                      ↓
@@ -191,12 +191,14 @@ User → MCP Server → Extractor → MediaWiki API → Arch Linux Wiki
 ```
 
 **MCP Server** (`src/mcp_server.py`):
+
 - Thin wrappers around extractor
 - URL → title parsing
 - JSON serialization
 - No wiki parsing
 
 **Extractor** (`src/extractor.py`):
+
 - Single source of truth
 - Wikitext parsing (not HTML)
 - Template detection ({{Warning}}, etc.)
@@ -207,25 +209,20 @@ User → MCP Server → Extractor → MediaWiki API → Arch Linux Wiki
 ## Governance
 
 See:
+
 - `ARCH_WIKI_MCP_CONSTITUTION.md` - Technical contract
 - `AGENTS.md` - AI agent behavioral contract
 - `MEDIAWIKI_API_AUDIT.md` - API capability findings
 
 ## Implementation Notes
 
-1. **Hash stability requires revid pinning**  
-   Hashes are stable for same revid, not across time.
-
-2. **Code blocks use multiple patterns**  
+1. **Hash stability requires revid pinning**: Hashes are stable for same revid, not across time.
+2. **Code blocks use multiple patterns**:
    - Leading-space preformatted
    - Shell prompts (`#`, `$`)
    - `<pre>` and `<code>` tags
-
-3. **Warnings use template syntax**  
-   `{{Warning|text}}`, `{{Note|text}}`, `{{Tip|text}}`
-
-4. **MCP tools are passthrough**  
-   No reformatting, no synthesis, no "helpfulness"
+3. **Warnings use template syntax**: `{{Warning|text}}`, `{{Note|text}}`, `{{Tip|text}}`
+4. **MCP tools are passthrough**: No reformatting, no synthesis, no "helpfulness"
 
 ## License
 

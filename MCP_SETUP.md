@@ -10,7 +10,7 @@
 ### Clone Repository
 
 ```bash
-git clone https://github.com/yourusername/arch-wiki-mcp.git
+git clone https://github.com/egarcia74/arch-wiki-mcp.git
 cd arch-wiki-mcp
 ```
 
@@ -84,7 +84,7 @@ Search the Arch Wiki.
 
 **Example**:
 
-```
+```text
 Search for "grub installation"
 ```
 
@@ -98,7 +98,7 @@ Get full page content with metadata.
 
 **Example**:
 
-```
+```text
 Get page "GRUB"
 ```
 
@@ -111,7 +111,8 @@ Get page "GRUB"
 List all sections in a page.
 
 **Example**:
-```
+
+```text
 List sections of "Installation_guide"
 ```
 
@@ -124,7 +125,8 @@ List sections of "Installation_guide"
 Extract specific section with provenance.
 
 **Example**:
-```
+
+```text
 Get section "Installation" from "GRUB"
 ```
 
@@ -137,7 +139,8 @@ Get section "Installation" from "GRUB"
 Extract code blocks from page or section.
 
 **Example**:
-```
+
+```text
 Get commands from GRUB § Installation
 ```
 
@@ -150,7 +153,8 @@ Get commands from GRUB § Installation
 Extract warning/note/tip templates.
 
 **Example**:
-```
+
+```text
 Get warnings from GRUB § Installation
 ```
 
@@ -164,7 +168,7 @@ Extract internal wiki links.
 
 **Example**:
 
-```
+```text
 Get links from GRUB § Installation
 ```
 
@@ -181,6 +185,7 @@ After configuration:
 3. **Test extraction**: Ask "What does the GRUB installation section say?"
 
 You should see responses with:
+
 - ✅ Direct wiki URLs
 - ✅ Revision IDs
 - ✅ Content hashes
@@ -225,17 +230,16 @@ For testing without an MCP client:
 
 ```bash
 # Test search
-cd src
-python3 mcp_server.py search pacman
+python3 src/mcp_server.py search pacman
 
 # Test page extraction
-python3 mcp_server.py page GRUB
+python3 src/mcp_server.py page GRUB
 
 # Test section extraction
-python3 mcp_server.py section GRUB Installation
+python3 src/mcp_server.py section GRUB Installation
 
 # Test commands
-python3 mcp_server.py commands GRUB Installation
+python3 src/mcp_server.py commands GRUB Installation
 ```
 
 ---
@@ -250,6 +254,7 @@ Every response includes:
 - **Extraction Method**: How content was obtained
 
 This enables:
+
 - **Reproducibility**: Same revid → same hash
 - **Auditability**: Verify AI didn't fabricate
 - **Traceability**: Follow citations to exact wiki version
@@ -272,6 +277,7 @@ This enables:
 - **Concurrency**: Single-threaded (one request at a time)
 
 For production use, consider:
+
 - Caching layer (by `(title, revid)`)
 - Rate limiting
 - Response compression
@@ -286,6 +292,6 @@ MIT License. See `ARCH_WIKI_MCP_CONSTITUTION.md` for full licensing details on d
 
 ## Support
 
-- **Issues**: https://github.com/yourusername/arch-wiki-mcp/issues
+- **Issues**: [https://github.com/egarcia74/arch-wiki-mcp/issues](https://github.com/egarcia74/arch-wiki-mcp/issues)
 - **Governance**: See `ARCH_WIKI_MCP_CONSTITUTION.md`
 - **Agent Contract**: See `AGENTS.md`

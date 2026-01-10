@@ -28,7 +28,7 @@ class WikiSection:
     index: str  # Section index
     byteoffset: int  # Byte offset in wikitext
     fromtitle: str  # Source page title
-    linkAnchor: str  # Link anchor (may differ from anchor)
+    link_anchor: str  # Link anchor (may differ from anchor)
 
 
 @dataclass
@@ -114,7 +114,14 @@ def fetch_wiki_parse(page_title: str, timeout: int = 30) -> Dict:
     if "parse" not in data:
         raise ValueError(f"Unexpected API response format: {data}")
     
-    return data["parse"]
+    parse_data = data["parse"]
+    # Normalize keys for constitutional code style
+    if "sections" in parse_data:
+        for section in parse_data["sections"]:
+            if "linkAnchor" in section:
+                section["link_anchor"] = section.pop("linkAnchor")
+    
+    return parse_data
 
 
 def extract_section_wikitext(
@@ -167,6 +174,36 @@ def parse_templates(wikitext: str) -> List[WarningBlock]:
     return warnings
 
 
+def _extract_indented_blocks(lines: List[str]) -> List[CodeBlock]:
+    """Helper to extract leading-space preformatted blocks."""
+    blocks, current = [], []
+    for line in lines:
+        if line.startswith(" ") and not line.strip().startswith("*"):
+            current.append(line[1:])
+        elif current:
+            blocks.append(CodeBlock("\n".join(current), hash_content("\n".join(current)), "preformatted", None))
+            current = []
+    if current:
+        blocks.append(CodeBlock("\n".join(current), hash_content("\n".join(current)), "preformatted", None))
+    return blocks
+
+def _extract_shell_blocks(lines: List[str]) -> List[CodeBlock]:
+    """Helper to extract shell prompt blocks (# or $)."""
+    blocks, current = [], []
+    for line in lines:
+        s = line.strip()
+        if s.startswith("#") or s.startswith("$"):
+            current.append(s)
+        elif current:
+            if current[0].startswith("# ") or current[0].startswith("$ "):
+                c = "\n".join(current)
+                blocks.append(CodeBlock(c, hash_content(c), "shell", "bash"))
+            current = []
+    if current and (current[0].startswith("# ") or current[0].startswith("$ ")):
+        c = "\n".join(current)
+        blocks.append(CodeBlock(c, hash_content(c), "shell", "bash"))
+    return blocks
+
 def parse_code_blocks(wikitext: str) -> List[CodeBlock]:
     """
     Parse code blocks from wikitext using multiple patterns.
@@ -179,99 +216,22 @@ def parse_code_blocks(wikitext: str) -> List[CodeBlock]:
     
     Returns list of code blocks with hashes.
     """
-    code_blocks = []
-    
-    # Pattern 1: Leading-space preformatted blocks
     lines = wikitext.split("\n")
-    current_block = []
-    in_space_block = False
-    
-    for line in lines:
-        # Leading space indicates preformatted block
-        if line.startswith(" ") and not line.strip().startswith("*"):
-            in_space_block = True
-            current_block.append(line[1:])  # Remove leading space
-        else:
-            if in_space_block and current_block:
-                content = "\n".join(current_block)
-                code_blocks.append(CodeBlock(
-                    content=content,
-                    content_hash=hash_content(content),
-                    block_type="preformatted",
-                    language=None
-                ))
-                current_block = []
-                in_space_block = False
-    
-    # Capture final block
-    if current_block:
-        content = "\n".join(current_block)
-        code_blocks.append(CodeBlock(
-            content=content,
-            content_hash=hash_content(content),
-            block_type="preformatted",
-            language=None
-        ))
-    
-    # Pattern 2: Shell prompt blocks (# or $ prefix)
-    # Look for lines that start with # (root) or $ (user) commands
-    current_shell_block = []
-    
-    for line in lines:
-        stripped = line.strip()
-        # Shell command line
-        if stripped.startswith("#") or stripped.startswith("$"):
-            current_shell_block.append(stripped)
-        else:
-            # End of shell block if we have accumulated commands
-            if current_shell_block:
-                # Only treat as code block if we have actual commands
-                # (not just Markdown headers which also use #)
-                first_line = current_shell_block[0]
-                if first_line.startswith("# ") or first_line.startswith("$ "):
-                    content = "\n".join(current_shell_block)
-                    code_blocks.append(CodeBlock(
-                        content=content,
-                        content_hash=hash_content(content),
-                        block_type="shell",
-                        language="bash"
-                    ))
-                current_shell_block = []
-    
-    # Capture final shell block
-    if current_shell_block:
-        first_line = current_shell_block[0]
-        if first_line.startswith("# ") or first_line.startswith("$ "):
-            content = "\n".join(current_shell_block)
-            code_blocks.append(CodeBlock(
-                content=content,
-                content_hash=hash_content(content),
-                block_type="shell",
-                language="bash"
-            ))
+    code_blocks = _extract_indented_blocks(lines)
+    code_blocks.extend(_extract_shell_blocks(lines))
     
     # Pattern 3: <pre>...</pre> blocks
     pre_pattern = r'<pre>(.*?)</pre>'
     for match in re.finditer(pre_pattern, wikitext, re.DOTALL):
         content = match.group(1).strip()
-        code_blocks.append(CodeBlock(
-            content=content,
-            content_hash=hash_content(content),
-            block_type="pre_tag",
-            language=None
-        ))
+        code_blocks.append(CodeBlock(content, hash_content(content), "pre_tag", None))
     
     # Pattern 4: <code>...</code> blocks (only if multi-line)
     code_pattern = r'<code>(.*?)</code>'
     for match in re.finditer(code_pattern, wikitext, re.DOTALL):
         content = match.group(1).strip()
-        if "\n" in content:  # Multi-line only
-            code_blocks.append(CodeBlock(
-                content=content,
-                content_hash=hash_content(content),
-                block_type="code_tag",
-                language=None
-            ))
+        if "\n" in content:
+            code_blocks.append(CodeBlock(content, hash_content(content), "code_tag", None))
     
     return code_blocks
 

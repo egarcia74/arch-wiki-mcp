@@ -34,14 +34,21 @@ def extract_title_from_url(title_or_url: str) -> str:
 
 
 # MCP Tool: search
-def tool_search(query: str) -> dict:
+def tool_search(query: str, limit: int = 10) -> dict:
     """
     Search Arch Wiki for pages matching query.
     
-    Returns list of matching pages with titles and snippets.
-    Not yet implemented - requires MediaWiki search API integration.
+    Args:
+        query: Search query string
+        limit: Maximum number of results (default 10)
+        
+    Returns:
+        {
+            "results": List[Dict{title, pageid, snippet, url}]
+        }
     """
-    raise NotImplementedError("Search not yet implemented")
+    results = extractor.search(query, limit)
+    return {"results": results}
 
 
 # MCP Tool: page
@@ -190,7 +197,10 @@ def handle_tool_call(tool_name: str, arguments: dict) -> dict:
     """
     try:
         if tool_name == "search":
-            return tool_search(arguments["query"])
+            return tool_search(
+                arguments["query"],
+                arguments.get("limit", 10)
+            )
         
         elif tool_name == "page":
             return tool_page(arguments["title_or_url"])

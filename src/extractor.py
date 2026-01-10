@@ -304,6 +304,58 @@ def parse_internal_links(wikitext: str, source_page: str) -> List[InternalLink]:
     return links
 
 
+def search(query: str, limit: int = 10, timeout: int = 30) -> List[Dict]:
+    """
+    MCP Tool: Search Arch Wiki using MediaWiki search API.
+    
+    Args:
+        query: Search query string
+        limit: Maximum number of results (default 10)
+        timeout: Request timeout in seconds
+        
+    Returns:
+        List of search results:
+        [{
+            "title": str,
+            "pageid": int,
+            "snippet": str,  # HTML snippet with highlights
+            "url": str
+        }]
+    
+    No ranking, no interpretation. Just wiki's search results as-is.
+    """
+    params = {
+        "action": "query",
+        "list": "search",
+        "srsearch": query,
+        "srlimit": limit,
+        "format": "json",
+    }
+    url = f"{API_ENDPOINT}?{urlencode(params)}"
+    
+    request = Request(url, headers={"User-Agent": USER_AGENT})
+    
+    with urlopen(request, timeout=timeout) as response:
+        data = json.loads(response.read().decode("utf-8"))
+    
+    if "error" in data:
+        raise ValueError(f"Search API Error: {data['error'].get('info', data['error'])}")
+    
+    if "query" not in data or "search" not in data["query"]:
+        raise ValueError(f"Unexpected search API response: {data}")
+    
+    results = []
+    for item in data["query"]["search"]:
+        results.append({
+            "title": item["title"],
+            "pageid": item["pageid"],
+            "snippet": item.get("snippet", ""),
+            "url": f"https://wiki.archlinux.org/title/{item['title'].replace(' ', '_')}"
+        })
+    
+    return results
+
+
 def page(title: str) -> Dict:
     """
     MCP Tool: Fetch full page with metadata.

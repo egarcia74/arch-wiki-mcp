@@ -1,6 +1,6 @@
 # Arch Wiki MCP: Technical Constitution
 
-**Version:** 1.1  
+**Version:** 1.2  
 **Status:** Canonical  
 **Last Updated:** 2026-01-10
 
@@ -92,7 +92,7 @@ The **Arch Linux Wiki** is the only authoritative source.
 This server does not:
 
 - Paraphrase wiki content into "simpler" language
-- Combine information from multiple pages unless explicitly requested
+- Combine information from multiple pages unless explicitly requested by the API caller with page-level granularity
 - Infer meaning from context
 - Fill gaps with "reasonable" assumptions
 - Use training data as a fallback
@@ -120,6 +120,7 @@ This MCP exposes the wiki as **machine-readable primitives**:
 - **Commands**: Code blocks tagged with language, context, and source section
 - **Warnings**: Explicit note/warning/tip blocks with severity
 - **Packages**: Names, categories, and wiki references
+- **Links**: Internal wiki links extracted with source and target page
 - **Search Results**: Ranked page titles with match context
 
 Responses are JSON-structured, version-tagged, and citation-linked.
@@ -130,7 +131,7 @@ Every response includes:
 
 - Source wiki URL
 - Section anchor (if applicable)
-- Page version or last-modified timestamp
+- MediaWiki revision ID or last-modified timestamp when revision ID is unavailable
 - Extraction method (direct quote, code block, heading structure)
 - **Content hash** (SHA-256) of extracted text block
 
@@ -153,6 +154,7 @@ Implementation requirements:
 
 - Use **SHA-256** for content fingerprinting
 - Hash the **exact extracted text** before any formatting
+- Text must be normalized to **Unicode NFC** and whitespace preserved before hashing
 - Include hash in all JSON responses as `content_hash` field
 - Log hashes with timestamps for forensic retrieval
 
@@ -399,6 +401,18 @@ Repeated violations result in:
 - Contributor access revocation
 - Reversion to last constitutional state
 - Public documentation of breach
+
+### API Governance
+
+Breaking changes to API semantics require:
+
+- Constitution version bump
+- Migration notes documenting changes
+- Backward compatibility period when feasible
+
+Quietly changing response structure, field names, or extraction behavior violates this constitution even if implementation details remain "correct."
+
+Governance applies to interfaces, not just code.
 
 ---
 

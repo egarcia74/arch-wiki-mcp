@@ -6,25 +6,28 @@
 
 ✅ **Extractor**: Deterministic wikitext parser with hash stability  
 ✅ **MCP Server**: Thin wrapper exposing extractor as MCP tools  
-⚠️ **Search**: Not yet implemented
+✅ **Search**: MediaWiki search API integration complete
 
 ## Quick Start
 
 ```bash
+# Search wiki
+python3 src/mcp_server.py search pacman
+
 # Get full page with revid and hash
-python3 server.py page GRUB
+python3 src/mcp_server.py page GRUB
 
 # Get section with provenance
-python3 server.py section GRUB Installation
+python3 src/mcp_server.py section GRUB Installation
 
 # Get commands with content hashes
-python3 server.py commands GRUB Installation
+python3 src/mcp_server.py commands GRUB Installation
 
 # Get warnings with content hashes
-python3 server.py warnings GRUB Installation
+python3 src/mcp_server.py warnings GRUB Installation
 
 # Get internal links
-python3 server.py links GRUB Installation
+python3 src/mcp_server.py links GRUB Installation
 ```
 
 ## MCP Tools
@@ -134,6 +137,23 @@ Returns internal wiki links:
 }
 ```
 
+### `search(query, [limit])`
+
+Search the Arch Wiki using MediaWiki search API:
+
+```json
+{
+  "results": [
+    {
+      "title": "Pacman",
+      "pageid": 9454,
+      "snippet": "...<span class=\"searchmatch\">pacman</span>...",
+      "url": "https://wiki.archlinux.org/title/Pacman"
+    }
+  ]
+}
+```
+
 ## Constitutional Guarantees
 
 Every response includes:
@@ -153,30 +173,30 @@ This enables:
 
 ```bash
 # Hash stability regression test
-python3 test_extractor.py
+python3 tests/test_extractor.py
 
 # MCP server integration test
-python3 test_server.py
+python3 tests/test_mcp.py
 ```
 
 ## Architecture
 
 ```
 User → MCP Server → Extractor → MediaWiki API → Arch Linux Wiki
-       (server.py)   (extractor.py)
-         ↓              ↓
-    Thin wrapper    Truth engine
-    No parsing      Wikitext parser
-    Passthrough     Hash generator
+       (src/mcp_server.py)   (src/extractor.py)
+          ↓                      ↓
+    Thin wrapper            Truth engine
+    No parsing              Wikitext parser
+    Passthrough             Hash generator
 ```
 
-**MCP Server** (`server.py`):
+**MCP Server** (`src/mcp_server.py`):
 - Thin wrappers around extractor
 - URL → title parsing
 - JSON serialization
 - No wiki parsing
 
-**Extractor** (`extractor.py`):
+**Extractor** (`src/extractor.py`):
 - Single source of truth
 - Wikitext parsing (not HTML)
 - Template detection ({{Warning}}, etc.)
@@ -219,6 +239,10 @@ See:
 - [x] Hash stability proof
 - [x] MCP server thin wrappers
 - [x] Integration tests
-- [ ] Search implementation
-- [ ] MCP protocol integration
+- [x] Search implementation
+- [x] MCP setup documentation
+- [ ] MCP protocol integration (in progress)
+- [ ] Client testing (Claude, Cline, etc.)
 - [ ] Deployment configuration
+
+**All 7 MCP tools operational. Ready for client integration.**

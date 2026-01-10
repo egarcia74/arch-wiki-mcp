@@ -7,7 +7,7 @@
 ## Capability Matrix
 
 | Constitutional Requirement | MediaWiki API Support | Status |
-|----------------------------|----------------------|--------|
+| -------------------------- | --------------------- | ------ |
 | **Revision IDs per page** | ✅ `revid` field in parse response | **Supported** |
 | **Revision IDs per section** | ⚠️ Page-level only, not section-level | **Workaround Available** |
 | **Raw wikitext access** | ✅ `prop=wikitext` returns full source | **Supported** |
@@ -26,11 +26,13 @@
 ### Endpoint: `https://wiki.archlinux.org/api.php`
 
 **Test Query**: Installation Guide
-```
+
+```text
 ?action=parse&page=Installation_guide&prop=wikitext|sections|revid&format=json
 ```
 
 **Response Structure**:
+
 ```json
 {
   "parse": {
@@ -70,11 +72,13 @@
 ### 2. Warning Detection Requires Wikitext Parsing
 
 **MediaWiki Templates**:
+
 - `{{Warning|text}}` → Red warning box
 - `{{Note|text}}` → Blue note box  
 - `{{Tip|text}}` → Green tip box
 
 **HTML Classes** (in rendered output):
+
 - `<div class="archwiki-template-box archwiki-template-box-warning">`
 
 **Recommendation**: Parse wikitext for template syntax (constitutional fidelity)
@@ -82,7 +86,8 @@
 ### 3. Code Block Formats
 
 **Wikitext Syntax**:
-```
+
+```text
 # Command with leading space (indented)
  $ command here
  
@@ -107,6 +112,7 @@
 ### Option 1: Raw Wikitext Parsing ✅ **RECOMMENDED**
 
 **Pros**:
+
 - Exact whitespace preservation
 - Template detection (warnings) is deterministic
 - Code blocks are verbatim
@@ -114,16 +120,19 @@
 - Hash stability (no HTML rendering variance)
 
 **Cons**:
+
 - Requires wikitext parser
 - Must handle MediaWiki template syntax
 
 ### Option 2: Parsoid HTML
 
 **Pros**:
+
 - Structured DOM
 - Semantic HTML5
 
 **Cons**:
+
 - Whitespace normalization
 - Entity encoding (`&lt; &gt;`)
 - Rendering variance across Parsoid versions
@@ -132,6 +141,7 @@
 ### Option 3: Legacy HTML (`prop=text`)
 
 **Cons**:
+
 - Same issues as Parsoid
 - Less semantic structure
 - **Not recommended**
@@ -141,7 +151,7 @@
 ## Constitutional Compliance Assessment
 
 | Requirement | Can Deliver? | Implementation Notes |
-|-------------|--------------|----------------------|
+| ----------- | ------------ | ---------------------- |
 | MediaWiki revision ID | ✅ Yes | `revid` field |
 | SHA-256 content hash | ✅ Yes | Hash extracted wikitext |
 | Unicode NFC normalization | ✅ Yes | Apply before hashing |
@@ -180,11 +190,13 @@ No implementation adjustments required. The constitution's guarantees are achiev
 ## Successful Test Results
 
 ### Test Query (via curl)
+
 ```bash
 curl "https://wiki.archlinux.org/api.php?action=parse&page=GRUB&prop=wikitext|sections|revid&format=json"
 ```
 
 ### Response Excerpt
+
 ```json
 {
   "parse": {

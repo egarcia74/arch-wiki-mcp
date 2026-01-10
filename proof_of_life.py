@@ -165,7 +165,7 @@ def main():
             
             if code_blocks:
                 first_block = code_blocks[0]
-                print(f"   First block preview:")
+                print("   First block preview:")
                 print(f"   {first_block[:100].replace(chr(10), chr(10) + '   ')}")
                 
                 # Verify whitespace preservation

@@ -1,6 +1,6 @@
 # Arch Wiki MCP: Technical Constitution
 
-**Version:** 1.0  
+**Version:** 1.1  
 **Status:** Canonical  
 **Last Updated:** 2026-01-10
 
@@ -132,8 +132,31 @@ Every response includes:
 - Section anchor (if applicable)
 - Page version or last-modified timestamp
 - Extraction method (direct quote, code block, heading structure)
+- **Content hash** (SHA-256) of extracted text block
 
 If an agent cannot cite its source, it should not have used this server.
+
+### Provenance Persistence
+
+Extracted blocks must include a **cryptographic hash** of the quoted wiki fragment.
+
+The Arch Wiki is continuously edited. A timestamp alone cannot prove what version was served if a page has been modified multiple times in the same day.
+
+Content hashing ensures:
+
+- **Bug Reports**: Users can prove exactly what text justified a command
+- **Reproducibility**: Researchers can verify historical responses
+- **Auditability**: System owners can trace bad advice to exact wiki versions
+- **Blame**: Maintainers can determine if wiki or MCP introduced error
+
+Implementation requirements:
+
+- Use **SHA-256** for content fingerprinting
+- Hash the **exact extracted text** before any formatting
+- Include hash in all JSON responses as `content_hash` field
+- Log hashes with timestamps for forensic retrieval
+
+This turns citation from "well-sourced" into **forensically sound**.
 
 ### Fail Closed
 
@@ -188,7 +211,8 @@ A response is correct if and only if:
 1. **Traceable**: Response includes wiki URL and section
 2. **Verbatim or Structured**: Content is quoted directly or extracted as metadata
 3. **Version-Aware**: Timestamp or revision ID included
-4. **Falsifiable**: A human can verify the response against the wiki
+4. **Content-Hashed**: SHA-256 fingerprint of extracted text included
+5. **Falsifiable**: A human can verify the response against the wiki
 
 A response is **incorrect** if:
 

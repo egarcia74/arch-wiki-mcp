@@ -6,6 +6,7 @@ Thin wrapper around constitutional extractor - exposes wiki as MCP tools.
 import sys
 import os
 import json
+from dataclasses import asdict
 from typing import Optional
 from urllib.parse import urlparse
 
@@ -121,24 +122,20 @@ def tool_section(title_or_url: str, anchor: str) -> dict:
             "section_heading": str,
             "extraction_method": str,
             "content": str,
-            "content_hash": str
+            "content_raw": str,
+            "content_hash": str,
+            "content_hash_cleaned": str
         }
+
+    content is rendered for quoting: markdown headings, fenced code, resolved links.
+    content_raw is the verbatim wikitext slice and is what content_hash covers, so the
+    citation stays falsifiable against the wiki. content_hash_cleaned covers content.
+
+    Serialized from the dataclass, so a new field cannot be dropped on the way out:
+    hand-listing the keys once shipped `content_hash` attesting text no agent could see.
     """
     title = extract_title_from_url(title_or_url)
-    result = extractor.section(title, anchor)
-    
-    # Return as dict (convert dataclass to dict)
-    return {
-        "title": result.title,
-        "url": result.url,
-        "revid": result.revid,
-        "timestamp": result.timestamp,
-        "section_anchor": result.section_anchor,
-        "section_heading": result.section_heading,
-        "extraction_method": result.extraction_method,
-        "content": result.content,
-        "content_hash": result.content_hash
-    }
+    return asdict(extractor.section(title, anchor))
 
 
 # MCP Tool: commands
@@ -266,7 +263,7 @@ def _handle_initialize(msg_id: int) -> dict:
         "id": msg_id,
         "result": {
             "protocolVersion": "2024-11-05",
-            "serverInfo": {"name": "arch-wiki-mcp", "version": "1.3.0"},
+            "serverInfo": {"name": "arch-wiki-mcp", "version": "1.4.0"},
             "capabilities": {"tools": {}, "prompts": {}}
         }
     }
@@ -316,13 +313,21 @@ NON-NEGOTIABLE RULES (Truth Perimeter)
 7) You must not merge multiple pages into a “unified guide” unless the user explicitly requests multi-page output AND you preserve page-level provenance per fragment.
 
 WHICH FIELD IS VERBATIM
-Two tools return the same evidence twice. Neither field may be edited by you.
+Three tools return the same evidence twice. Neither field may be edited by you.
    - commands(): show `content`, cite `content_raw` + content_hash.
    - warnings(): show `message`, cite `message_raw` + content_hash.
-   - section():  returns raw wikitext only. Quote it as-is; do not render it yourself.
+   - section():  show `content`, cite `content_raw` + content_hash.
 The shown field already has wikitext markup resolved by this MCP ('' '' emphasis,
 {{ic|...}}, [[links]]). Do not resolve it yourself and do not undo it.
 content_hash_cleaned / message_hash_cleaned attest the shown text.
+
+In section().content, a fenced ``` block is a command block the wiki wrote; prose is
+prose. A '#' begins a heading, never a shell prompt -- outside a fence the wiki's own
+numbered list renders as "1.", so a '#' you see inside a fence is a real root prompt.
+Do not lift a fenced block out of section() and present it as a command: call
+commands(), which returns it with its own hash and placeholders. If a template appears
+raw ({{Accuracy|...}}), this MCP could not render it: report it as-is rather than
+paraphrasing or dropping it.
 
 PLACEHOLDERS
 If a command block has a non-empty `placeholders` list, those tokens are values the
@@ -336,7 +341,7 @@ dangerous output this MCP permits.
 
 ALLOWED RESPONSE SHAPES
 A) Evidence relay: structural blocks from commands() with provenance, placeholders declared.
-B) Pointer: "The wiki does not provide structural commands for this step" + quote from section() with provenance.
+B) Pointer: "The wiki does not provide structural commands for this step" + quote section().content with provenance.
 C) Failure: NotFound / Ambiguous anchor / empty results.
 
 Output format (strict):
@@ -400,7 +405,12 @@ def _handle_tools_list(msg_id: int) -> dict:
                 },
                 {
                     "name": "section",
-                    "description": "Get single section with provenance",
+                    "description": (
+                        "Get single section with provenance. Returns `content` (rendered for "
+                        "quoting: markdown headings, fenced code, resolved links) and "
+                        "`content_raw` (verbatim wikitext). content_hash attests content_raw; "
+                        "content_hash_cleaned attests content."
+                    ),
                     "inputSchema": {
                         "type": "object",
                         "properties": {

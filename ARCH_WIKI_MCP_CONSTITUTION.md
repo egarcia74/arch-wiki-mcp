@@ -1,8 +1,49 @@
 # Arch Wiki MCP: Technical Constitution
 
-**Version:** 1.5  
+**Version:** 1.6  
 **Status:** Canonical  
 **Last Updated:** 2026-07-09
+
+---
+
+## Amendment 1.6 — Migration Notes
+
+Per §12 (API Governance): `section()` gains `content_raw` and
+`content_hash_cleaned`, and its `content` changes from raw wikitext to rendered
+text. `content_hash` still attests the verbatim slice and does **not** move.
+
+### Changed in 1.6
+
+- **`section().content` is rendered.** §6 (Exclusive Command Source) directs the
+  agent to `section()` whenever `commands()` honestly returns `[]`: quote the
+  wiki's prose rather than infer a command. That prose was raw wikitext, in which
+  a numbered list item is written `# Point the current boot device ...` — the
+  same character a root shell prompt uses. Five sections in the corpus reachable
+  by that route begin lines this way.
+
+  This is the defect that got `examples()` removed in 1.3 for emitting prose as
+  bash. Deleting the tool did not delete the ambiguity; it relocated it into the
+  one path this constitution *requires* an agent to take.
+
+  Wiki headings now render as markdown headings, `{{bc}}`/`{{hc}}` as fenced
+  blocks, and `{{Note}}`/`{{Warning}}`/`{{Tip}}` as labelled prose. Outside a
+  fence a leading `#` is a heading; the wiki's ordered lists render as `1.`.
+
+  *Migration:* show `content`, cite `content_raw` and `content_hash`. Code an
+  agent intends to run must still come from `commands()`, which alone carries
+  per-block hashes and `placeholders`.
+
+- **Unknown templates survive verbatim.** The renderer resolves a whitelist. A
+  template it does not know (`{{Accuracy|...}}`, `{{App|...}}`) is left as raw
+  markup rather than dropped. §8 forbids synthesis; silently deleting the wiki's
+  own caveat is synthesis by omission, and markup an agent can see is the honest
+  failure. The residual set is pinned by test, so a newly used template becomes a
+  red test rather than lost content.
+
+- **`warnings()` and `links()` read `content_raw`.** Both parse wikitext and were
+  built on `section().content`. Left unchanged they would have returned `[]` for
+  every anchored call — which §6 tells the agent means "the wiki specifies
+  nothing here." A rendering change became a fail-closed lie one call away.
 
 ---
 

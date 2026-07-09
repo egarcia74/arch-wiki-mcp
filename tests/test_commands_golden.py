@@ -12,13 +12,17 @@ from conftest import GRUB_REVID, load_wikitext
 from src import extractor
 
 # (page, {{bc}} blocks, {{hc}} blocks, indented blocks)
+#
+# Indented counts exclude space-prefixed lines that sit *inside* a {{bc}}/{{hc}}
+# body -- those spans are masked before the indented scan, so a template body is
+# never also emitted as a separate preformatted block.
 TEMPLATE_COUNTS = [
-    ("GRUB", 17, 8, 40),
+    ("GRUB", 17, 8, 35),
     ("Installation_guide", 2, 3, 22),
-    ("Iwd", 0, 28, 29),
-    ("KDE", 6, 19, 35),
+    ("Iwd", 0, 28, 26),
+    ("KDE", 6, 19, 28),
     ("Pacman", 0, 1, 61),
-    ("Systemd", 1, 18, 17),
+    ("Systemd", 1, 18, 16),
     ("Users_and_groups", 0, 5, 31),
 ]
 
@@ -116,6 +120,21 @@ def test_no_wikitext_markup_leaks_into_content():
         for block in extractor.parse_code_blocks(load_wikitext(page)):
             assert "''" not in block.content
             assert "{{ic" not in block.content
+
+
+def test_template_bodies_are_not_also_emitted_as_indented_blocks():
+    """
+    49 space-prefixed lines live inside {{bc}}/{{hc}} bodies across the corpus.
+    Without masking the consumed spans, each is re-emitted as a phantom
+    indented_block duplicating code already returned by its template.
+    """
+    blocks = extractor.parse_code_blocks(load_wikitext("KDE"))
+    indented = [b.content for b in blocks if b.source_pattern == "indented_block"]
+
+    # This script body sits inside {{hc|/usr/local/bin/kde-no-shadow|<nowiki>...}}
+    # and is indented; it must be attributed to the template, never to a bare block.
+    assert any("xwininfo" in b.content for b in blocks if b.source_pattern == "template_hc")
+    assert not any("xwininfo" in block for block in indented)
 
 
 def test_extraction_is_deterministic():

@@ -95,7 +95,7 @@ def test_commands_tool_schema():
 
 def test_commands_tool_full_page():
     blocks = mcp_server.tool_commands("GRUB")["commands"]
-    assert len(blocks) == 65  # 17 bc + 8 hc + 40 indented
+    assert len(blocks) == 60  # 17 bc + 8 hc + 35 indented
 
 
 def test_warnings_tool():

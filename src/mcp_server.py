@@ -152,8 +152,14 @@ def tool_commands(title_or_url: str, anchor: Optional[str] = None) -> dict:
         
     Returns:
         {
-            "commands": List[Dict{content, content_hash, block_type, language, source_url}]
+            "commands": List[Dict{content, content_raw, content_hash, block_type,
+                                  source_pattern, language, header, placeholders,
+                                  source_url, revid}]
         }
+
+    content is safe to run; content_raw is the verbatim wikitext payload and is
+    what content_hash covers. Raises on a missing page or anchor; returns [] only
+    when the page truly has no code blocks.
     """
     title = extract_title_from_url(title_or_url)
     commands = extractor.commands(title, anchor)
@@ -187,17 +193,6 @@ def tool_links(title_or_url: str, anchor: Optional[str] = None) -> dict:
     title = extract_title_from_url(title_or_url)
     links = extractor.links(title, anchor)
     return {"links": links}
-
-
-# MCP Tool: examples
-def tool_examples(title_or_url: str, anchor: Optional[str] = None) -> dict:
-    """
-    Extract heuristic shell examples from prose.
-    Use this when commands() is empty but instructions appear to be in prose.
-    """
-    title = extract_title_from_url(title_or_url)
-    examples = extractor.examples(title, anchor)
-    return {"examples": examples}
 
 
 # MCP Server Implementation
@@ -240,12 +235,6 @@ def handle_tool_call(tool_name: str, arguments: dict) -> dict:
         
         elif tool_name == "links":
             return tool_links(
-                arguments["title_or_url"],
-                arguments.get("anchor")
-            )
-        
-        elif tool_name == "examples":
-            return tool_examples(
                 arguments["title_or_url"],
                 arguments.get("anchor")
             )
@@ -320,10 +309,10 @@ NON-NEGOTIABLE RULES (Truth Perimeter)
 6) You must surface warnings and notes returned by warnings() before presenting related commands.
 7) You must not merge multiple pages into a “unified guide” unless the user explicitly requests multi-page output AND you preserve page-level provenance per fragment.
 
+ALLOWED RESPONSE SHAPES
 A) Evidence relay: verbatim structural blocks from commands() with provenance.
-B) Heuristic inference: shell examples from examples() with an explicit warning: "These commands were extracted via heuristic from prose."
-C) Pointer: "The wiki does not provide structural commands for this step" + quote from section() with provenance.
-D) Failure: NotFound / Ambiguous anchor / empty results.
+B) Pointer: "The wiki does not provide structural commands for this step" + quote from section() with provenance.
+C) Failure: NotFound / Ambiguous anchor / empty results.
 
 Output format (strict):
 - Start with a short statement of what MCP calls you made.
@@ -411,18 +400,6 @@ def _handle_tools_list(msg_id: int) -> dict:
                 {
                     "name": "warnings",
                     "description": "Extract warning templates from page or section",
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": {
-                            "title_or_url": {"type": "string", "description": TITLE_DESC},
-                            "anchor": {"type": "string", "description": ANCHOR_DESC}
-                        },
-                        "required": ["title_or_url"]
-                    }
-                },
-                {
-                    "name": "examples",
-                    "description": "Extract heuristic shell examples from prose",
                     "inputSchema": {
                         "type": "object",
                         "properties": {
@@ -522,7 +499,6 @@ def main():
         print("  sections <title_or_url>")
         print("  section <title_or_url> <anchor>")
         print("  commands <title_or_url> [anchor]")
-        print("  examples <title_or_url> [anchor]")
         print("  warnings <title_or_url> [anchor]")
         print("  links <title_or_url> [anchor]")
         print("\nOr run as MCP server:")
@@ -540,7 +516,7 @@ def main():
         arguments = {"title_or_url": sys.argv[2]}
     elif tool == "section":
         arguments = {"title_or_url": sys.argv[2], "anchor": sys.argv[3]}
-    elif tool in ["commands", "examples", "warnings", "links"]:
+    elif tool in ["commands", "warnings", "links"]:
         arguments = {"title_or_url": sys.argv[2]}
         if len(sys.argv) > 3:
             arguments["anchor"] = sys.argv[3]

@@ -187,10 +187,19 @@ had to *consume* the output.
 
 ### Remaining gaps
 
-- **`section().content` is raw wikitext**, by design: it is the verbatim slice the
-  `content_hash` attests. An agent quoting it to a user must render the markup
-  itself, or quote the corresponding `warnings().message` where one exists.
+- **The section renderer resolves a whitelist.** `{{bc}}`, `{{hc}}`, `{{Note}}`,
+  `{{Warning}}`, `{{Tip}}`, `{{Caution}}`, the inline templates, links, headings and
+  list markers. Anything else — `{{App}}`, `{{Accuracy}}`, `{{Bug}}` — survives as
+  raw markup rather than being dropped, and `test_section_render_golden` pins that
+  residual set so a newly used template goes red instead of vanishing silently.
+  Rendering it away would be synthesis by omission; leaving it visible is the
+  honest failure.
 - **`{{bc}}`/`{{hc}}` are Arch template conventions**, declared in code rather than
   discovered. MediaWiki exposes no way to ask which templates are code. If the
   wiki renames them, extraction silently returns fewer blocks — the one failure
   mode the corpus tests would catch only if a fixture were re-recorded.
+- **No caching of `fetch_wiki_parse` in the live path.** An agent calling
+  `section()`, `commands()` and `warnings()` on one page issues three identical
+  HTTP requests. Pure latency, and the hardest thing here to test offline.
+- **`search().snippet` passes MediaWiki's `<span class="searchmatch">` HTML
+  through** unrendered.

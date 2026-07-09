@@ -157,10 +157,10 @@ def tool_commands(title_or_url: str, anchor: Optional[str] = None) -> dict:
                                   language, header, placeholders, source_url, revid}]
         }
 
-    content is safe to run; content_raw is the verbatim wikitext payload and is what
-    content_hash covers. content_hash_cleaned covers content, so the cleaning step is
-    attested too. Raises on a missing page or anchor; returns [] only when the page
-    truly has no code blocks.
+    content is runnable once its placeholders are substituted; those stay marked as
+    <esp>. content_raw is the verbatim wikitext payload and is what content_hash covers.
+    content_hash_cleaned covers content, so the cleaning step is attested too. Raises on
+    a missing page or anchor; returns [] only when the page truly has no code blocks.
     """
     title = extract_title_from_url(title_or_url)
     commands = extractor.commands(title, anchor)
@@ -266,7 +266,7 @@ def _handle_initialize(msg_id: int) -> dict:
         "id": msg_id,
         "result": {
             "protocolVersion": "2024-11-05",
-            "serverInfo": {"name": "arch-wiki-mcp", "version": "1.2.0"},
+            "serverInfo": {"name": "arch-wiki-mcp", "version": "1.3.0"},
             "capabilities": {"tools": {}, "prompts": {}}
         }
     }
@@ -315,8 +315,27 @@ NON-NEGOTIABLE RULES (Truth Perimeter)
 6) You must surface warnings and notes returned by warnings() before presenting related commands.
 7) You must not merge multiple pages into a “unified guide” unless the user explicitly requests multi-page output AND you preserve page-level provenance per fragment.
 
+WHICH FIELD IS VERBATIM
+Two tools return the same evidence twice. Neither field may be edited by you.
+   - commands(): show `content`, cite `content_raw` + content_hash.
+   - warnings(): show `message`, cite `message_raw` + content_hash.
+   - section():  returns raw wikitext only. Quote it as-is; do not render it yourself.
+The shown field already has wikitext markup resolved by this MCP ('' '' emphasis,
+{{ic|...}}, [[links]]). Do not resolve it yourself and do not undo it.
+content_hash_cleaned / message_hash_cleaned attest the shown text.
+
+PLACEHOLDERS
+If a command block has a non-empty `placeholders` list, those tokens are values the
+user must substitute -- the wiki italicised them. They appear marked in `content`:
+`--efi-directory=<esp>`, placeholders ["esp"], means the user's EFI system partition
+mount point, NOT a path to type literally. The marker makes a thoughtless paste fail
+at the shell instead of acting on the wrong path; you must NOT strip it. You must say
+so before showing the command, and you must not guess a value. Presenting a
+placeholder as a literal is fabrication carrying a valid hash, which is the most
+dangerous output this MCP permits.
+
 ALLOWED RESPONSE SHAPES
-A) Evidence relay: verbatim structural blocks from commands() with provenance.
+A) Evidence relay: structural blocks from commands() with provenance, placeholders declared.
 B) Pointer: "The wiki does not provide structural commands for this step" + quote from section() with provenance.
 C) Failure: NotFound / Ambiguous anchor / empty results.
 

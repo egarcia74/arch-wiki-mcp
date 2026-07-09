@@ -8,12 +8,20 @@ to the calling agent -- which AGENTS.md section 6 then instructs to tell the use
 the wiki "does not specify an explicit command block".
 """
 
+from urllib.request import urlopen
+
 import pytest
 
 from src import extractor
 
 MISSING_PAGE = "Nonexistent page xyz"
 TRANSCLUDED_PAGE = "Transcluded example"
+
+
+def test_the_network_guard_actually_bites():
+    """A guard nothing exercises is decoration. Prove the suite cannot reach the wiki."""
+    with pytest.raises(RuntimeError, match="Network access during tests"):
+        urlopen("https://wiki.archlinux.org/api.php", timeout=1)
 
 
 def test_missing_anchor_raises_rather_than_returning_empty():

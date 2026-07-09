@@ -1,0 +1,67 @@
+name: tests
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install
+        run: pip install -e ".[test]"
+
+      # The suite reads recorded API fixtures and blocks sockets, so a wiki edit
+      # can never turn CI red and CI never touches wiki.archlinux.org.
+      - name: Run tests
+        run: pytest -ra --cov --cov-report=term-missing --cov-fail-under=78
+
+  server-starts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Nothing in the pytest suite drives real stdin/stdout JSON-RPC; it calls the
+      # handlers directly. This job exercises the transport itself. The exact tool
+      # surface is asserted in tests/test_mcp.py, not restated here.
+      - name: MCP handshake over stdio
+        env:
+          ARCHWIKI_OFFLINE: "1"
+          ARCHWIKI_FIXTURES: tests/fixtures
+        run: |
+          printf '%s\n' \
+            '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
+            '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' \
+            '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"commands","arguments":{"title_or_url":"GRUB","anchor":"Installation"}}}' \
+            | python3 src/mcp_server.py --stdio > /tmp/rpc.jsonl
+          python3 - <<'PY'
+          import json
+          responses = {}
+          with open("/tmp/rpc.jsonl") as handle:
+              for line in handle:
+                  if line.strip():
+                      message = json.loads(line)
+                      responses[message["id"]] = message
+
+          assert responses[1]["result"]["protocolVersion"] == "2024-11-05"
+          assert responses[2]["result"]["tools"], "tools/list returned nothing over stdio"
+
+          payload = json.loads(responses[3]["result"]["content"][0]["text"])
+          assert payload["commands"], "commands returned nothing over stdio"
+          print("MCP stdio transport OK")
+          PY

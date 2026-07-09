@@ -64,7 +64,7 @@ A reliable backend for IDEs, scripts, and agents.
 ✅ **Extractor**: Deterministic wikitext parser with hash stability  
 ✅ **MCP Server**: Thin wrapper exposing extractor as MCP tools  
 ✅ **Search**: MediaWiki search API integration complete  
-✅ **Tests**: 125 offline tests pinned to recorded wiki fixtures; 108/108 `{{bc}}`/`{{hc}}` blocks and 432/432 sections resolve correctly
+✅ **Tests**: 144 offline tests pinned to recorded wiki fixtures; 108/108 `{{bc}}`/`{{hc}}` blocks and 432/432 sections resolve correctly
 
 ## Quick Start
 
@@ -100,10 +100,10 @@ There is deliberately no tool that infers commands from prose.
 
 ```json
 {
-  "content": "# grub-install --target=x86_64-efi --efi-directory=esp --bootloader-id=GRUB",
+  "content": "# grub-install --target=x86_64-efi --efi-directory=<esp> --bootloader-id=GRUB",
   "content_raw": "# grub-install --target=x86_64-efi --efi-directory=''esp'' --bootloader-id=GRUB",
   "content_hash": "8b8dfad439a8fb73f328ec9c2da75cf575e7a24ad945d3890ddc626f180b7a44",
-  "content_hash_cleaned": "f1464018c1c4c719b1729a3c421c7f53faad76b30d5f4b8bccb9467ec4df282b",
+  "content_hash_cleaned": "29e88b233ac641da1dec1beeb7500687263991279c8fd0d5762ca45479ffb12e",
   "block_type": "block_code",
   "source_pattern": "template_bc",
   "header": null,
@@ -113,12 +113,14 @@ There is deliberately no tool that infers commands from prose.
 }
 ```
 
-* `content` is safe to run: wikitext emphasis is stripped and `{{ic}}`/`{{=}}`/`{{!}}` resolved.
+* `content` is runnable **once you substitute the placeholders**. Templates and emphasis
+  are resolved; italicised placeholders stay marked as `<esp>` so a thoughtless paste fails
+  at the shell instead of acting on the wrong path.
 * `content_raw` is the verbatim payload, exactly as it appears in the wikitext.
 * `content_hash` covers **`content_raw`**, so a human can grep the wiki source to falsify it.
 * `content_hash_cleaned` covers **`content`** — the text you actually execute. Both
   fingerprints travel together, so the cleaning step is attested rather than trusted.
-* `placeholders` lists the tokens the author italicised — values you must substitute.
+* `placeholders` names those tokens. 116 of the 327 code blocks in the fixture corpus have them.
 * `header` carries the file path for `{{hc}}` blocks (`/etc/default/grub`).
 
 `commands` fails closed. A missing page or missing anchor raises an error; `[]`

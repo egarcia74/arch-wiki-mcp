@@ -794,7 +794,13 @@ def _render_admonition(name: str, interior: str, depth: int) -> str:
     """Render {{Note|...}} and friends as labelled prose, recursing for nested code."""
     params = _split_template_params(interior, 1)
     raw = _strip_param_name(params[1], {"1"}) if len(params) > 1 else ""
-    body = render_section_wikitext(raw, depth + 1).strip()
+
+    # "{{Note| The iwd backend ...}}": that leading space sits mid-line in the
+    # source, not at column 0, so it does not mark preformatted code. Left on, the
+    # whole note renders as code -- links unresolved, and ''bar'' turned into the
+    # placeholder <bar>, inventing a value the reader is told to substitute.
+    # A body that opens with a newline keeps it; only the first line is affected.
+    body = render_section_wikitext(raw.lstrip(" \t"), depth + 1).strip()
 
     label = f"**{_ADMONITIONS[name]}:**"
     # A bullet or a fence glued to the label reads as part of the first item.

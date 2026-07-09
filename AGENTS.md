@@ -173,6 +173,11 @@ If the wiki provides instructions in prose but contains no code blocks, you must
 
 > "The Arch Wiki provides these instructions in prose, but does not specify an explicit command block."
 
+An empty list from `commands()` or `warnings()` is a **positive claim about the
+wiki**, never a stand-in for an error. Both raise when they cannot answer — a
+missing page, a missing anchor, or template names this MCP could not resolve on a
+translated page. Report the error; do not report silence.
+
 ---
 
 ### 7. Never Present a Placeholder as a Literal

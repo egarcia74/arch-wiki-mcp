@@ -1,8 +1,48 @@
 # Arch Wiki MCP: Technical Constitution
 
-**Version:** 1.7  
+**Version:** 1.8  
 **Status:** Canonical  
 **Last Updated:** 2026-07-09
+
+---
+
+## Amendment 1.8 — Migration Notes
+
+Per §12 (API Governance): `warnings()` gains a failure mode. It now raises when
+it cannot resolve a page's template names, where it previously returned a subset.
+No field changes; no hash of an English page moves.
+
+### Changed in 1.8
+
+- **`warnings()` recognises localized admonitions.** A translated page does not
+  write `{{Warning}}`. The Spanish Installation guide writes `{{Note (Español)}}`;
+  the French one writes `{{Attention}}`, a redirect to `Template:Warning (Français)`.
+  Matching the four English names returned **0 of 11** admonitions on the Spanish
+  page and **7 of 13** on the French one.
+
+  §6 orders the agent to surface warnings before any related command, and §5 says
+  an empty result is a positive claim that the wiki specifies nothing. A dropped
+  `{{Attention}}` was therefore a suppressed *warning*, presented as silence, under
+  a tool the agent is told to trust. This is the constitution's central harm, and
+  it was reached by translating the page.
+
+  The mapping is **derived, not declared**. A trailing `(Lang)` suffix is stripped locally;
+  a redirect alias is resolved by asking MediaWiki, exactly as interwiki prefixes
+  are derived from siteinfo (Amendment 1.4) rather than hard-coded. Declaring the
+  names would have rotted the moment the wiki added a language.
+
+- **Resolution failure raises.** If the alias query cannot be answered, `warnings()`
+  raises rather than returning the English-only matches. We do not know whether the
+  page carries a warning, and `[]` would assert that it does not. §5: fail closed.
+
+  *Migration:* `warnings()` may now raise `ValueError` on a page whose templates it
+  cannot resolve. Handle it as you already handle a missing anchor. It costs one
+  additional API request per page, cached across pages for the process lifetime.
+
+- **`section()` renders the suffixed form** (`{{Note (Español)}}`) but leaves a
+  redirect alias (`{{Astuce}}`) as visible markup, because rendering must not
+  require a network call. Visible markup is the honest failure; §8 forbids the
+  alternative of dropping it.
 
 ---
 
@@ -21,7 +61,7 @@ containing a nested list.
   the function exists to remove. 40 lines across the corpus were affected, and
   `warnings().message` shared the defect.
 
-  `*` and `#` now nest (`**` → `  - `, `##` → `  1. `, `#**` → `    - `), while `:`
+  `*` and `#` now nest (`**` → `"  - "`, `##` → `"  1. "`, `#**` → `"    - "`), while `:`
   and `;` indent only. A marker holding nothing but a template's closing brace
   (`#}}`) no longer emits an empty `1.`.
 

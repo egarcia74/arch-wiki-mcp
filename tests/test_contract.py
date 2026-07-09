@@ -12,6 +12,7 @@ The field list is derived from the dataclasses, not hand-maintained: a new outpu
 field cannot be added without documenting it in both places.
 """
 
+import re
 from dataclasses import fields
 from pathlib import Path
 
@@ -124,3 +125,31 @@ def test_the_section_tool_returns_rendered_content_over_the_wire():
 
     assert result["content_raw"].startswith("=== Boot the live environment ===")
     assert "# Point the current boot device" in result["content_raw"]
+
+
+def documented_hashes() -> set:
+    """Every SHA-256 the README prints as if it were real."""
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    return set(re.findall(r"\b[0-9a-f]{64}\b", readme))
+
+
+def reproducible_hashes() -> set:
+    produced = set()
+    block = mcp_server.tool_section("Installation_guide", "Boot_the_live_environment")
+    produced |= {block["content_hash"], block["content_hash_cleaned"]}
+    for command in extractor.commands("GRUB", "Installation"):
+        produced |= {command["content_hash"], command["content_hash_cleaned"]}
+    for warning in extractor.warnings("Iwd", "Usage"):
+        produced |= {warning["content_hash"], warning["message_hash_cleaned"]}
+    return produced
+
+
+def test_every_hash_in_the_readme_reproduces_from_the_fixtures():
+    """
+    A rendering change moves content_hash_cleaned, and a hash pasted into prose
+    does not move with it. The README shipped a stale one for exactly that reason.
+    In a repo whose product is falsifiable citation, a hash nothing produces is
+    the worst kind of documentation error.
+    """
+    unverified = documented_hashes() - reproducible_hashes()
+    assert not unverified, f"README prints hashes nothing produces: {unverified}"

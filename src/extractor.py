@@ -10,7 +10,7 @@ import re
 import unicodedata
 from dataclasses import dataclass, asdict, fields
 from functools import lru_cache
-from typing import Dict, List, Optional, Tuple
+from typing import AbstractSet, Dict, List, Optional, Tuple
 from urllib.error import URLError
 from urllib.request import urlopen, Request
 from urllib.parse import urlencode, quote
@@ -144,19 +144,25 @@ def fixture_key(params: Dict) -> str:
     return params.get("page") or params.get("srsearch") or params.get("meta") or "unknown"
 
 
-def _fetch_offline(params: Dict) -> Dict:
+def _fetch_offline(params: Dict, key: Optional[str] = None) -> Dict:
     """Retrieve API response from local fixtures for offline testing."""
     fixtures_dir = os.environ.get("ARCHWIKI_FIXTURES", "tests/fixtures")
     action = params.get("action", "unknown")
 
-    fixture_path = os.path.join(fixtures_dir, fixture_filename(action, fixture_key(params)))
+    fixture_path = os.path.join(fixtures_dir, fixture_filename(action, key or fixture_key(params)))
     return json.loads(_read_fixture(fixture_path))
 
 
-def _fetch(params: Dict, timeout: int = 30) -> Dict:
-    """Single entry point for API access. ARCHWIKI_OFFLINE swaps in fixtures."""
+def _fetch(params: Dict, timeout: int = 30, key: Optional[str] = None) -> Dict:
+    """
+    Single entry point for API access. ARCHWIKI_OFFLINE swaps in fixtures.
+
+    `key` names the fixture when no single parameter identifies the request --
+    the template-alias query is keyed by the page whose templates it resolves,
+    not by the long `titles` list it sends.
+    """
     if os.environ.get("ARCHWIKI_OFFLINE"):
-        return _fetch_offline(params)
+        return _fetch_offline(params, key)
 
     url = f"{API_ENDPOINT}?{urlencode(params)}"
     request = Request(url, headers={"User-Agent": USER_AGENT})
@@ -363,7 +369,7 @@ def _split_template_params(inner: str, max_splits: int) -> List[str]:
 _NAMED_PARAM = re.compile(r"^\s*([A-Za-z0-9_]+)\s*=")
 
 
-def _strip_param_name(text: str, allowed: set) -> str:
+def _strip_param_name(text: str, allowed: AbstractSet[str]) -> str:
     """
     Drop a leading `name=` only when the name is a known parameter of the template.
 
@@ -560,17 +566,23 @@ def _clean_message(raw: str) -> str:
     return text.strip()
 
 
-def _parse_single_template(content: str, supported: set, revid: Optional[int]) -> Optional[WarningBlock]:
+def _parse_single_template(
+    content: str, types: Dict[str, Optional[str]], revid: Optional[int]
+) -> Optional[WarningBlock]:
     """
     Parse the interior content of a template and return a WarningBlock if valid.
 
     Splits on the first TOP-LEVEL pipe. A naive split("|", 1) truncated any
     message containing a pipe inside a nested {{ic|a|b}} or [[link|text]].
+
+    `types` maps a template name to the admonition it denotes. A translated page
+    spells it {{Note (Español)}} or {{Attention}}, so the name alone is not enough.
     """
     parts = _split_template_params(content, 1)
-    name = parts[0].strip().upper()
+    raw_name = parts[0].strip()
 
-    if name not in supported:
+    name = types.get(raw_name.lower()) or canonical_admonition(raw_name)
+    if name not in ADMONITION_TYPES:
         return None
 
     message_raw = _strip_param_name(parts[1], {"1"}).strip() if len(parts) > 1 else ""
@@ -586,13 +598,21 @@ def _parse_single_template(content: str, supported: set, revid: Optional[int]) -
     )
 
 
-def parse_templates(wikitext: str, revid: Optional[int] = None) -> List[WarningBlock]:
+def parse_templates(
+    wikitext: str,
+    revid: Optional[int] = None,
+    types: Optional[Dict[str, Optional[str]]] = None,
+) -> List[WarningBlock]:
     """
     Robustly parse MediaWiki templates for warnings, notes, tips.
     Handles nesting, multi-params, and |1= syntax.
+
+    `types` maps template names to admonition types for a translated page. Without
+    it, only names that spell themselves out are recognized -- enough for English,
+    and blind to {{Attention}}. warnings() supplies it; see admonition_types().
     """
     warnings = []
-    supported = {"WARNING", "NOTE", "TIP", "CAUTION"}
+    types = types or {}
     
     i = 0
     while i < len(wikitext):
@@ -608,7 +628,7 @@ def parse_templates(wikitext: str, revid: Optional[int] = None) -> List[WarningB
         content = wikitext[start_idx+2:end_idx-2]
         i = end_idx
         
-        block = _parse_single_template(content, supported, revid)
+        block = _parse_single_template(content, types, revid)
         if block:
             warnings.append(block)
             
@@ -756,8 +776,12 @@ def parse_code_blocks(wikitext: str, revid: Optional[int] = None) -> List[CodeBl
 # ---------------------------------------------------------------------------
 
 _ADMONITIONS = {"note": "Note", "warning": "Warning", "tip": "Tip", "caution": "Caution"}
+# The optional " (Lang)" suffix lets a translated page's {{Note (Español)}} render.
+# A redirect alias ({{Astuce}}) is not matched here and survives verbatim, which is
+# the honest failure; warnings() resolves those against the wiki, where it matters.
 _RENDERABLE_RE = re.compile(
-    r"\{\{(" + "|".join([*CODE_TEMPLATES, *_ADMONITIONS]) + r")\b", re.IGNORECASE
+    r"\{\{(" + "|".join([*CODE_TEMPLATES, *_ADMONITIONS]) + r")(?:\s*\([^()]*\))?\s*(?=[|}])",
+    re.IGNORECASE,
 )
 _HEADING = re.compile(r"^(={2,6})[ \t]*(.+?)[ \t]*\1[ \t]*$")
 _SENTINEL = re.compile("\x00(\\d+)\x00")
@@ -954,6 +978,144 @@ def reset_prefix_cache() -> None:
     """Drop the memoized siteinfo derivation (used by tests)."""
     global _derived_prefixes
     _derived_prefixes = None
+
+
+# ---------------------------------------------------------------------------
+# Localized admonition templates
+#
+# A translated page does not write {{Warning}}. The Spanish Installation guide
+# writes {{Note (Español)}}; the French one writes {{Attention}}, a redirect to
+# Template:Warning (Français). Matching the four English names dropped 11 of 11
+# admonitions on the Spanish page and 6 of 13 on the French one -- and warnings()
+# returning [] is what AGENTS.md tells the agent means "the wiki says nothing
+# here". A dropped {{Attention}} is a suppressed warning, presented as silence.
+#
+# The mapping is DERIVED, not declared. A ' (Lang)' suffix is stripped locally;
+# a redirect alias is resolved by asking MediaWiki, exactly as the interwiki
+# prefixes are derived from siteinfo rather than hard-coded (Amendment 1.4).
+# ---------------------------------------------------------------------------
+
+ADMONITION_TYPES = frozenset({"NOTE", "WARNING", "TIP", "CAUTION"})
+
+# "Note (Español)" -> "Note". Nested parens do not occur in template titles.
+_LANG_SUFFIX = re.compile(r"^(.+?)\s*\([^()]*\)$")
+
+# Any template opening, capturing its name: "{{Note (Español)|" -> "Note (Español)".
+_ANY_TEMPLATE_RE = re.compile(r"\{\{\s*([^|{}\n]+?)\s*(?=[|}])")
+
+# Names that are not wiki pages and must never be sent as titles: the escapes
+# {{=}} and {{!}}, magic words {{DISPLAYTITLE:...}}, and {{int:savechanges}}.
+_NOT_A_TEMPLATE_TITLE = re.compile(r"[:#=|!{}\[\]]")
+
+# MediaWiki accepts at most 50 titles per query.
+_TITLES_PER_QUERY = 50
+
+# Populated only on success, and only for names the wiki actually resolved.
+# name.lower() -> "WARNING" | None (resolved, and not an admonition)
+_template_aliases: Dict[str, Optional[str]] = {}
+
+
+def reset_template_alias_cache() -> None:
+    """Drop the memoized alias derivation (used by tests)."""
+    _template_aliases.clear()
+
+
+def canonical_admonition(name: str) -> Optional[str]:
+    """
+    The admonition type a template name denotes, by its own spelling alone.
+
+    "Warning" -> "WARNING"; "Note (Español)" -> "NOTE"; "Astuce" -> None (that
+    one is a redirect, and only the wiki knows where it points).
+    """
+    stripped = _LANG_SUFFIX.sub(r"\1", name.strip())
+    upper = stripped.upper()
+    return upper if upper in ADMONITION_TYPES else None
+
+
+def fetch_template_aliases(names: List[str], cache_key: str, timeout: int = 30) -> Dict[str, Optional[str]]:
+    """
+    Ask MediaWiki where each template name redirects, in one batched request.
+
+    Returns name.lower() -> admonition type, or None when the name resolves to
+    something that is not an admonition. Raises on an unanswered query: callers
+    must fail closed rather than report an English-only subset as complete.
+    """
+    if not names:
+        return {}
+
+    ordered = sorted(names)
+    resolved: Dict[str, Optional[str]] = {name.lower(): None for name in ordered}
+
+    batches = [ordered[i:i + _TITLES_PER_QUERY] for i in range(0, len(ordered), _TITLES_PER_QUERY)]
+    for index, batch in enumerate(batches):
+        suffix = "" if len(batches) == 1 else f"_{index + 1}"
+        data = _fetch(
+            {
+                "action": "query",
+                "titles": "|".join(f"Template:{name}" for name in batch),
+                "redirects": "1",
+                "format": "json",
+            },
+            timeout,
+            key=f"aliases_{cache_key}{suffix}",
+        )
+
+        if "error" in data:
+            raise ValueError(f"Template alias API Error: {data['error'].get('info', data['error'])}")
+        if "query" not in data:
+            raise ValueError(f"Unexpected template alias response format: {data}")
+
+        for redirect in data["query"].get("redirects", []):
+            source = redirect["from"].split(":", 1)[-1].lower()
+            target = redirect["to"].split(":", 1)[-1]
+            if source in resolved:
+                resolved[source] = canonical_admonition(target)
+
+    return resolved
+
+
+# A missing offline fixture must be as loud here as a network failure: both mean
+# "we do not know whether this page carries a warning."
+_ALIAS_FAILURES = (URLError, TimeoutError, ConnectionError, OSError, json.JSONDecodeError, ValueError)
+
+
+def admonition_types(wikitext: str, cache_key: str) -> Dict[str, Optional[str]]:
+    """
+    Map every top-level template name in `wikitext` to its admonition type.
+
+    Names that spell themselves out are free. The rest are resolved once, cached
+    across pages, and a failure raises: returning the English matches alone would
+    be an empty-or-partial result the agent is told to read as the wiki's silence.
+    """
+    names = {
+        name
+        for _, _, name in _iter_top_level_templates(wikitext, _ANY_TEMPLATE_RE)
+        if name and not _NOT_A_TEMPLATE_TITLE.search(name)
+    }
+
+    types: Dict[str, Optional[str]] = {}
+    unresolved = []
+    for name in names:
+        canonical = canonical_admonition(name)
+        if canonical:
+            types[name] = canonical
+        elif name in _template_aliases:
+            types[name] = _template_aliases[name]
+        else:
+            unresolved.append(name)
+
+    if unresolved:
+        try:
+            resolved = fetch_template_aliases(unresolved, cache_key)
+        except _ALIAS_FAILURES as exc:
+            raise ValueError(
+                f"Cannot resolve template aliases for {cache_key!r}: {exc}. "
+                f"Refusing to report an English-only subset of the warnings as complete."
+            ) from exc
+        _template_aliases.update(resolved)
+        types.update(resolved)
+
+    return types
 
 
 def excluded_link_prefixes() -> frozenset:
@@ -1201,22 +1363,32 @@ def commands(title: str, anchor: Optional[str] = None) -> List[Dict]:
 def warnings(title: str, anchor: Optional[str] = None) -> List[Dict]:
     """
     MCP Tool: Extract warning templates from page or section.
-    
+
+    Fails closed. A translated page writes {{Note (Español)}} or {{Attention}},
+    so template names are resolved against the wiki before parsing. If they cannot
+    be resolved this raises rather than returning the English-only subset, which
+    the agent is told to read as "the wiki specifies no warnings here".
+
     Returns list of WarningBlock dicts.
     """
+    parse_data = fetch_wiki_parse(title)
+    page_wikitext = parse_data["wikitext"]["*"]
+    revid = parse_data["revid"]
+
+    # Resolved over the WHOLE page, never the section: the set of names queried
+    # must depend only on the page, or an anchored call would ask a different
+    # question than the recorded fixture answers.
+    types = admonition_types(page_wikitext, title)
+
     if anchor:
-        extracted = section(title, anchor)
-        # The raw slice: these parse wikitext, and .content is now rendered.
-        wikitext = extracted.content_raw
-        url_base = extracted.url
-        revid = extracted.revid
+        # The raw slice: this parses wikitext, and section().content is rendered.
+        _, wikitext = _resolve_section(parse_data, anchor)
+        url_base = make_wiki_url(parse_data["title"], anchor)
     else:
-        page_data = page(title)
-        wikitext = page_data["wikitext"]
-        url_base = page_data["url"]
-        revid = page_data["revid"]
-    
-    warning_blocks = parse_templates(wikitext, revid)
+        wikitext = page_wikitext
+        url_base = make_wiki_url(parse_data["title"])
+
+    warning_blocks = parse_templates(wikitext, revid, types)
     
     return [
         {

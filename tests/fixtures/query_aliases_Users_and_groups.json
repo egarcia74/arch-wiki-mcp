@@ -1,0 +1,123 @@
+{
+  "batchcomplete": "",
+  "query": {
+    "normalized": [
+      {
+        "from": "Template:accuracy",
+        "to": "Template:Accuracy"
+      },
+      {
+        "from": "Template:aur",
+        "to": "Template:Aur"
+      },
+      {
+        "from": "Template:bug",
+        "to": "Template:Bug"
+      },
+      {
+        "from": "Template:dead link",
+        "to": "Template:Dead link"
+      },
+      {
+        "from": "Template:hc",
+        "to": "Template:Hc"
+      },
+      {
+        "from": "Template:ic",
+        "to": "Template:Ic"
+      },
+      {
+        "from": "Template:man",
+        "to": "Template:Man"
+      },
+      {
+        "from": "Template:merge",
+        "to": "Template:Merge"
+      },
+      {
+        "from": "Template:pkg",
+        "to": "Template:Pkg"
+      },
+      {
+        "from": "Template:related",
+        "to": "Template:Related"
+      },
+      {
+        "from": "Template:related articles end",
+        "to": "Template:Related articles end"
+      },
+      {
+        "from": "Template:related articles start",
+        "to": "Template:Related articles start"
+      }
+    ],
+    "redirects": [
+      {
+        "from": "Template:Aur",
+        "to": "Template:AUR"
+      }
+    ],
+    "pages": {
+      "1241": {
+        "pageid": 1241,
+        "ns": 10,
+        "title": "Template:Accuracy"
+      },
+      "9164": {
+        "pageid": 9164,
+        "ns": 10,
+        "title": "Template:Bug"
+      },
+      "11894": {
+        "pageid": 11894,
+        "ns": 10,
+        "title": "Template:Dead link"
+      },
+      "11764": {
+        "pageid": 11764,
+        "ns": 10,
+        "title": "Template:Hc"
+      },
+      "11766": {
+        "pageid": 11766,
+        "ns": 10,
+        "title": "Template:Ic"
+      },
+      "23901": {
+        "pageid": 23901,
+        "ns": 10,
+        "title": "Template:Man"
+      },
+      "3457": {
+        "pageid": 3457,
+        "ns": 10,
+        "title": "Template:Merge"
+      },
+      "6409": {
+        "pageid": 6409,
+        "ns": 10,
+        "title": "Template:Pkg"
+      },
+      "17166": {
+        "pageid": 17166,
+        "ns": 10,
+        "title": "Template:Related"
+      },
+      "17165": {
+        "pageid": 17165,
+        "ns": 10,
+        "title": "Template:Related articles end"
+      },
+      "17164": {
+        "pageid": 17164,
+        "ns": 10,
+        "title": "Template:Related articles start"
+      },
+      "5562": {
+        "pageid": 5562,
+        "ns": 10,
+        "title": "Template:AUR"
+      }
+    }
+  }
+}

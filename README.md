@@ -64,7 +64,7 @@ A reliable backend for IDEs, scripts, and agents.
 ✅ **Extractor**: Deterministic wikitext parser with hash stability  
 ✅ **MCP Server**: Thin wrapper exposing extractor as MCP tools  
 ✅ **Search**: MediaWiki search API integration complete  
-✅ **Tests**: 181 offline tests pinned to recorded wiki fixtures; 108/108 `{{bc}}`/`{{hc}}` blocks and 432/432 sections resolve correctly
+✅ **Tests**: 199 offline tests pinned to recorded wiki fixtures; 108/108 `{{bc}}`/`{{hc}}` blocks and 432/432 sections resolve correctly
 
 ## Quick Start
 
@@ -138,7 +138,7 @@ prose instead. So the same rendered/verbatim split applies:
   "content": "### Boot the live environment\n\n**Note:** Arch Linux installation images do not support Secure Bo ...",
   "content_raw": "=== Boot the live environment ===\n\n{{Note|Arch Linux installation images do not support Secure B ...",
   "content_hash": "b2ec52eef0b639a0fb2a761bdaf3eab9ae6de8ae08091025ad9cf51d022892b7",
-  "content_hash_cleaned": "84215e9fe86f565beff8bace3b4ec95f38d01b92178510f7c3fea7da9f7f2b75",
+  "content_hash_cleaned": "f9493a970063c9ef4d495249b26510b1e79cc6d9d5db659a1033fb5c2cb9bf23",
   "url": "https://wiki.archlinux.org/title/Installation_guide#Boot_the_live_environment",
   "revid": 858613
 }
@@ -163,6 +163,13 @@ hashes and `placeholders`.
 `message` is readable prose, safe to quote to a user. `message_raw` is the verbatim
 template body; `content_hash` covers that, and `message_hash_cleaned` covers the
 prose you actually show — so nothing an agent quotes goes unattested.
+
+Translated pages do not write `{{Warning}}`. The Spanish Installation guide writes
+`{{Note (Español)}}`; the French one writes `{{Attention}}`, a redirect to
+`Template:Warning (Français)`. Those names are resolved **against the wiki**, not from
+a list in this repo, so `warnings()` returns 13 blocks on the French page exactly as it
+does on the English one. If a name cannot be resolved, `warnings()` raises — an
+English-only subset would be an `[]` that an agent reads as "the wiki warns of nothing".
 
 ```json
 {

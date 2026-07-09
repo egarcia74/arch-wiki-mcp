@@ -1,0 +1,150 @@
+{
+  "batchcomplete": "",
+  "query": {
+    "normalized": [
+      {
+        "from": "Template:accuracy",
+        "to": "Template:Accuracy"
+      },
+      {
+        "from": "Template:app",
+        "to": "Template:App"
+      },
+      {
+        "from": "Template:aur",
+        "to": "Template:Aur"
+      },
+      {
+        "from": "Template:bc",
+        "to": "Template:Bc"
+      },
+      {
+        "from": "Template:expansion",
+        "to": "Template:Expansion"
+      },
+      {
+        "from": "Template:grp",
+        "to": "Template:Grp"
+      },
+      {
+        "from": "Template:hc",
+        "to": "Template:Hc"
+      },
+      {
+        "from": "Template:ic",
+        "to": "Template:Ic"
+      },
+      {
+        "from": "Template:man",
+        "to": "Template:Man"
+      },
+      {
+        "from": "Template:merge",
+        "to": "Template:Merge"
+      },
+      {
+        "from": "Template:out of date",
+        "to": "Template:Out of date"
+      },
+      {
+        "from": "Template:pkg",
+        "to": "Template:Pkg"
+      },
+      {
+        "from": "Template:related",
+        "to": "Template:Related"
+      },
+      {
+        "from": "Template:related articles end",
+        "to": "Template:Related articles end"
+      },
+      {
+        "from": "Template:related articles start",
+        "to": "Template:Related articles start"
+      }
+    ],
+    "redirects": [
+      {
+        "from": "Template:Aur",
+        "to": "Template:AUR"
+      }
+    ],
+    "pages": {
+      "1241": {
+        "pageid": 1241,
+        "ns": 10,
+        "title": "Template:Accuracy"
+      },
+      "7631": {
+        "pageid": 7631,
+        "ns": 10,
+        "title": "Template:App"
+      },
+      "12469": {
+        "pageid": 12469,
+        "ns": 10,
+        "title": "Template:Bc"
+      },
+      "2573": {
+        "pageid": 2573,
+        "ns": 10,
+        "title": "Template:Expansion"
+      },
+      "13033": {
+        "pageid": 13033,
+        "ns": 10,
+        "title": "Template:Grp"
+      },
+      "11764": {
+        "pageid": 11764,
+        "ns": 10,
+        "title": "Template:Hc"
+      },
+      "11766": {
+        "pageid": 11766,
+        "ns": 10,
+        "title": "Template:Ic"
+      },
+      "23901": {
+        "pageid": 23901,
+        "ns": 10,
+        "title": "Template:Man"
+      },
+      "3457": {
+        "pageid": 3457,
+        "ns": 10,
+        "title": "Template:Merge"
+      },
+      "2533": {
+        "pageid": 2533,
+        "ns": 10,
+        "title": "Template:Out of date"
+      },
+      "6409": {
+        "pageid": 6409,
+        "ns": 10,
+        "title": "Template:Pkg"
+      },
+      "17166": {
+        "pageid": 17166,
+        "ns": 10,
+        "title": "Template:Related"
+      },
+      "17165": {
+        "pageid": 17165,
+        "ns": 10,
+        "title": "Template:Related articles end"
+      },
+      "17164": {
+        "pageid": 17164,
+        "ns": 10,
+        "title": "Template:Related articles start"
+      },
+      "5562": {
+        "pageid": 5562,
+        "ns": 10,
+        "title": "Template:AUR"
+      }
+    }
+  }
+}

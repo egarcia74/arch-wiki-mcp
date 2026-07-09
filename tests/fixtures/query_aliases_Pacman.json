@@ -1,0 +1,132 @@
+{
+  "batchcomplete": "",
+  "query": {
+    "normalized": [
+      {
+        "from": "Template:aur",
+        "to": "Template:Aur"
+      },
+      {
+        "from": "Template:bug",
+        "to": "Template:Bug"
+      },
+      {
+        "from": "Template:expansion",
+        "to": "Template:Expansion"
+      },
+      {
+        "from": "Template:grp",
+        "to": "Template:Grp"
+      },
+      {
+        "from": "Template:hc",
+        "to": "Template:Hc"
+      },
+      {
+        "from": "Template:ic",
+        "to": "Template:Ic"
+      },
+      {
+        "from": "Template:lowercase title",
+        "to": "Template:Lowercase title"
+      },
+      {
+        "from": "Template:man",
+        "to": "Template:Man"
+      },
+      {
+        "from": "Template:out of date",
+        "to": "Template:Out of date"
+      },
+      {
+        "from": "Template:pkg",
+        "to": "Template:Pkg"
+      },
+      {
+        "from": "Template:related",
+        "to": "Template:Related"
+      },
+      {
+        "from": "Template:related articles end",
+        "to": "Template:Related articles end"
+      },
+      {
+        "from": "Template:related articles start",
+        "to": "Template:Related articles start"
+      }
+    ],
+    "redirects": [
+      {
+        "from": "Template:Aur",
+        "to": "Template:AUR"
+      }
+    ],
+    "pages": {
+      "9164": {
+        "pageid": 9164,
+        "ns": 10,
+        "title": "Template:Bug"
+      },
+      "2573": {
+        "pageid": 2573,
+        "ns": 10,
+        "title": "Template:Expansion"
+      },
+      "13033": {
+        "pageid": 13033,
+        "ns": 10,
+        "title": "Template:Grp"
+      },
+      "11764": {
+        "pageid": 11764,
+        "ns": 10,
+        "title": "Template:Hc"
+      },
+      "11766": {
+        "pageid": 11766,
+        "ns": 10,
+        "title": "Template:Ic"
+      },
+      "9283": {
+        "pageid": 9283,
+        "ns": 10,
+        "title": "Template:Lowercase title"
+      },
+      "23901": {
+        "pageid": 23901,
+        "ns": 10,
+        "title": "Template:Man"
+      },
+      "2533": {
+        "pageid": 2533,
+        "ns": 10,
+        "title": "Template:Out of date"
+      },
+      "6409": {
+        "pageid": 6409,
+        "ns": 10,
+        "title": "Template:Pkg"
+      },
+      "17166": {
+        "pageid": 17166,
+        "ns": 10,
+        "title": "Template:Related"
+      },
+      "17165": {
+        "pageid": 17165,
+        "ns": 10,
+        "title": "Template:Related articles end"
+      },
+      "17164": {
+        "pageid": 17164,
+        "ns": 10,
+        "title": "Template:Related articles start"
+      },
+      "5562": {
+        "pageid": 5562,
+        "ns": 10,
+        "title": "Template:AUR"
+      }
+    }
+  }
+}

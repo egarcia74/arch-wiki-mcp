@@ -200,6 +200,17 @@ had to *consume* the output.
   mode the corpus tests would catch only if a fixture were re-recorded.
 - **No caching of `fetch_wiki_parse` in the live path.** An agent calling
   `section()`, `commands()` and `warnings()` on one page issues three identical
-  HTTP requests. Pure latency, and the hardest thing here to test offline.
+  HTTP requests. Pure latency, and the hardest thing here to test offline. It is
+  no longer merely theoretical: a live audit of 1834 sections spent its whole
+  budget re-fetching the same 37 pages, because `section()` refetches per call.
+- **`warnings()` costs one extra request per page**, to resolve template names it
+  has not seen before (`{{Astuce}}` → `Template:Warning (Français)`). Resolutions
+  are cached across pages for the process lifetime; a failure raises rather than
+  degrading to the English-only subset.
+- **Template aliases are pinned per page.** `tests/fixtures/query_aliases_*.json`
+  records exactly the names `warnings()` will ask about, derived from the parse
+  fixture by the recorder. A page whose templates change needs its alias fixture
+  re-recorded, or the offline test fails loudly rather than silently resolving
+  nothing.
 - **`search().snippet` passes MediaWiki's `<span class="searchmatch">` HTML
   through** unrendered.

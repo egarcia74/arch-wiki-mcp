@@ -182,6 +182,11 @@ def tool_warnings(title_or_url: str, anchor: Optional[str] = None) -> dict:
     message is readable prose, safe to quote to a user. message_raw is the verbatim
     template body, and content_hash covers that. message_hash_cleaned covers message,
     so the text the agent actually quotes is attested too.
+
+    Fails closed. A translated page writes {{Note (Español)}} or {{Attention}} (a
+    redirect to Template:Warning (Français)), so template names are resolved against
+    the wiki first. If they cannot be resolved this raises: an English-only subset
+    would be an incomplete [] that the agent reads as "the wiki warns of nothing".
     """
     title = extract_title_from_url(title_or_url)
     warnings = extractor.warnings(title, anchor)
@@ -263,7 +268,7 @@ def _handle_initialize(msg_id: int) -> dict:
         "id": msg_id,
         "result": {
             "protocolVersion": "2024-11-05",
-            "serverInfo": {"name": "arch-wiki-mcp", "version": "1.4.1"},
+            "serverInfo": {"name": "arch-wiki-mcp", "version": "1.5.0"},
             "capabilities": {"tools": {}, "prompts": {}}
         }
     }
@@ -434,7 +439,12 @@ def _handle_tools_list(msg_id: int) -> dict:
                 },
                 {
                     "name": "warnings",
-                    "description": "Extract warning templates from page or section",
+                    "description": (
+                        "Extract warning/note/tip templates from page or section, including "
+                        "localized ones on translated pages ({{Note (Español)}}, {{Attention}}). "
+                        "Raises rather than returning an incomplete list; [] means the wiki "
+                        "specifies no warning here."
+                    ),
                     "inputSchema": {
                         "type": "object",
                         "properties": {

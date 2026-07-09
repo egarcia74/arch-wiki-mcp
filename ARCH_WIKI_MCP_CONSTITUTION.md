@@ -1,8 +1,47 @@
 # Arch Wiki MCP: Technical Constitution
 
-**Version:** 1.2  
+**Version:** 1.3  
 **Status:** Canonical  
-**Last Updated:** 2026-01-10
+**Last Updated:** 2026-07-09
+
+---
+
+## Amendment 1.3 — Migration Notes
+
+Per §12 (API Governance), this breaking change to response structure is recorded here.
+
+### Removed
+
+- **The `examples` tool**, and the prose-to-shell heuristic behind it. It read any
+  line beginning with `#` as a shell prompt, but `#` is wikitext's numbered-list
+  marker, so it returned prose tagged as `bash`. It contradicted §3 ("not a
+  command generator"), §8 ("generate synthetic examples" — prohibited), and
+  AGENTS.md §6 (Exclusive Command Source). The `arch-wiki-usage` prompt no longer
+  offers "heuristic inference" as an allowed response shape.
+
+  *Migration:* there is no replacement. When `commands()` returns `[]`, quote the
+  prose via `section()` and let the user decide, as §5 requires.
+
+### Changed
+
+- **`commands()` fails closed.** It previously wrapped its body in
+  `except Exception: return []`, so a network error, a missing page, and a missing
+  anchor were indistinguishable from an honest empty result. A missing page or
+  anchor now raises. `[]` means the wiki specifies no command there — nothing else.
+- **`commands()` extracts `{{bc}}` and `{{hc}}`**, the templates that carry
+  essentially all real Arch Wiki code. It previously matched only indented lines,
+  `<pre>` and `<code>`; the latter two occur nowhere in the sampled corpus.
+  Inline `{{ic}}` remains excluded: it marks paths, flags and package names.
+- **`section()` slices by character offset.** MediaWiki's `byteoffset` indexes
+  characters despite its name; encoding first returned a neighbouring section's
+  text on any page containing a multibyte character, under a valid-looking hash.
+  A slice that does not land on a heading now raises.
+- **Code blocks gained `content_raw`, `header`, and `placeholders`.**
+  `content_hash` covers `content_raw` (the verbatim payload), preserving §7
+  falsifiability: a human can grep the wiki source. `content` is the same payload
+  with wikitext emphasis stripped and `{{ic}}`/`{{=}}` resolved.
+- **`links()` excludes namespace and interwiki links** and splits `Target#Anchor`
+  into `target_page` + `anchor`.
 
 ---
 

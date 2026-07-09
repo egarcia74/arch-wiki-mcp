@@ -185,10 +185,10 @@ def extract_section_wikitext(
     Extract section content from wikitext using the API's section offsets.
 
     Despite its name, MediaWiki's `byteoffset` indexes the wikitext by CHARACTER,
-    not by UTF-8 byte. Verified across the recorded corpus: all 434 sections land
+    not by UTF-8 byte. Verified across the recorded corpus: all 432 sections land
     exactly on their heading when the offset is used as a character index, while
     byte indexing only works for pages with no multibyte character before the
-    heading (112 of 434). Encoding first shifted every section on a page
+    heading (121 of 432). Encoding first shifted every section on a page
     containing so much as one accented letter, silently returning a neighbouring
     section's text.
 

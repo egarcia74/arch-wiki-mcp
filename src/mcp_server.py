@@ -87,7 +87,7 @@ def tool_page(title_or_url: str) -> dict:
 # MCP Tool: sections
 def tool_sections(title_or_url: str) -> dict:
     """
-    List all sections in page with anchors and byte offsets.
+    List all sections in page with anchors and offsets.
     
     Args:
         title_or_url: Page title or wiki URL
@@ -152,14 +152,15 @@ def tool_commands(title_or_url: str, anchor: Optional[str] = None) -> dict:
         
     Returns:
         {
-            "commands": List[Dict{content, content_raw, content_hash, block_type,
-                                  source_pattern, language, header, placeholders,
-                                  source_url, revid}]
+            "commands": List[Dict{content, content_raw, content_hash,
+                                  content_hash_cleaned, block_type, source_pattern,
+                                  language, header, placeholders, source_url, revid}]
         }
 
-    content is safe to run; content_raw is the verbatim wikitext payload and is
-    what content_hash covers. Raises on a missing page or anchor; returns [] only
-    when the page truly has no code blocks.
+    content is safe to run; content_raw is the verbatim wikitext payload and is what
+    content_hash covers. content_hash_cleaned covers content, so the cleaning step is
+    attested too. Raises on a missing page or anchor; returns [] only when the page
+    truly has no code blocks.
     """
     title = extract_title_from_url(title_or_url)
     commands = extractor.commands(title, anchor)
@@ -177,8 +178,13 @@ def tool_warnings(title_or_url: str, anchor: Optional[str] = None) -> dict:
         
     Returns:
         {
-            "warnings": List[Dict{type, message, content_hash, source_url}]
+            "warnings": List[Dict{type, message, message_raw, content_hash,
+                                  message_hash_cleaned, source_url, revid}]
         }
+
+    message is readable prose, safe to quote to a user. message_raw is the verbatim
+    template body, and content_hash covers that. message_hash_cleaned covers message,
+    so the text the agent actually quotes is attested too.
     """
     title = extract_title_from_url(title_or_url)
     warnings = extractor.warnings(title, anchor)
@@ -260,7 +266,7 @@ def _handle_initialize(msg_id: int) -> dict:
         "id": msg_id,
         "result": {
             "protocolVersion": "2024-11-05",
-            "serverInfo": {"name": "arch-wiki-mcp", "version": "1.1.0"},
+            "serverInfo": {"name": "arch-wiki-mcp", "version": "1.2.0"},
             "capabilities": {"tools": {}, "prompts": {}}
         }
     }

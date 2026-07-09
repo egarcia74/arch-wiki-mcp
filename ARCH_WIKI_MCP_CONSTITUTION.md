@@ -1,8 +1,58 @@
 # Arch Wiki MCP: Technical Constitution
 
-**Version:** 1.3  
+**Version:** 1.4  
 **Status:** Canonical  
 **Last Updated:** 2026-07-09
+
+---
+
+## Amendment 1.4 — Migration Notes
+
+Found by using the server as an agent rather than testing it from outside.
+
+### Corrected in 1.4
+
+- **`extraction_method` reported `wikitext_byte_offset`.** It slices by character.
+  A provenance field that misstates the extraction method is not cosmetic in a
+  system whose product *is* provenance. Now `wikitext_character_offset`.
+
+### Changed in 1.4
+
+- **`warnings()` returns readable prose.** §5 requires the agent to quote warnings
+  to the user, but `message` shipped raw wikitext — `{{ic|network}}`, `[[user
+  group]]`, `''iwd''`, leading `::*` — making the mandated response shape
+  unreadable. `message` now resolves inline templates, links and emphasis;
+  `message_raw` preserves the verbatim body, and `content_hash` covers **that**,
+  so falsifiability against the wiki source is unchanged in kind.
+  `message_hash_cleaned` covers the prose the agent is obliged to quote, closing
+  the same attestation gap that `content_hash_cleaned` closes for code.
+
+  Ordered-list markers render as `1.` rather than `#`. A bare `#` in agent-facing
+  prose reads as a root shell prompt — the exact confusion that made the removed
+  `examples()` tool emit prose as bash.
+
+  *Migration:* every warning `content_hash` changes, because the body is now split
+  on the first **top-level** pipe. The old `split("|", 1)` truncated any message
+  containing a pipe inside a nested `{{ic|a{{!}}b}}` or `[[link|text]]`.
+
+- **Code blocks gained `content_hash_cleaned`.** `content_hash` attests
+  `content_raw`, but an agent executes `content`. The cleaning step was the only
+  non-verbatim transform in the chain and the only one no hash attested. Both
+  fingerprints now travel with every block, closing that gap in §7 falsifiability.
+
+- **Link exclusion is derived from the wiki, not hardcoded.** `links()` now reads
+  `action=query&meta=siteinfo&siprop=namespaces|namespacealiases|interwikimap`
+  (cached per process). The previous static list was missing 32 real interwiki
+  prefixes — `fedora`, `doi`, `phab`, `mw`, `meta`, `lv` and others — each of
+  which was reported as a navigable article link, and it wrongly excluded `man`
+  and `kernel`, which are not interwiki prefixes on this wiki.
+
+  Silently keeping an interwiki link is synthesis by inclusion, exactly as
+  silently dropping a real one is synthesis by omission. If siteinfo is
+  unreachable the static snapshot is used: `links()` is a navigation aid, not a
+  command source, and degrading it beats failing the call. The fallback is logged
+  and is never cached, so a transient failure cannot pin the rotted list for the
+  life of the process.
 
 ---
 
@@ -10,7 +60,7 @@
 
 Per §12 (API Governance), this breaking change to response structure is recorded here.
 
-### Removed
+### Removed in 1.3
 
 - **The `examples` tool**, and the prose-to-shell heuristic behind it. It read any
   line beginning with `#` as a shell prompt, but `#` is wikitext's numbered-list
@@ -22,7 +72,7 @@ Per §12 (API Governance), this breaking change to response structure is recorde
   *Migration:* there is no replacement. When `commands()` returns `[]`, quote the
   prose via `section()` and let the user decide, as §5 requires.
 
-### Changed
+### Changed in 1.3
 
 - **`commands()` fails closed.** It previously wrapped its body in
   `except Exception: return []`, so a network error, a missing page, and a missing

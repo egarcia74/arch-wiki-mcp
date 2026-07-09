@@ -33,7 +33,8 @@ def test_section_hash_is_deterministic():
     assert first.content_hash == second.content_hash
     assert first.content_hash == extractor.hash_content(first.content)
     assert first.section_heading == "Installation"
-    assert first.extraction_method == "wikitext_byte_offset"
+    # The name is the claim: we slice by character, not by byte.
+    assert first.extraction_method == "wikitext_character_offset"
 
 
 def test_hash_is_nfc_normalized():
@@ -74,7 +75,8 @@ def test_warnings_are_extracted_with_provenance():
     assert types <= {"WARNING", "NOTE", "TIP", "CAUTION"}
     for warning in found:
         assert warning["revid"] == GRUB_REVID
-        assert warning["content_hash"] == extractor.hash_content(warning["message"])
+        # The hash covers the verbatim body, so it stays greppable in the source.
+        assert warning["content_hash"] == extractor.hash_content(warning["message_raw"])
 
 
 def test_section_offsets_are_character_indices_not_bytes():

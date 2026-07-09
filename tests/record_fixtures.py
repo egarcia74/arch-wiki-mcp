@@ -15,7 +15,7 @@ from urllib.parse import urlencode
 # Ensure we can run this from repo root
 sys.path.insert(0, os.path.abspath("."))
 
-from src.extractor import fixture_filename
+from src.extractor import SITEINFO_PROPS, fixture_filename
 
 API_ENDPOINT = "https://wiki.archlinux.org/api.php"
 USER_AGENT = "ArchWikiMCP/1.0 (Fixture Generator)"
@@ -33,6 +33,7 @@ CORPUS = [
     ("query", "C++"),
     ("query", "Iwd (简体中文)"),
     ("query", "wifi not working"),
+    ("query", "siteinfo"),  # Authoritative namespace + interwiki tables for links()
 ]
 
 # Hand-authored, not recordable: no live page yields a null byteoffset in this
@@ -54,6 +55,9 @@ def record_fixture(action, key, force=False):
     if action == "parse":
         params["page"] = key
         params["prop"] = "wikitext|sections|revid"
+    elif key == "siteinfo":
+        params["meta"] = "siteinfo"
+        params["siprop"] = SITEINFO_PROPS
     else:
         params["list"] = "search"
         params["srsearch"] = key

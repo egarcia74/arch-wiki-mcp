@@ -73,6 +73,21 @@ def test_content_hash_is_over_raw_not_cleaned():
         assert block["content_hash"] == extractor.hash_content(block["content_raw"])
 
 
+def test_the_executed_text_is_also_fingerprinted():
+    """
+    An agent runs `content`, not `content_raw`. The cleaning step is the one
+    non-verbatim transform in the chain, so it must not be the one step no hash
+    attests.
+    """
+    for block in extractor.commands("GRUB"):
+        assert block["content_hash_cleaned"] == extractor.hash_content(block["content"])
+
+    cleaned = [b for b in extractor.commands("GRUB") if b["placeholders"]]
+    assert cleaned, "expected at least one block whose cleaning changed the text"
+    for block in cleaned:
+        assert block["content_hash_cleaned"] != block["content_hash"]
+
+
 def test_hc_block_exposes_its_header():
     """{{hc|/etc/default/grub|output=...}} — the 'output=' body alias."""
     blocks = extractor.commands("GRUB")

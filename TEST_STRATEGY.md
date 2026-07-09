@@ -19,11 +19,13 @@ Run `pytest` from the repository root. All figures are enforced by tests.
 
 | Metric | Value | Enforced by |
 | :-- | :-- | :-- |
-| Tests | 92 passing | `pytest` |
-| Network calls during tests | 0 | `tests/conftest.py` forces `ARCHWIKI_OFFLINE` |
+| Tests | 125 passing | `pytest` |
+| Network calls during tests | 0 (verified with sockets blocked) | `tests/conftest.py` forces `ARCHWIKI_OFFLINE` |
 | `{{bc}}`/`{{hc}}` blocks recovered | 108 / 108 | `test_commands_golden.py` |
 | Sections resolving to their own heading | 432 / 432 | `test_extractor.py` |
 | Pages in fixture corpus | 8 (incl. one translated) | `tests/fixtures/` |
+| Wikitext markup surviving into `warnings().message` | 0 across 151 blocks | `test_warnings_golden.py` |
+| Link prefixes | derived from live `siteinfo` | `test_siteinfo.py` |
 
 ---
 
@@ -40,7 +42,7 @@ Run `pytest` from the repository root. All figures are enforced by tests.
   moves those constants and must update the goldens in the same commit.
 - **Files**: `test_extractor.py`, `test_mcp.py`, `test_commands_golden.py`,
   `test_links_golden.py`, `test_failures.py`, `test_wikitext_parsing.py`,
-  `test_content_shapes.py`.
+  `test_content_shapes.py`, `test_warnings_golden.py`, `test_siteinfo.py`.
 
 ### Tier 2: Adversarial "Red Team" Testing
 
@@ -154,15 +156,35 @@ content, and the suite fails when they regress. The previous document's
 behavior it certified; treat that claim as withdrawn and this one as scoped to
 what the tests actually assert.
 
-### Known gaps
+### Defects found by using the server, not testing it
 
-- **Warning template parsing** (`parse_templates`) still splits on the first `|`,
-  so a `{{Warning}}` whose message contains a pipe inside a nested template or
-  link is truncated. Fixing it changes every warning `content_hash`; deferred.
-- **Interwiki prefixes are a static list.** A language edition Arch adds later
-  would surface as a navigable article link until the list is updated. The
-  authoritative source is `action=query&meta=siteinfo&siprop=interwikimap`.
-- **`content` is not itself hashed.** `content_hash` covers `content_raw` (the
-  verbatim payload, greppable in the wiki source). The cleaned `content` an agent
-  executes is derived from it deterministically but carries no separate
-  fingerprint.
+The three items below were opened as known gaps and closed after the server was
+registered as a live MCP and driven as an agent would drive it. None were visible
+from unit tests or from the wire protocol; all three appeared the moment a model
+had to *consume* the output.
+
+- **`extraction_method` claimed `wikitext_byte_offset`.** It slices by character.
+  A provenance field that misstates the method, in a system whose product is
+  provenance.
+- **`warnings().message` shipped raw wikitext.** The constitution requires the
+  agent to quote warnings to the user, so the mandated response shape rendered as
+  `Only root and members of the {{ic|network}} or the {{ic|wheel}} [[user group]]…`.
+  Cleaning it also fixed a truncation bug: the naive `split("|", 1)` cut every
+  message at the first pipe inside a nested template or link.
+- **`content` was executed but unhashed.** `content_hash` attested `content_raw`;
+  the cleaning transform — the only non-verbatim step in the chain — was attested
+  by nothing. Now covered by `content_hash_cleaned`.
+- **Interwiki prefixes were a static list**, missing 32 real prefixes (`fedora`,
+  `doi`, `phab`, `mw`, `meta`, `lv`, …), each reported as a navigable article
+  link, and wrongly excluding `man` and `kernel`. Now read from the wiki's own
+  `siteinfo` tables.
+
+### Remaining gaps
+
+- **`section().content` is raw wikitext**, by design: it is the verbatim slice the
+  `content_hash` attests. An agent quoting it to a user must render the markup
+  itself, or quote the corresponding `warnings().message` where one exists.
+- **`{{bc}}`/`{{hc}}` are Arch template conventions**, declared in code rather than
+  discovered. MediaWiki exposes no way to ask which templates are code. If the
+  wiki renames them, extraction silently returns fewer blocks — the one failure
+  mode the corpus tests would catch only if a fixture were re-recorded.

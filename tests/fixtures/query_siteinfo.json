@@ -1,0 +1,576 @@
+{
+  "batchcomplete": "",
+  "query": {
+    "namespaces": {
+      "-2": {
+        "id": -2,
+        "case": "first-letter",
+        "canonical": "Media",
+        "*": "Media"
+      },
+      "-1": {
+        "id": -1,
+        "case": "first-letter",
+        "canonical": "Special",
+        "*": "Special"
+      },
+      "0": {
+        "id": 0,
+        "case": "first-letter",
+        "subpages": "",
+        "content": "",
+        "*": ""
+      },
+      "1": {
+        "id": 1,
+        "case": "first-letter",
+        "subpages": "",
+        "canonical": "Talk",
+        "*": "Talk"
+      },
+      "2": {
+        "id": 2,
+        "case": "first-letter",
+        "subpages": "",
+        "canonical": "User",
+        "*": "User"
+      },
+      "3": {
+        "id": 3,
+        "case": "first-letter",
+        "subpages": "",
+        "canonical": "User talk",
+        "*": "User talk"
+      },
+      "4": {
+        "id": 4,
+        "case": "first-letter",
+        "subpages": "",
+        "canonical": "Project",
+        "*": "ArchWiki"
+      },
+      "5": {
+        "id": 5,
+        "case": "first-letter",
+        "subpages": "",
+        "canonical": "Project talk",
+        "*": "ArchWiki talk"
+      },
+      "6": {
+        "id": 6,
+        "case": "first-letter",
+        "canonical": "File",
+        "*": "File"
+      },
+      "7": {
+        "id": 7,
+        "case": "first-letter",
+        "subpages": "",
+        "canonical": "File talk",
+        "*": "File talk"
+      },
+      "8": {
+        "id": 8,
+        "case": "first-letter",
+        "subpages": "",
+        "canonical": "MediaWiki",
+        "namespaceprotection": "editinterface",
+        "*": "MediaWiki"
+      },
+      "9": {
+        "id": 9,
+        "case": "first-letter",
+        "subpages": "",
+        "canonical": "MediaWiki talk",
+        "*": "MediaWiki talk"
+      },
+      "10": {
+        "id": 10,
+        "case": "first-letter",
+        "subpages": "",
+        "canonical": "Template",
+        "namespaceprotection": "editsemiprotected",
+        "*": "Template"
+      },
+      "11": {
+        "id": 11,
+        "case": "first-letter",
+        "subpages": "",
+        "canonical": "Template talk",
+        "*": "Template talk"
+      },
+      "12": {
+        "id": 12,
+        "case": "first-letter",
+        "subpages": "",
+        "canonical": "Help",
+        "*": "Help"
+      },
+      "13": {
+        "id": 13,
+        "case": "first-letter",
+        "subpages": "",
+        "canonical": "Help talk",
+        "*": "Help talk"
+      },
+      "14": {
+        "id": 14,
+        "case": "first-letter",
+        "canonical": "Category",
+        "*": "Category"
+      },
+      "15": {
+        "id": 15,
+        "case": "first-letter",
+        "subpages": "",
+        "canonical": "Category talk",
+        "*": "Category talk"
+      },
+      "3000": {
+        "id": 3000,
+        "case": "first-letter",
+        "subpages": "",
+        "canonical": "DeveloperWiki",
+        "content": "",
+        "namespaceprotection": "editprotected2",
+        "*": "DeveloperWiki"
+      },
+      "3001": {
+        "id": 3001,
+        "case": "first-letter",
+        "subpages": "",
+        "canonical": "DeveloperWiki talk",
+        "*": "DeveloperWiki talk"
+      }
+    },
+    "namespacealiases": [
+      {
+        "id": 6,
+        "*": "Image"
+      },
+      {
+        "id": 7,
+        "*": "Image talk"
+      }
+    ],
+    "interwikimap": [
+      {
+        "prefix": "ar",
+        "local": "",
+        "language": "العربية",
+        "bcp47": "ar",
+        "url": "https://wiki.archlinux.org/title/$1_(العربية)"
+      },
+      {
+        "prefix": "archlinux-service-agreements",
+        "local": "",
+        "url": "https://terms.archlinux.org/docs/$1/"
+      },
+      {
+        "prefix": "arxiv",
+        "url": "https://www.arxiv.org/abs/$1"
+      },
+      {
+        "prefix": "bg",
+        "local": "",
+        "language": "български",
+        "bcp47": "bg",
+        "url": "https://wiki.archlinux.org/title/$1_(Български)"
+      },
+      {
+        "prefix": "bs",
+        "local": "",
+        "language": "bosanski",
+        "bcp47": "bs",
+        "url": "https://wiki.archlinux.org/title/$1_(Bosanski)"
+      },
+      {
+        "prefix": "ca",
+        "local": "",
+        "language": "català",
+        "bcp47": "ca",
+        "url": "https://wiki.archlinux.org/title/$1_(Català)"
+      },
+      {
+        "prefix": "commons",
+        "url": "https://commons.wikimedia.org/wiki/$1",
+        "api": "https://commons.wikimedia.org/w/api.php"
+      },
+      {
+        "prefix": "cs",
+        "local": "",
+        "language": "čeština",
+        "bcp47": "cs",
+        "url": "https://wiki.archlinux.org/title/$1_(Čeština)"
+      },
+      {
+        "prefix": "da",
+        "local": "",
+        "language": "dansk",
+        "bcp47": "da",
+        "url": "https://wiki.archlinux.org/title/$1_(Dansk)"
+      },
+      {
+        "prefix": "de",
+        "local": "",
+        "language": "Deutsch",
+        "bcp47": "de",
+        "url": "https://wiki.archlinux.de/title/$1"
+      },
+      {
+        "prefix": "debian",
+        "url": "https://wiki.debian.org/$1"
+      },
+      {
+        "prefix": "developer-manual",
+        "local": "",
+        "url": "https://manual.archlinux.page/$1/"
+      },
+      {
+        "prefix": "doi",
+        "url": "https://dx.doi.org/$1"
+      },
+      {
+        "prefix": "el",
+        "local": "",
+        "language": "Ελληνικά",
+        "bcp47": "el",
+        "url": "https://wiki.archlinux.org/title/$1_(Ελληνικά)"
+      },
+      {
+        "prefix": "emacswiki",
+        "url": "https://www.emacswiki.org/cgi-bin/wiki.pl?$1"
+      },
+      {
+        "prefix": "en",
+        "local": "",
+        "language": "English",
+        "bcp47": "en",
+        "url": "https://wiki.archlinux.org/title/$1"
+      },
+      {
+        "prefix": "es",
+        "local": "",
+        "language": "español",
+        "bcp47": "es",
+        "url": "https://wiki.archlinux.org/title/$1_(Español)"
+      },
+      {
+        "prefix": "fa",
+        "local": "",
+        "language": "فارسی",
+        "bcp47": "fa",
+        "url": "https://wiki.archlinux.org/title/$1_(فارسی)"
+      },
+      {
+        "prefix": "fedora",
+        "url": "https://fedoraproject.org/wiki/$1"
+      },
+      {
+        "prefix": "fi",
+        "local": "",
+        "language": "suomi",
+        "bcp47": "fi",
+        "url": "https://wiki.archlinux.org/title/$1_(Suomi)"
+      },
+      {
+        "prefix": "foldoc",
+        "url": "https://foldoc.org/?$1"
+      },
+      {
+        "prefix": "fr",
+        "local": "",
+        "language": "français",
+        "bcp47": "fr",
+        "url": "https://wiki.archlinux.org/title/$1_(Français)"
+      },
+      {
+        "prefix": "freebsdman",
+        "url": "https://www.freebsd.org/cgi/man.cgi?query=$1"
+      },
+      {
+        "prefix": "funtoo",
+        "url": "https://www.funtoo.org/$1",
+        "api": "http://www.funtoo.org/api.php"
+      },
+      {
+        "prefix": "gentoo",
+        "url": "https://wiki.gentoo.org/wiki/$1",
+        "api": "https://wiki.gentoo.org/api.php"
+      },
+      {
+        "prefix": "gregswiki",
+        "url": "https://mywiki.wooledge.org/$1"
+      },
+      {
+        "prefix": "he",
+        "local": "",
+        "language": "עברית",
+        "bcp47": "he",
+        "url": "https://wiki.archlinux.org/title/$1_(עברית)"
+      },
+      {
+        "prefix": "hr",
+        "local": "",
+        "language": "hrvatski",
+        "bcp47": "hr",
+        "url": "https://wiki.archlinux.org/title/$1_(Hrvatski)"
+      },
+      {
+        "prefix": "hu",
+        "local": "",
+        "language": "magyar",
+        "bcp47": "hu",
+        "url": "https://wiki.archlinux.org/title/$1_(Magyar)"
+      },
+      {
+        "prefix": "id",
+        "local": "",
+        "language": "Bahasa Indonesia",
+        "bcp47": "id",
+        "url": "https://wiki.archlinux.org/title/$1_(Bahasa Indonesia)"
+      },
+      {
+        "prefix": "it",
+        "local": "",
+        "language": "italiano",
+        "bcp47": "it",
+        "url": "https://wiki.archlinux.org/title/$1_(Italiano)"
+      },
+      {
+        "prefix": "ja",
+        "local": "",
+        "language": "日本語",
+        "bcp47": "ja",
+        "url": "https://wiki.archlinux.jp/index.php/$1"
+      },
+      {
+        "prefix": "ko",
+        "local": "",
+        "language": "한국어",
+        "bcp47": "ko",
+        "url": "https://wiki.archlinux.org/title/$1_(한국어)"
+      },
+      {
+        "prefix": "linuxwiki",
+        "url": "https://linuxwiki.de/$1"
+      },
+      {
+        "prefix": "lqwiki",
+        "url": "https://wiki.linuxquestions.org/wiki/$1"
+      },
+      {
+        "prefix": "lt",
+        "local": "",
+        "language": "lietuvių",
+        "bcp47": "lt",
+        "url": "https://wiki.archlinux.org/title/$1_(Lietuvių)"
+      },
+      {
+        "prefix": "lv",
+        "local": "",
+        "language": "latviešu",
+        "bcp47": "lv",
+        "url": "https://wiki.archlinux.org/title/$1_(Latviešu)"
+      },
+      {
+        "prefix": "mediawikiwiki",
+        "url": "https://www.mediawiki.org/wiki/$1",
+        "api": "https://www.mediawiki.org/w/api.php"
+      },
+      {
+        "prefix": "meta",
+        "url": "https://meta.wikimedia.org/wiki/$1",
+        "api": "https://meta.wikimedia.org/w/api.php"
+      },
+      {
+        "prefix": "metawikimedia",
+        "url": "https://meta.wikimedia.org/wiki/$1",
+        "api": "https://meta.wikimedia.org/w/api.php"
+      },
+      {
+        "prefix": "mozillawiki",
+        "url": "https://wiki.mozilla.org/$1",
+        "api": "https://wiki.mozilla.org/api.php"
+      },
+      {
+        "prefix": "mw",
+        "url": "https://www.mediawiki.org/wiki/$1",
+        "api": "https://www.mediawiki.org/w/api.php"
+      },
+      {
+        "prefix": "nl",
+        "local": "",
+        "language": "Nederlands",
+        "bcp47": "nl",
+        "url": "https://wiki.archlinux.org/title/$1_(Nederlands)"
+      },
+      {
+        "prefix": "phab",
+        "url": "https://phabricator.wikimedia.org/$1"
+      },
+      {
+        "prefix": "phabricator",
+        "url": "https://phabricator.wikimedia.org/$1"
+      },
+      {
+        "prefix": "pl",
+        "local": "",
+        "language": "polski",
+        "bcp47": "pl",
+        "url": "https://wiki.archlinux.org/title/$1_(Polski)"
+      },
+      {
+        "prefix": "pmid",
+        "url": "https://www.ncbi.nlm.nih.gov/pubmed/$1?dopt=Abstract"
+      },
+      {
+        "prefix": "pt",
+        "local": "",
+        "language": "português",
+        "bcp47": "pt",
+        "url": "https://wiki.archlinux.org/title/$1_(Português)"
+      },
+      {
+        "prefix": "rfc",
+        "url": "https://tools.ietf.org/html/rfc$1"
+      },
+      {
+        "prefix": "ru",
+        "local": "",
+        "language": "русский",
+        "bcp47": "ru",
+        "url": "https://wiki.archlinux.org/title/$1_(Русский)"
+      },
+      {
+        "prefix": "sk",
+        "local": "",
+        "language": "slovenčina",
+        "bcp47": "sk",
+        "url": "https://wiki.archlinux.org/title/$1_(Slovenčina)"
+      },
+      {
+        "prefix": "sourceforge",
+        "url": "https://sourceforge.net/$1"
+      },
+      {
+        "prefix": "sr",
+        "local": "",
+        "language": "српски / srpski",
+        "bcp47": "sr",
+        "url": "https://wiki.archlinux.org/title/$1_(Српски)"
+      },
+      {
+        "prefix": "sv",
+        "local": "",
+        "language": "svenska",
+        "bcp47": "sv",
+        "url": "https://wiki.archlinux.org/title/$1_(Svenska)"
+      },
+      {
+        "prefix": "th",
+        "local": "",
+        "language": "ไทย",
+        "bcp47": "th",
+        "url": "https://wiki.archlinux.org/title/$1_(%E0%B9%84%E0%B8%97%E0%B8%A2)"
+      },
+      {
+        "prefix": "tr",
+        "local": "",
+        "language": "Türkçe",
+        "bcp47": "tr",
+        "url": "https://wiki.archlinux.org/title/$1_(Türkçe)"
+      },
+      {
+        "prefix": "uk",
+        "local": "",
+        "language": "українська",
+        "bcp47": "uk",
+        "url": "https://wiki.archlinux.org/title/$1_(Українська)"
+      },
+      {
+        "prefix": "w",
+        "url": "https://en.wikipedia.org/wiki/$1",
+        "api": "https://en.wikipedia.org/w/api.php"
+      },
+      {
+        "prefix": "wikia",
+        "url": "http://www.wikia.com/wiki/$1"
+      },
+      {
+        "prefix": "wikibooks",
+        "url": "https://en.wikibooks.org/wiki/$1",
+        "api": "https://en.wikibooks.org/w/api.php"
+      },
+      {
+        "prefix": "wikimedia",
+        "url": "https://wikimediafoundation.org/wiki/$1",
+        "api": "https://wikimediafoundation.org/w/api.php"
+      },
+      {
+        "prefix": "wikinews",
+        "url": "https://en.wikinews.org/wiki/$1",
+        "api": "https://en.wikinews.org/w/api.php"
+      },
+      {
+        "prefix": "wikipedia",
+        "url": "https://en.wikipedia.org/wiki/$1",
+        "api": "https://en.wikipedia.org/w/api.php"
+      },
+      {
+        "prefix": "wikiquote",
+        "url": "https://en.wikiquote.org/wiki/$1",
+        "api": "https://en.wikiquote.org/w/api.php"
+      },
+      {
+        "prefix": "wikisource",
+        "url": "https://wikisource.org/wiki/$1",
+        "api": "https://wikisource.org/w/api.php"
+      },
+      {
+        "prefix": "wikispecies",
+        "url": "https://species.wikimedia.org/wiki/$1",
+        "api": "https://species.wikimedia.org/w/api.php"
+      },
+      {
+        "prefix": "wikiversity",
+        "url": "https://en.wikiversity.org/wiki/$1",
+        "api": "https://en.wikiversity.org/w/api.php"
+      },
+      {
+        "prefix": "wikivoyage",
+        "url": "https://en.wikivoyage.org/wiki/$1",
+        "api": "https://en.wikivoyage.org/w/api.php"
+      },
+      {
+        "prefix": "wikt",
+        "url": "https://en.wiktionary.org/wiki/$1",
+        "api": "https://en.wiktionary.org/w/api.php"
+      },
+      {
+        "prefix": "wiktionary",
+        "url": "https://en.wiktionary.org/wiki/$1",
+        "api": "https://en.wiktionary.org/w/api.php"
+      },
+      {
+        "prefix": "wmf",
+        "url": "https://wikimediafoundation.org/wiki/$1",
+        "api": "https://wikimediafoundation.org/w/api.php"
+      },
+      {
+        "prefix": "zh-hans",
+        "local": "",
+        "language": "中文（简体）",
+        "bcp47": "zh-Hans",
+        "url": "https://wiki.archlinuxcn.org/wiki/$1"
+      },
+      {
+        "prefix": "zh-hant",
+        "local": "",
+        "language": "中文（繁體）",
+        "bcp47": "zh-Hant",
+        "url": "https://wiki.archlinux.org/title/$1_(正體中文)"
+      }
+    ]
+  }
+}

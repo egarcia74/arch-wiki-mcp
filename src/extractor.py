@@ -5,18 +5,27 @@ Deterministic, hash-stable extraction of wiki content with full provenance.
 """
 
 import hashlib
+import logging
 import re
 import unicodedata
 from dataclasses import dataclass, asdict, fields
 from functools import lru_cache
 from typing import Dict, List, Optional, Tuple
+from urllib.error import URLError
 from urllib.request import urlopen, Request
 from urllib.parse import urlencode, quote
 import json
 import os
 
+# stderr by default, which keeps JSON-RPC on stdout clean.
+logger = logging.getLogger(__name__)
+
 API_ENDPOINT = "https://wiki.archlinux.org/api.php"
 USER_AGENT = "ArchWikiMCP/1.0 (Constitutional Extractor; +https://github.com/user/arch-wiki-mcp)"
+
+# Shared with tests/record_fixtures.py: the recorder must request exactly what
+# fetch_siteinfo() requests, or the recorded fixture answers a different question.
+SITEINFO_PROPS = "namespaces|namespacealiases|interwikimap"
 
 
 @dataclass
@@ -59,6 +68,7 @@ class CodeBlock:
     content: str  # Emphasis stripped, {{ic}}/{{=}} resolved -- safe to execute
     content_raw: str  # Verbatim payload as it appeared in wikitext
     content_hash: str  # SHA-256 over content_raw, so it stays greppable in the source
+    content_hash_cleaned: str  # SHA-256 over content -- the text an agent actually runs
     block_type: str  # "block_code", "file_content", "preformatted"
     source_pattern: str  # "template_bc", "template_hc", "indented_block"
     language: Optional[str] = None
@@ -71,8 +81,10 @@ class CodeBlock:
 class WarningBlock:
     """Extracted warning/note/tip template."""
     type: str  # WARNING, NOTE, TIP, CAUTION
-    message: str
-    content_hash: str
+    message: str  # Markup resolved -- readable prose, safe to quote to a user
+    message_raw: str  # Verbatim template body as it appeared in wikitext
+    content_hash: str  # SHA-256 over message_raw, so it stays greppable in the source
+    message_hash_cleaned: str  # SHA-256 over message -- the text the agent must quote
     revid: Optional[int] = None
 
 
@@ -125,13 +137,17 @@ def _read_fixture(fixture_path: str) -> str:
         return f.read()
 
 
+def fixture_key(params: Dict) -> str:
+    """The identifying parameter of a request: the page, the query, or the metadata kind."""
+    return params.get("page") or params.get("srsearch") or params.get("meta") or "unknown"
+
+
 def _fetch_offline(params: Dict) -> Dict:
     """Retrieve API response from local fixtures for offline testing."""
     fixtures_dir = os.environ.get("ARCHWIKI_FIXTURES", "tests/fixtures")
     action = params.get("action", "unknown")
-    key = params.get("page", "unknown") if action == "parse" else params.get("srsearch", "unknown")
 
-    fixture_path = os.path.join(fixtures_dir, fixture_filename(action, key))
+    fixture_path = os.path.join(fixtures_dir, fixture_filename(action, fixture_key(params)))
     return json.loads(_read_fixture(fixture_path))
 
 
@@ -332,53 +348,189 @@ def _strip_param_name(text: str, allowed: set) -> str:
 
 
 _NOWIKI_TAG = re.compile(r"</?nowiki>")
-_INLINE_CODE = re.compile(r"\{\{ic\|(?:1=)?([^{}|]*)\}\}", re.IGNORECASE)
+_HTML_COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
 _BOLD = re.compile(r"'''(.*?)'''", re.DOTALL)
 _ITALIC = re.compile(r"''(.*?)''", re.DOTALL)
+# [[Target|display]] / [[Target]] / [[Target#Anchor]]
+_WIKILINK = re.compile(r"\[\[([^\[\]|]+)(?:\|([^\[\]]*))?\]\]")
+_EXTERNAL_LINK = re.compile(r"\[(https?://\S+?)(?:\s+([^\]]*))?\]")
+
+# Templates that wrap a literal value. Each maps its parameters to the text the
+# template renders: {{ic|cmd}} -> "cmd", {{man|8|ip-link}} -> "ip-link(8)".
+# Keyed by name; the scanning regex is built from the keys.
+INLINE_TEMPLATES = {
+    "ic": (1, lambda p: _strip_param_name(p[1], {"1"})),
+    "pkg": (1, lambda p: _strip_param_name(p[1], {"1"})),
+    "aur": (1, lambda p: _strip_param_name(p[1], {"1"})),
+    "grp": (1, lambda p: _strip_param_name(p[1], {"1"})),
+    "man": (2, lambda p: f"{p[2]}({p[1]})" if len(p) > 2 else p[-1]),
+}
+
+_INLINE_TEMPLATE_RE = re.compile(r"\{\{(" + "|".join(INLINE_TEMPLATES) + r")\s*\|", re.IGNORECASE)
+
+# MediaWiki escapes for characters that would otherwise be template syntax.
+_TEMPLATE_ESCAPES = {"{{=}}": "=", "{{!}}": "|"}
 
 
-def _clean_payload(raw: str) -> Tuple[str, List[str]]:
+def _iter_top_level_templates(text: str, pattern: "re.Pattern"):
     """
-    Render a code payload down to what a user would actually run.
+    Yield (start, end, name) for each non-nested template matching pattern.
 
-    Returns the cleaned text and the tokens the author marked ''italic'', which on
-    the Arch Wiki denote values the reader must substitute (''esp'', ''device'').
-    Surfacing them is extraction of the author's own markup, not synthesis.
+    Matches beginning inside an already-yielded span are skipped, and an unclosed
+    template is passed over rather than consuming the rest of the document.
     """
-    text = raw.replace("{{=}}", "=")
+    consumed_to = 0
+    for match in pattern.finditer(text):
+        if match.start() < consumed_to:
+            continue
+        end = _find_template_end(text, match.start())
+        if end == -1:
+            continue
+        consumed_to = end
+        yield match.start(), end, match.group(1).lower()
+
+
+def _resolve_inline_templates(text: str, _depth: int = 0) -> str:
+    """
+    Replace inline literal templates with the value they render.
+
+    Uses the brace matcher rather than a regex, because bodies legitimately
+    contain pipes -- {{ic|pacman -Ql foo {{!}} grep bin}} -- which a
+    `[^{}|]*` pattern can never see through.
+    """
+    if _depth > 4:  # Malformed input; stop rather than recurse forever
+        return text
+
+    out, position = [], 0
+    for start, end, name in _iter_top_level_templates(text, _INLINE_TEMPLATE_RE):
+        max_splits, render = INLINE_TEMPLATES[name]
+        params = _split_template_params(text[start + 2:end - 2], max_splits)
+        body = render(params) if len(params) > 1 else ""
+
+        out.append(text[position:start])
+        out.append(_resolve_inline_templates(body, _depth + 1))
+        position = end
+
+    out.append(text[position:])
+    return "".join(out)
+
+
+def _strip_inline_markup(text: str) -> Tuple[str, List[str]]:
+    """
+    Remove wikitext markup that is presentation, not content.
+
+    Returns the cleaned text and the tokens the author marked ''italic''. On the
+    Arch Wiki those denote values the reader must substitute (''esp'', ''device'').
+    Surfacing them reads the author's own markup; it infers nothing.
+    """
+    text = _HTML_COMMENT.sub("", text)
     text = _NOWIKI_TAG.sub("", text)
-    text = _INLINE_CODE.sub(r"\1", text)
+    text = _resolve_inline_templates(text)
+
+    # After template resolution: an escape inside a body would otherwise have
+    # broken the parameter split that recovered that body.
+    for escape, literal in _TEMPLATE_ESCAPES.items():
+        text = text.replace(escape, literal)
+
     text = _BOLD.sub(r"\1", text)  # Bold before italic: ''' would else split as '' + '
 
     placeholders = list(dict.fromkeys(t for t in _ITALIC.findall(text) if t))
     text = _ITALIC.sub(r"\1", text)
 
+    return text, placeholders
+
+
+def _clean_payload(raw: str) -> Tuple[str, List[str]]:
+    """Render a code payload down to what a user would actually run."""
+    text, placeholders = _strip_inline_markup(raw)
     return text.strip("\n"), placeholders
+
+
+def _resolve_links(text: str) -> str:
+    """
+    Render wiki and external links as the words a reader sees.
+
+    [[Users and groups#Group management|add your user]] -> "add your user"
+    [[Start/enable]]                                    -> "Start/enable"
+    [https://example.com/bug a long open bug]           -> "a long open bug (https://example.com/bug)"
+    """
+    text = _WIKILINK.sub(lambda m: (m.group(2) or m.group(1)).strip(), text)
+    text = _EXTERNAL_LINK.sub(
+        lambda m: f"{m.group(2).strip()} ({m.group(1)})" if m.group(2) else m.group(1),
+        text,
+    )
+    return text
+
+
+# Leading wikitext indent/list markers on a template body: "::* Make sure ..."
+# Anchored at column 0: a line starting with a space is preformatted code, and
+# its indentation is content.
+# The list alternative must precede the bare-indent one: '::*' is a nested
+# bullet, and `[:;]+` would otherwise consume the '::' and strip nothing.
+_LEADING_LIST_MARKUP = re.compile(r"^([:;]*[*#]|[:;]+)[ \t]*")
+
+
+def _render_list_markers(line: str) -> str:
+    """
+    Turn wikitext list markup into plain-text bullets.
+
+    A bare '#' must never survive into agent-facing prose: it is wikitext's
+    ordered-list marker, and mistaking it for a root shell prompt is exactly the
+    confusion that made the old examples() tool emit prose as bash. An indented
+    line is preformatted code and is left untouched.
+    """
+    match = _LEADING_LIST_MARKUP.match(line)
+    if not match:
+        return line
+
+    body = line[match.end():]
+    marker = match.group(1)[-1]
+    if marker == "*":
+        return f"- {body}"
+    if marker == "#":
+        return f"1. {body}"
+    return body  # Bare ':' / ';' indentation carries no meaning in plain text
+
+
+def _clean_message(raw: str) -> str:
+    """
+    Render a warning/note body down to prose a user can read.
+
+    The consuming agent is required to quote these to the user, so shipping raw
+    {{ic|...}} and [[links]] made the mandated response shape unreadable. The
+    verbatim text is preserved alongside as message_raw, and that is what the
+    content_hash covers.
+    """
+    text, _ = _strip_inline_markup(raw)
+    text = _resolve_links(text)
+    text = "\n".join(_render_list_markers(line) for line in text.split("\n"))
+    return text.strip()
 
 
 def _parse_single_template(content: str, supported: set, revid: Optional[int]) -> Optional[WarningBlock]:
     """
     Parse the interior content of a template and return a WarningBlock if valid.
 
-    TODO: reuse _split_template_params/_strip_param_name here. The naive
-    split("|", 1) truncates any message containing a pipe inside a nested
-    template or link. Deferred: it would change every warning content_hash.
+    Splits on the first TOP-LEVEL pipe. A naive split("|", 1) truncated any
+    message containing a pipe inside a nested {{ic|a|b}} or [[link|text]].
     """
-    parts = content.split("|", 1)
+    parts = _split_template_params(content, 1)
     name = parts[0].strip().upper()
-    
-    if name in supported:
-        message = parts[1].strip() if len(parts) > 1 else ""
-        if message.startswith("1="):
-            message = message[2:].strip()
-            
-        return WarningBlock(
-            type=name,
-            message=message,
-            content_hash=hash_content(message),
-            revid=revid
-        )
-    return None
+
+    if name not in supported:
+        return None
+
+    message_raw = _strip_param_name(parts[1], {"1"}).strip() if len(parts) > 1 else ""
+    message = _clean_message(message_raw)
+
+    return WarningBlock(
+        type=name,
+        message=message,
+        message_raw=message_raw,
+        content_hash=hash_content(message_raw),
+        message_hash_cleaned=hash_content(message),
+        revid=revid
+    )
 
 
 def parse_templates(wikitext: str, revid: Optional[int] = None) -> List[WarningBlock]:
@@ -422,6 +574,7 @@ def _make_block(
         content=content,
         content_raw=raw,
         content_hash=hash_content(raw),
+        content_hash_cleaned=hash_content(content),
         block_type=block_type,
         source_pattern=source_pattern,
         language=None,
@@ -478,18 +631,9 @@ def _extract_code_templates(
     """
     blocks: List[CodeBlock] = []
     spans: List[Tuple[int, int]] = []
-    consumed_to = 0
 
-    for match in _CODE_TEMPLATE_RE.finditer(wikitext):
-        start = match.start()
-        if start < consumed_to:
-            continue  # Nested inside a block we already took
-        end = _find_template_end(wikitext, start)
-        if end == -1:
-            continue
-        consumed_to = end
-
-        spec = CODE_TEMPLATES[match.group(1).lower()]
+    for start, end, name in _iter_top_level_templates(wikitext, _CODE_TEMPLATE_RE):
+        spec = CODE_TEMPLATES[name]
         params = _split_template_params(wikitext[start + 2:end - 2], spec.max_splits)
 
         index = 1
@@ -552,10 +696,10 @@ _NAMESPACE_PREFIXES = frozenset({
 # Language editions and sister projects. An Arch page links [[de:GRUB]] to bind
 # its translation, not to point the reader at a different article.
 #
-# TODO: derive from action=query&meta=siteinfo&siprop=interwikimap|namespaces
-# instead. A static list rots: a language Arch adds later would surface as a
-# navigable article link.
-_INTERWIKI_PREFIXES = frozenset({
+# Used only when siteinfo is unreachable. The wiki's own interwikimap is
+# authoritative: a static list rots, and a language Arch adds later would
+# otherwise surface as a navigable article link.
+_FALLBACK_INTERWIKI_PREFIXES = frozenset({
     "ar", "az", "bg", "bs", "ca", "cs", "da", "de", "el", "en", "es", "fa", "fi",
     "fr", "he", "hr", "hu", "id", "it", "ja", "ko", "lt", "nl", "no", "pl", "pt",
     "ro", "ru", "sk", "sl", "sr", "sv", "th", "tr", "uk", "vi",
@@ -564,12 +708,95 @@ _INTERWIKI_PREFIXES = frozenset({
     "freebsd", "kernel", "man", "arxiv", "rfc",
 })
 
-# An explicit exclusion list, never a "looks like a language code" heuristic:
-# silently dropping a real link is synthesis by omission.
-_EXCLUDED_PREFIXES = _NAMESPACE_PREFIXES | _INTERWIKI_PREFIXES
+_FALLBACK_EXCLUDED_PREFIXES = _NAMESPACE_PREFIXES | _FALLBACK_INTERWIKI_PREFIXES
 
 
-def parse_internal_links(wikitext: str, source_page: str) -> List[InternalLink]:
+def fetch_siteinfo(timeout: int = 30) -> Dict:
+    """Fetch the wiki's namespace and interwiki tables."""
+    params = {
+        "action": "query",
+        "meta": "siteinfo",
+        "siprop": SITEINFO_PROPS,
+        "format": "json",
+    }
+
+    data = _fetch(params, timeout)
+
+    if "error" in data:
+        raise ValueError(f"Siteinfo API Error: {data['error'].get('info', data['error'])}")
+    if "query" not in data:
+        raise ValueError(f"Unexpected siteinfo response format: {data}")
+
+    return data["query"]
+
+
+# Errors that mean "the wiki did not answer", as opposed to a bug in this module.
+# URLError and HTTPError are OSError subclasses; FileNotFoundError deliberately is
+# not caught, so a missing offline fixture stays loud.
+_SITEINFO_FAILURES = (URLError, TimeoutError, ConnectionError, json.JSONDecodeError, ValueError)
+
+# Populated only on success. A transient failure must not be memoized: caching the
+# fallback would silently reinstate the rotted list for the life of the process.
+_derived_prefixes: Optional[frozenset] = None
+
+
+def reset_prefix_cache() -> None:
+    """Drop the memoized siteinfo derivation (used by tests)."""
+    global _derived_prefixes
+    _derived_prefixes = None
+
+
+def excluded_link_prefixes() -> frozenset:
+    """
+    Prefixes that mark a [[link]] as page metadata rather than navigation.
+
+    Derived from the wiki's own tables so the set cannot rot. An explicit list,
+    never a "looks like a language code" heuristic: silently dropping a real link
+    is synthesis by omission, and silently keeping an interwiki link is synthesis
+    by inclusion.
+
+    Falls back to a static snapshot when siteinfo is unreachable. links() is a
+    navigation aid, not a command source, so degrading beats failing the call --
+    but the fallback is never cached, so the next call retries.
+    """
+    global _derived_prefixes
+    if _derived_prefixes is not None:
+        return _derived_prefixes
+
+    try:
+        query = fetch_siteinfo()
+    except _SITEINFO_FAILURES as exc:
+        logger.warning("siteinfo unavailable (%s); using static link-prefix snapshot", exc)
+        return _FALLBACK_EXCLUDED_PREFIXES
+
+    prefixes = set()
+
+    # Every namespace except main (id 0), which is where articles live.
+    for namespace in query.get("namespaces", {}).values():
+        if namespace.get("id", 0) != 0 and namespace.get("*"):
+            prefixes.add(namespace["*"].lower())
+    for alias in query.get("namespacealiases", []):
+        if alias.get("id", 0) != 0 and alias.get("*"):
+            prefixes.add(alias["*"].lower())
+
+    for entry in query.get("interwikimap", []):
+        if entry.get("prefix"):
+            prefixes.add(entry["prefix"].lower())
+
+    # A wiki that returned nothing usable must not silently disable filtering.
+    if not prefixes:
+        logger.warning("siteinfo returned no prefixes; using static link-prefix snapshot")
+        return _FALLBACK_EXCLUDED_PREFIXES
+
+    _derived_prefixes = frozenset(prefixes)
+    return _derived_prefixes
+
+
+def parse_internal_links(
+    wikitext: str,
+    source_page: str,
+    excluded_prefixes: Optional[frozenset] = None,
+) -> List[InternalLink]:
     """
     Parse navigable internal wiki links from wikitext.
 
@@ -577,6 +804,9 @@ def parse_internal_links(wikitext: str, source_page: str) -> List[InternalLink]:
     same-page [[#Anchor]] form. Namespace and interwiki links are excluded, as
     are multi-parameter media links like [[File:x.png|thumb|caption]].
     """
+    if excluded_prefixes is None:
+        excluded_prefixes = excluded_link_prefixes()
+
     links = []
 
     for match in re.finditer(r"\[\[([^\[\]]+)\]\]", wikitext):
@@ -588,7 +818,7 @@ def parse_internal_links(wikitext: str, source_page: str) -> List[InternalLink]:
 
         if ":" in target:
             prefix = target.split(":", 1)[0].strip().lower()
-            if prefix in _EXCLUDED_PREFIXES:
+            if prefix in excluded_prefixes:
                 continue
 
         page_part, _, anchor_part = target.partition("#")
@@ -711,7 +941,7 @@ def section(title: str, anchor: str) -> ExtractedBlock:
         timestamp=None,
         section_anchor=anchor,
         section_heading=target_section["line"],
-        extraction_method="wikitext_byte_offset",
+        extraction_method="wikitext_character_offset",
         content=content,
         content_hash=hash_content(content)
     )
@@ -741,6 +971,7 @@ def commands(title: str, anchor: Optional[str] = None) -> List[Dict]:
             "content": block.content,
             "content_raw": block.content_raw,
             "content_hash": block.content_hash,
+            "content_hash_cleaned": block.content_hash_cleaned,
             "block_type": block.block_type,
             "source_pattern": block.source_pattern,
             "language": block.language,
@@ -776,7 +1007,9 @@ def warnings(title: str, anchor: Optional[str] = None) -> List[Dict]:
         {
             "type": w.type,
             "message": w.message,
+            "message_raw": w.message_raw,
             "content_hash": w.content_hash,
+            "message_hash_cleaned": w.message_hash_cleaned,
             "source_url": url_base,
             "revid": w.revid
         }

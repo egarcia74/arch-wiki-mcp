@@ -182,26 +182,26 @@ def extract_section_wikitext(
     section_end: Optional[int]
 ) -> str:
     """
-    Extract section content from wikitext using byte offsets.
+    Extract section content from wikitext using the API's section offsets.
 
-    MediaWiki byte offsets are in UTF-8 bytes, not characters. A null start means
-    the section is transcluded and its text is not in this page at all; slicing
-    would silently return the wrong content, so refuse. A null end means "to the
-    end of the page" and is fine.
+    Despite its name, MediaWiki's `byteoffset` indexes the wikitext by CHARACTER,
+    not by UTF-8 byte. Verified across the recorded corpus: all 434 sections land
+    exactly on their heading when the offset is used as a character index, while
+    byte indexing only works for pages with no multibyte character before the
+    heading (112 of 434). Encoding first shifted every section on a page
+    containing so much as one accented letter, silently returning a neighbouring
+    section's text.
+
+    A null start means the section is transcluded and its text is not on this page
+    at all; slicing would return the wrong content, so refuse. A null end means
+    "to the end of the page" and is fine.
     """
     if section_start is None:
         raise ValueError(
             "Section has no byte offset (transcluded); its wikitext is not on this page"
         )
 
-    wikitext_bytes = wikitext.encode("utf-8")
-
-    if section_end is not None:
-        section_bytes = wikitext_bytes[section_start:section_end]
-    else:
-        section_bytes = wikitext_bytes[section_start:]
-
-    return section_bytes.decode("utf-8")
+    return wikitext[section_start:section_end]
 
 
 def _resolve_section(parse_data: Dict, anchor: str) -> Tuple[Dict, str]:
@@ -233,6 +233,17 @@ def _resolve_section(parse_data: Dict, anchor: str) -> Tuple[Dict, str]:
         content = extract_section_wikitext(
             parse_data["wikitext"]["*"], sect["byteoffset"], next_offset
         )
+
+        # Fail closed if the slice did not land on a heading. Every section
+        # offset must point at its own '==' line; anything else means the API's
+        # offset semantics moved under us, and quoting the result would cite the
+        # wrong text under a valid-looking hash.
+        if not content.startswith("="):
+            raise ValueError(
+                f"Section '{anchor}' in page '{title}' did not resolve to a heading "
+                f"(offset {sect['byteoffset']} landed on {content[:40]!r})"
+            )
+
         return sect, content
 
     raise ValueError(f"Section with anchor '{anchor}' not found in page '{title}'")

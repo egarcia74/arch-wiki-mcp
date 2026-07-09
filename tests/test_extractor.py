@@ -77,11 +77,38 @@ def test_warnings_are_extracted_with_provenance():
         assert warning["content_hash"] == extractor.hash_content(warning["message"])
 
 
-def test_byte_offsets_are_utf8_not_characters():
-    """Section slicing must use UTF-8 byte offsets, per the MediaWiki API."""
+def test_section_offsets_are_character_indices_not_bytes():
+    """
+    MediaWiki's `byteoffset` indexes characters, not UTF-8 bytes, despite the name.
+    Encoding first shifts every section on a page containing an accented letter.
+    """
     wikitext = "== Ä ==\ncontent\n== B ==\n"
-    start = len("== Ä ==\ncontent\n".encode("utf-8"))
-    assert extractor.extract_section_wikitext(wikitext, start, None) == "== B ==\n"
+    character_start = wikitext.index("== B ==")
+    byte_start = len("== Ä ==\ncontent\n".encode("utf-8"))
+    assert character_start != byte_start, "test string must be multibyte"
+
+    assert extractor.extract_section_wikitext(wikitext, character_start, None) == "== B ==\n"
+
+
+def test_section_extraction_refuses_an_offset_that_misses_the_heading():
+    """A slice landing in prose means the API's offset semantics changed."""
+    with pytest.raises(ValueError, match="did not resolve to a heading"):
+        extractor._resolve_section(
+            {
+                "title": "T",
+                "wikitext": {"*": "lead prose\n== A ==\nbody\n"},
+                "sections": [{"anchor": "A", "line": "A", "byteoffset": 3}],
+            },
+            "A",
+        )
+
+
+def test_every_section_in_the_corpus_resolves_to_its_own_heading():
+    """The invariant that catches an offset-semantics regression on any page."""
+    for page in ("GRUB", "Installation_guide", "Iwd", "KDE", "Pacman", "Systemd"):
+        for sect in extractor.sections(page):
+            extracted = extractor.section(page, sect["anchor"])
+            assert extracted.content.startswith("="), f"{page}#{sect['anchor']}"
 
 
 def test_examples_tool_is_gone():

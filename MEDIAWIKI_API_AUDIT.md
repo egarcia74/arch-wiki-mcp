@@ -47,7 +47,7 @@
         "number": "1",
         "index": "1",
         "fromtitle": "Installation_guide",
-        "byteoffset": 2099,        // ✅ Section boundaries
+        "byteoffset": 2099,        // ⚠️ CHARACTER offset -- see note below
         "anchor": "Pre-installation", // ✅ Section anchors
         "linkAnchor": "Pre-installation"
       }
@@ -58,6 +58,21 @@
   }
 }
 ```
+
+> ### ⚠️ `byteoffset` is a character offset
+>
+> Despite its name, `byteoffset` indexes the returned wikitext by **character**,
+> not by UTF-8 byte. Slicing `wikitext.encode("utf-8")` with it drifts by one
+> position per multibyte character preceding the heading, silently returning a
+> neighbouring section's text.
+>
+> Verified against the live API and the recorded corpus: character indexing lands
+> on the section's own heading for 432/432 sections; byte indexing for 121/432.
+> The single page that agreed under both (`Pacman`) contains no multibyte
+> character at all.
+>
+> In the example above, `2099` is the character index of `== Pre-installation ==`.
+> Its byte index is `2125`. Slice with `wikitext[byteoffset:next_byteoffset]`.
 
 ---
 
@@ -156,7 +171,7 @@
 | SHA-256 content hash | ✅ Yes | Hash extracted wikitext |
 | Unicode NFC normalization | ✅ Yes | Apply before hashing |
 | Whitespace preservation | ✅ Yes | Use wikitext, not HTML |
-| Section extraction | ✅ Yes | Use `sections` array + byte offsets |
+| Section extraction | ✅ Yes | Use `sections` array + offsets (character-indexed; see note above) |
 | Warning detection | ✅ Yes | Parse `{{Warning}}` templates |
 | Code block extraction | ✅ Yes | Extract indented wikitext lines |
 | Internal link resolution | ✅ Yes | Parse `[[...]]` syntax |

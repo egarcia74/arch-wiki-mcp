@@ -1,0 +1,56 @@
+{
+  "_comment": [
+    "Hand-authored fixture. MediaWiki returns byteoffset: null for sections that",
+    "are transcluded from another page -- their text is not present in this page's",
+    "wikitext, so there is no offset to slice from. Slicing with a null start used",
+    "to silently read from offset 0 and return the wrong section's content.",
+    "No naturally-recorded fixture in this corpus exhibits a null byteoffset.",
+    "Also carries an unknown key ('extensionData') to exercise tolerant parsing."
+  ],
+  "parse": {
+    "title": "Transcluded example",
+    "pageid": 999001,
+    "revid": 900001,
+    "wikitext": {
+      "*": "Intro prose for the host page.\n\n== Local section ==\n\nThis text lives in this page.\n\n {{ic|not-a-command}}\n # echo local\n\n== Trailing section ==\n\nMore local text.\n"
+    },
+    "sections": [
+      {
+        "toclevel": 1,
+        "level": "2",
+        "line": "Local section",
+        "number": "1",
+        "index": "1",
+        "fromtitle": "Transcluded example",
+        "byteoffset": 32,
+        "anchor": "Local_section",
+        "linkAnchor": "Local_section",
+        "extensionData": {}
+      },
+      {
+        "toclevel": 1,
+        "level": "2",
+        "line": "Transcluded section",
+        "number": "2",
+        "index": "",
+        "fromtitle": "Some other page",
+        "byteoffset": null,
+        "anchor": "Transcluded_section",
+        "linkAnchor": "Transcluded_section",
+        "extensionData": {}
+      },
+      {
+        "toclevel": 1,
+        "level": "2",
+        "line": "Trailing section",
+        "number": "3",
+        "index": "2",
+        "fromtitle": "Transcluded example",
+        "byteoffset": 121,
+        "anchor": "Trailing_section",
+        "linkAnchor": "Trailing_section",
+        "extensionData": {}
+      }
+    ]
+  }
+}

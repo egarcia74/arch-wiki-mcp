@@ -1,0 +1,318 @@
+{
+  "warnings": {
+    "main": {
+      "*": "Subscribe to the mediawiki-api-announce mailing list at <https://lists.wikimedia.org/postorius/lists/mediawiki-api-announce.lists.wikimedia.org/> for notice of API deprecations and breaking changes."
+    },
+    "parse": {
+      "*": "\"prop=sections\" has been deprecated. Please use \"prop=tocdata\" instead."
+    }
+  },
+  "parse": {
+    "title": "Installation guide (Espa\u00f1ol)",
+    "pageid": 18101,
+    "revid": 879747,
+    "sections": [
+      {
+        "toclevel": 1,
+        "level": "2",
+        "line": "Preinstalaci\u00f3n",
+        "number": "1",
+        "index": "1",
+        "fromtitle": "Installation_guide_(Espa\u00f1ol)",
+        "byteoffset": 2544,
+        "anchor": "Preinstalaci\u00f3n",
+        "linkAnchor": "Preinstalaci\u00f3n"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Adquirir una imagen de instalaci\u00f3n",
+        "number": "1.1",
+        "index": "2",
+        "fromtitle": "Installation_guide_(Espa\u00f1ol)",
+        "byteoffset": 2566,
+        "anchor": "Adquirir_una_imagen_de_instalaci\u00f3n",
+        "linkAnchor": "Adquirir_una_imagen_de_instalaci\u00f3n"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Verificar la firma",
+        "number": "1.2",
+        "index": "3",
+        "fromtitle": "Installation_guide_(Espa\u00f1ol)",
+        "byteoffset": 2829,
+        "anchor": "Verificar_la_firma",
+        "linkAnchor": "Verificar_la_firma"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Preparar un medio de instalaci\u00f3n",
+        "number": "1.3",
+        "index": "4",
+        "fromtitle": "Installation_guide_(Espa\u00f1ol)",
+        "byteoffset": 4220,
+        "anchor": "Preparar_un_medio_de_instalaci\u00f3n",
+        "linkAnchor": "Preparar_un_medio_de_instalaci\u00f3n"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Arrancar el entorno live",
+        "number": "1.4",
+        "index": "5",
+        "fromtitle": "Installation_guide_(Espa\u00f1ol)",
+        "byteoffset": 4760,
+        "anchor": "Arrancar_el_entorno_live",
+        "linkAnchor": "Arrancar_el_entorno_live"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Configurar la distribuci\u00f3n del teclado y la fuente de la consola",
+        "number": "1.5",
+        "index": "6",
+        "fromtitle": "Installation_guide_(Espa\u00f1ol)",
+        "byteoffset": 7533,
+        "anchor": "Configurar_la_distribuci\u00f3n_del_teclado_y_la_fuente_de_la_consola",
+        "linkAnchor": "Configurar_la_distribuci\u00f3n_del_teclado_y_la_fuente_de_la_consola"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Verificar el modo de arranque",
+        "number": "1.6",
+        "index": "7",
+        "fromtitle": "Installation_guide_(Espa\u00f1ol)",
+        "byteoffset": 8506,
+        "anchor": "Verificar_el_modo_de_arranque",
+        "linkAnchor": "Verificar_el_modo_de_arranque"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Conectarse a Internet",
+        "number": "1.7",
+        "index": "8",
+        "fromtitle": "Installation_guide_(Espa\u00f1ol)",
+        "byteoffset": 9229,
+        "anchor": "Conectarse_a_Internet",
+        "linkAnchor": "Conectarse_a_Internet"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Actualizar el reloj del sistema",
+        "number": "1.8",
+        "index": "9",
+        "fromtitle": "Installation_guide_(Espa\u00f1ol)",
+        "byteoffset": 10588,
+        "anchor": "Actualizar_el_reloj_del_sistema",
+        "linkAnchor": "Actualizar_el_reloj_del_sistema"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Particionar los discos",
+        "number": "1.9",
+        "index": "10",
+        "fromtitle": "Installation_guide_(Espa\u00f1ol)",
+        "byteoffset": 11077,
+        "anchor": "Particionar_los_discos",
+        "linkAnchor": "Particionar_los_discos"
+      },
+      {
+        "toclevel": 3,
+        "level": "4",
+        "line": "Esquemas de ejemplo",
+        "number": "1.9.1",
+        "index": "11",
+        "fromtitle": "Installation_guide_(Espa\u00f1ol)",
+        "byteoffset": 13374,
+        "anchor": "Esquemas_de_ejemplo",
+        "linkAnchor": "Esquemas_de_ejemplo"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Formatear las particiones",
+        "number": "1.10",
+        "index": "12",
+        "fromtitle": "Installation_guide_(Espa\u00f1ol)",
+        "byteoffset": 14720,
+        "anchor": "Formatear_las_particiones",
+        "linkAnchor": "Formatear_las_particiones"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Montar los sistemas de archivos",
+        "number": "1.11",
+        "index": "13",
+        "fromtitle": "Installation_guide_(Espa\u00f1ol)",
+        "byteoffset": 15926,
+        "anchor": "Montar_los_sistemas_de_archivos",
+        "linkAnchor": "Montar_los_sistemas_de_archivos"
+      },
+      {
+        "toclevel": 1,
+        "level": "2",
+        "line": "Instalaci\u00f3n",
+        "number": "2",
+        "index": "14",
+        "fromtitle": "Installation_guide_(Espa\u00f1ol)",
+        "byteoffset": 16810,
+        "anchor": "Instalaci\u00f3n",
+        "linkAnchor": "Instalaci\u00f3n"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Seleccionar los servidores de r\u00e9plica",
+        "number": "2.1",
+        "index": "15",
+        "fromtitle": "Installation_guide_(Espa\u00f1ol)",
+        "byteoffset": 16829,
+        "anchor": "Seleccionar_los_servidores_de_r\u00e9plica",
+        "linkAnchor": "Seleccionar_los_servidores_de_r\u00e9plica"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Instalar paquetes esenciales",
+        "number": "2.2",
+        "index": "16",
+        "fromtitle": "Installation_guide_(Espa\u00f1ol)",
+        "byteoffset": 17797,
+        "anchor": "Instalar_paquetes_esenciales",
+        "linkAnchor": "Instalar_paquetes_esenciales"
+      },
+      {
+        "toclevel": 1,
+        "level": "2",
+        "line": "Configuraci\u00f3n del sistema",
+        "number": "3",
+        "index": "17",
+        "fromtitle": "Installation_guide_(Espa\u00f1ol)",
+        "byteoffset": 20858,
+        "anchor": "Configuraci\u00f3n_del_sistema",
+        "linkAnchor": "Configuraci\u00f3n_del_sistema"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Fstab",
+        "number": "3.1",
+        "index": "18",
+        "fromtitle": "Installation_guide_(Espa\u00f1ol)",
+        "byteoffset": 20891,
+        "anchor": "Fstab",
+        "linkAnchor": "Fstab"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Chroot",
+        "number": "3.2",
+        "index": "19",
+        "fromtitle": "Installation_guide_(Espa\u00f1ol)",
+        "byteoffset": 21262,
+        "anchor": "Chroot",
+        "linkAnchor": "Chroot"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Zona horaria",
+        "number": "3.3",
+        "index": "20",
+        "fromtitle": "Installation_guide_(Espa\u00f1ol)",
+        "byteoffset": 21359,
+        "anchor": "Zona_horaria",
+        "linkAnchor": "Zona_horaria"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Idioma del sistema",
+        "number": "3.4",
+        "index": "21",
+        "fromtitle": "Installation_guide_(Espa\u00f1ol)",
+        "byteoffset": 22088,
+        "anchor": "Idioma_del_sistema",
+        "linkAnchor": "Idioma_del_sistema"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Configurar la red",
+        "number": "3.5",
+        "index": "22",
+        "fromtitle": "Installation_guide_(Espa\u00f1ol)",
+        "byteoffset": 22832,
+        "anchor": "Configurar_la_red",
+        "linkAnchor": "Configurar_la_red"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Initramfs",
+        "number": "3.6",
+        "index": "23",
+        "fromtitle": "Installation_guide_(Espa\u00f1ol)",
+        "byteoffset": 23339,
+        "anchor": "Initramfs",
+        "linkAnchor": "Initramfs"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Contrase\u00f1a de root",
+        "number": "3.7",
+        "index": "24",
+        "fromtitle": "Installation_guide_(Espa\u00f1ol)",
+        "byteoffset": 23794,
+        "anchor": "Contrase\u00f1a_de_root",
+        "linkAnchor": "Contrase\u00f1a_de_root"
+      },
+      {
+        "toclevel": 2,
+        "level": "3",
+        "line": "Instalar gestor de arranque",
+        "number": "3.8",
+        "index": "25",
+        "fromtitle": "Installation_guide_(Espa\u00f1ol)",
+        "byteoffset": 23947,
+        "anchor": "Instalar_gestor_de_arranque",
+        "linkAnchor": "Instalar_gestor_de_arranque"
+      },
+      {
+        "toclevel": 1,
+        "level": "2",
+        "line": "Reiniciar",
+        "number": "4",
+        "index": "26",
+        "fromtitle": "Installation_guide_(Espa\u00f1ol)",
+        "byteoffset": 24168,
+        "anchor": "Reiniciar",
+        "linkAnchor": "Reiniciar"
+      },
+      {
+        "toclevel": 1,
+        "level": "2",
+        "line": "Posinstalaci\u00f3n",
+        "number": "5",
+        "index": "27",
+        "fromtitle": "Installation_guide_(Espa\u00f1ol)",
+        "byteoffset": 24710,
+        "anchor": "Posinstalaci\u00f3n",
+        "linkAnchor": "Posinstalaci\u00f3n"
+      }
+    ],
+    "showtoc": "",
+    "wikitext": {
+      "*": "[[Category:Installation process (Espa\u00f1ol)]]\n[[ar:Installation guide]]\n[[bg:Installation guide]]\n[[ca:Installation guide]]\n[[cs:Installation guide]]\n[[de:Arch Install Scripts]]\n[[el:Installation guide]]\n[[en:Installation guide]]\n[[fi:Installation guide]]\n[[fr:Installation guide]]\n[[hu:Installation guide]]\n[[it:Installation guide]]\n[[ja:\u30a4\u30f3\u30b9\u30c8\u30fc\u30eb\u30ac\u30a4\u30c9]]\n[[ko:Installation guide]]\n[[lv:Installation guide]]\n[[pl:Installation guide]]\n[[pt:Installation guide]]\n[[ru:Installation guide]]\n[[sv:Installation guide]]\n[[th:Installation guide]]\n[[tr:Installation guide]]\n[[uk:Installation guide]]\n[[zh-hans:\u5b89\u88c5\u6307\u5357]]\n[[zh-hant:Installation guide]]\n{{Translateme (Espa\u00f1ol)|Revisi\u00f3n, actualizaci\u00f3n y correcci\u00f3n en curso.}}\n\nEste documento es una gu\u00eda para instalar [[Arch Linux (Espa\u00f1ol)|Arch Linux]] mediante el sistema live arrancado desde un medio de instalaci\u00f3n creado a partir de una imagen oficial. El medio de instalaci\u00f3n cuenta con funciones de accesibilidad que se describen en la p\u00e1gina [[Install Arch Linux with accessibility options (Espa\u00f1ol)|Instalar Arch Linux con opciones de accesibilidad]]. Para m\u00e9todos de instalaci\u00f3n alternativos, consulte [[:Category:Installation process (Espa\u00f1ol)|Categor\u00eda:Proceso de instalaci\u00f3n]].\n\nAntes de realizar la instalaci\u00f3n, es recomendable revisar las [[FAQ (Espa\u00f1ol)|FAQ]]. Para conocer las convenciones utilizadas en este documento, consulte [[Help:Reading (Espa\u00f1ol)|Ayuda:Lectura]]. En particular, los ejemplos de c\u00f3digo pueden contener marcadores de posici\u00f3n (en {{ic|''cursiva''}}) que deben reemplazarse manualmente.\n\nEsta gu\u00eda es concisa y se recomienda seguir las instrucciones en el orden presentado. Para obtener instrucciones m\u00e1s detalladas, consulte los art\u00edculos correspondientes de [[ArchWiki (Espa\u00f1ol)|ArchWiki]] o [[man page (Espa\u00f1ol)|p\u00e1ginas de manual]] de los distintos programas, ambos enlazados en esta gu\u00eda. Para ayuda interactiva, tambi\u00e9n est\u00e1n disponibles el [[Arch IRC channels (Espa\u00f1ol)|canal IRC]] y los [https://bbs.archlinux.org/ foros].\n\nArch Linux deber\u00eda funcionar en cualquier m\u00e1quina compatible con [[Wikipedia:es:X86-64|x86_64]] con un m\u00ednimo de 512 MiB de RAM, aunque se requiere m\u00e1s memoria para arrancar el sistema live de instalaci\u00f3n. [https://lists.archlinux.org/archives/list/arch-releng@lists.archlinux.org/message/D5HSGOFTPGYI6IZUEB3ZNAX4D3F3ID37/] Una instalaci\u00f3n b\u00e1sica deber\u00eda ocupar menos de 2 GiB de espacio en disco. Dado que el proceso de instalaci\u00f3n necesita descargar paquetes de un repositorio remoto, esta gu\u00eda asume que se dispone de una conexi\u00f3n a internet.\n\n== Preinstalaci\u00f3n ==\n\n=== Adquirir una imagen de instalaci\u00f3n ===\n\nVisite la p\u00e1gina de [https://archlinux.org/download/ Descargas] y, dependiendo de c\u00f3mo desee arrancar, adquiera el archivo ISO o una imagen de arranque por red, junto con su respectiva firma [[GnuPG (Espa\u00f1ol)|GnuPG]].\n\n=== Verificar la firma ===\n\nSe recomienda verificar la firma de la imagen antes de usarla, especialmente si se descarga desde un espejo HTTP, ya que estas descargas son propensas a ser interceptadas para [https://www2.cs.arizona.edu/stork/packagemanagersecurity/attacks-on-package-managers.html servir im\u00e1genes maliciosas].\n\nDescargue la firma PGP de la ISO desde https://archlinux.org/download/#checksums en el mismo directorio donde est\u00e9 la ISO y siga las instrucciones indicadas all\u00ed para verificarla.\n\nAlternativamente, desde una instalaci\u00f3n de Arch Linux ya existente, ejecute:\n\n $ pacman-key -v archlinux-''version''-x86_64.iso.sig\n\n{{Note (Espa\u00f1ol)|\n* La propia firma podr\u00eda ser manipulada si se descarga desde un espejo en lugar de hacerlo desde [https://archlinux.org/download/ archlinux.org]. En tal caso, aseg\u00farese de que la clave p\u00fablica utilizada para decodificar la firma est\u00e9 firmada por otra clave de confianza. El comando {{ic|gpg}} mostrar\u00e1 la huella digital de la clave p\u00fablica.\n\n* Otro m\u00e9todo para verificar la autenticidad de la firma consiste en asegurarse de que la huella digital de la clave p\u00fablica sea id\u00e9ntica a la del [https://archlinux.org/people/developers/ desarrollador de Arch Linux] que firm\u00f3 el archivo ISO. Consulte [[Wikipedia:Public-key cryptography]] para obtener m\u00e1s informaci\u00f3n sobre el proceso de autenticaci\u00f3n de claves mediante clave p\u00fablica.\n}}\n\n=== Preparar un medio de instalaci\u00f3n ===\n\nLa ISO puede proporcionarse al equipo de destino mediante una [[USB flash installation medium (Espa\u00f1ol)|memoria USB]], un [[Optical disc drive (Espa\u00f1ol)#Grabaci\u00f3n|disco \u00f3ptico]] o una red con [[Preboot Execution Environment (Espa\u00f1ol)|PXE]]. Siga el art\u00edculo correspondiente para preparar su propio medio de instalaci\u00f3n a partir del archivo ISO.\n\nPara la imagen netboot, siga las instrucciones en [[Netboot#Boot from a USB flash drive]] para preparar una memoria USB para el arranque en modo UEFI.\n\n=== Arrancar el entorno live ===\n\n{{Note (Espa\u00f1ol)|Las im\u00e1genes de instalaci\u00f3n de Arch Linux no son compatibles con Secure Boot. Necesitar\u00e1 [[Unified Extensible Firmware Interface/Secure Boot#Disabling Secure Boot|desactivar Secure Boot]] para arrancar el medio de instalaci\u00f3n. Si lo desea, puede configurar [[Secure Boot|Secure Boot]] una vez finalizada la instalaci\u00f3n.}}\n\n# Configure el dispositivo de arranque actual para que apunte al medio de instalaci\u00f3n de Arch Linux. Normalmente, esto se logra pulsando una tecla durante la fase de [[Wikipedia:es:POST|POST]], tal como se indica en la pantalla de inicio. Consulte el manual de su placa base para obtener m\u00e1s detalles.\n# Cuando aparezca el men\u00fa del cargador de arranque del medio de instalaci\u00f3n:\n#* Si utiliz\u00f3 la ISO, seleccione ''Arch Linux install medium'' y pulse {{ic|Enter}} para ingresar al entorno de instalaci\u00f3n.\n#* Si utiliz\u00f3 la imagen Netboot, elija un espejo geogr\u00e1ficamente cercano en el men\u00fa ''Mirror''; a continuaci\u00f3n, seleccione ''Boot Arch Linux'' y pulse {{ic|Enter.}} {{Tip (Espa\u00f1ol)|\n#**La ISO utiliza [[systemd-boot (Espa\u00f1ol)|systemd-boot]] para el arranque en modo UEFI y [[Syslinux (Espa\u00f1ol)|syslinux]] para el arranque en BIOS. Use las teclas {{ic|e}} o {{ic|Tab}}, respectivamente, para introducir los [[Kernel parameters (Espa\u00f1ol)#Configuraci\u00f3n|par\u00e1metros de arranque]]. La imagen Netboot utiliza iPXE y sus par\u00e1metros pueden especificarse en el men\u00fa ''Boot options''. Consulte [https://gitlab.archlinux.org/archlinux/mkinitcpio/mkinitcpio-archiso/blob/master/docs/README.bootparams README.bootparams] para ver la lista completa.\n#**Un ejemplo com\u00fan de un par\u00e1metro de arranque definido manualmente es el tama\u00f1o de la fuente. Para una mejor legibilidad en pantallas HiDPI \u2014cuando no se reconocen autom\u00e1ticamente como tales\u2014 puede ser \u00fatil utilizar {{ic|1=fbcon=font:TER16x32}}. Consulte [[HiDPI#Linux console (tty)]] para obtener una explicaci\u00f3n detallada.\n#}}\n# Iniciar\u00e1 sesi\u00f3n autom\u00e1ticamente en la primera [[Wikipedia:es:Consola Virtual|consola virtual]] como usuario root, donde se le presentar\u00e1 un prompt de la shell [[Zsh (Espa\u00f1ol)]].\n\nPara cambiar a una consola diferente \u2014por ejemplo, para ver esta gu\u00eda con [https://lynx.invisible-island.net/lynx_help/Lynx_users_guide.html Lynx] junto al proceso de instalaci\u00f3n\u2014 utilice el [[Keyboard shortcuts|atajo del teclado]] {{ic|Alt+''flecha''}} . Para [[Help:Reading (Espa\u00f1ol)#Adjuntar, a\u00f1adir, crear, editar|editar]] archivos de configuraci\u00f3n, est\u00e1n disponibles {{man|1|mcedit}}, [[nano (Espa\u00f1ol)#Utilizaci\u00f3n|nano]] y [[vim (Espa\u00f1ol)#Utilizaci\u00f3n|vim]]. Consulte el archivo [https://geo.mirror.pkgbuild.com/iso/latest/arch/pkglist.x86_64.txt pkglist.x86_64.txt] para obtener una lista de los paquetes incluidos en el medio de instalaci\u00f3n.\n\n=== Configurar la distribuci\u00f3n del teclado y la fuente de la consola ===\n\nLa distribuci\u00f3n del teclado por defecto en la consola es [[Wikipedia:es:File:KB United States-NoAltGr.svg|EE.UU.]]. Las distribuciones disponibles pueden listarse con:\n\n # localectl list-keymaps\n\nPara establecer la distribuci\u00f3n del teclado, pase su nombre a {{man|1|loadkeys}}. Por ejemplo, para configurar una distribuci\u00f3n de teclado [[Wikipedia:es:File:KB Spanish.svg|espa\u00f1ol]]:\n\n # loadkeys es\n\nPara establecer una distribuci\u00f3n de teclado en [[Wikipedia:es:File:KB_Latin_American.svg|espa\u00f1ol latinoamericano]]:\n\n # loadkeys la-latin1\n\nLas [[Console fonts (Espa\u00f1ol)|fuentes de la consola]] se encuentran en {{ic|/usr/share/kbd/consolefonts/}} y, del mismo modo, pueden establecerse con {{man|8|setfont}} omitiendo la ruta y la extensi\u00f3n del archivo. Por ejemplo, para usar una de las fuentes m\u00e1s grandes, adecuada para pantallas [[HiDPI#Linux console (tty)|HiDPI]], ejecute:\n\n # setfont ter-132b\n\n=== Verificar el modo de arranque ===\n\nPara verificar el modo de arranque, compruebe la [[Unified Extensible Firmware Interface#UEFI firmware bitness|arquitectura de UEFI]]:\n\n # cat /sys/firmware/efi/fw_platform_size\n\n* Si el comando devuelve {{ic|64}}, el sistema ha arrancado en modo UEFI y tiene un UEFI de 64 bits (x64).\n* Si el comando devuelve {{ic|32}}, el sistema ha arrancado en modo UEFI y tiene un UEFI de 32 bits (IA32). Aunque esto es compatible, limitar\u00e1 la elecci\u00f3n del cargador de arranque a aquellos que admitan el arranque en modo mixto.\n* Si devuelve {{ic|No such file or directory}}, el sistema podr\u00eda haber arrancado en modo [[Wikipedia:BIOS|BIOS]] (o [[Wikipedia:Compatibility Support Module|CSM]]).\n\n=== Conectarse a Internet ===\n\nPara configurar una conexi\u00f3n de red en el entorno live, siga estos pasos:\n\n* Aseg\u00farese de que su [[network interface (Espa\u00f1ol)|interfaz de red]] est\u00e9 listada y activada; por ejemplo, con {{man|8|ip-link}}: {{bc|# ip link}}\n\t\n* Para redes inal\u00e1mbricas y WWAN, aseg\u00farese de que la tarjeta no est\u00e9 bloqueada con [[rfkill]].\n\n* Con\u00e9ctese a la red:\n** Ethernet: conecte el cable.\n** Wi-Fi: autent\u00edquese en la red inal\u00e1mbrica utilizando [[iwctl]].\n** M\u00f3dem de banda ancha m\u00f3vil: con\u00e9ctese a la red m\u00f3vil con la utilidad [[mmcli]].\n* Configure su conexi\u00f3n de red:\n** [[DHCP (Espa\u00f1ol)|DHCP]]: la asignaci\u00f3n din\u00e1mica de direcciones IP y servidores DNS (proporcionada por [[systemd-networkd (Espa\u00f1ol)|systemd-networkd]] y [[systemd-resolved (Espa\u00f1ol)|systemd-resolved]]) deber\u00eda funcionar autom\u00e1ticamente para las interfaces de red Ethernet, WLAN y WWAN.\n** Direcci\u00f3n IP est\u00e1tica: siga las instrucciones en [[Network configuration (Espa\u00f1ol)#Direcci\u00f3n IP est\u00e1tica]].\n* La conexi\u00f3n puede verificarse con [[ping (Espa\u00f1ol)|ping]]: {{bc|# ping ping.archlinux.org}}\n\n{{Note (Espa\u00f1ol)|En la imagen de instalaci\u00f3n, [[systemd-networkd (Espa\u00f1ol)|systemd-networkd]], [[systemd-resolved (Espa\u00f1ol)|systemd-resolved]], [[iwd]] y [[ModemManager]] est\u00e1n preconfigurados y activados por defecto. Este no ser\u00e1 el caso para el sistema una vez instalado.}}\n\n=== Actualizar el reloj del sistema ===\n\nEl sistema live necesita una hora precisa para evitar fallos en la verificaci\u00f3n de firmas de paquetes y errores en los certificados TLS. El servicio [[systemd-timesyncd (Espa\u00f1ol)|systemd-timesyncd]] est\u00e1 activado por defecto en el entorno live y la hora se sincronizar\u00e1 autom\u00e1ticamente una vez que se establezca una conexi\u00f3n a internet.\n\nUtilice {{man|1|timedatectl}} para asegurarse de que el reloj del sistema est\u00e9 sincronizado:\n\n # timedatectl\n\n=== Particionar los discos ===\n\nCuando el sistema lo reconoce, los discos se asignan a un [[Block device (Espa\u00f1ol)|dispositivo de bloque]] como {{ic|/dev/sda}}, {{ic|/dev/nvme0n1}} o {{ic|/dev/mmcblk0}}. Para identificar estos dispositivos, utilice [[lsblk (Espa\u00f1ol)|lsblk]] o ''fdisk'':\n\n # fdisk -l\n\nLos resultados que terminan en {{ic|rom}}, {{ic|loop}} o {{ic|airootfs}} pueden ignorarse. Los dispositivos {{ic|mmcblk*}} que terminan en {{ic|rpmb}}, {{ic|boot0}} y {{ic|boot1}} tambi\u00e9n pueden ignorarse.\n\n{{Note (Espa\u00f1ol)|Si el disco no aparece, aseg\u00farese de que la controladora de disco no est\u00e9 en modo [[Partitioning#Drives are not visible when firmware RAID is enabled|RAID]].}}\n\n{{Tip (Espa\u00f1ol)|Antes de particionar, compruebe que sus unidades NVMe y discos duros con Advanced Format est\u00e9n utilizando el [[Advanced Format (Espa\u00f1ol)|tama\u00f1o de sector l\u00f3gico \u00f3ptimo]]}}.\n\nLas siguientes [[Partitioning (Espa\u00f1ol)|particiones]] son '''obligatorias''' para el dispositivo elegido:\n\n* Una partici\u00f3n para el [[Wikipedia:es:Directorio ra\u00edz|directorio ra\u00edz]] {{ic|/}}.\n* Para el arranque en modo [[UEFI (Espa\u00f1ol)|UEFI]]: una [[EFI system partition (Espa\u00f1ol)|partici\u00f3n del sistema EFI]].\n\nUtilice una [[Partitioning#Partitioning tools|herramienta de particionado]] como [[fdisk (Espa\u00f1ol)|fdisk]] para modificar la tabla de particiones. Por ejemplo:\n\n # fdisk ''/dev/la_unidad_a_particionar''\n\n{{Note (Espa\u00f1ol)|\n* T\u00f3mese el tiempo necesario para planificar un esquema de particionado a largo plazo para evitar procedimientos de conversi\u00f3n o reparticionado arriesgados y complicados en el futuro.\n* Si desea crear cualquier dispositivo de bloque apilado para [[LVM (Espa\u00f1ol)|LVM]], [[dm-crypt (Espa\u00f1ol)|cifrado del sistema]] o [[RAID (Espa\u00f1ol)|RAID]], h\u00e1galo ahora.\n* Si el disco desde el cual desea arrancar [[EFI system partition (Espa\u00f1ol)#Comprobar la existencia de una partici\u00f3n|ya tiene una partici\u00f3n del sistema EFI]], no cree otra; utilice la partici\u00f3n existente en su lugar.\n* El [[Swap (Espa\u00f1ol)|espacio de intercambio]] puede configurarse en un [[swap file (Espa\u00f1ol)|archivo de intercambio]] en los sistemas de archivos que lo admitan. Alternativamente, se puede evitar por completo el swap basado en disco configurando [[zram#Usage as swap|swap en zram]] despu\u00e9s de instalar el sistema.\n}}\n\n==== Esquemas de ejemplo ====\n\n{| class=\"wikitable\"\n|+ UEFI con [[GPT (Espa\u00f1ol)|GPT]]\n|-\n! Punto de montaje en el sistema instalado\n! Partici\u00f3n\n! [[Wikipedia:GUID Partition Table#Partition type GUIDs|Tipo de partici\u00f3n]]\n! Tama\u00f1o sugerido\n|-\n| {{ic|/boot}}<sup>1</sup>\n| {{ic|/dev/''partici\u00f3n_sistema_efi''}}\n| [[EFI system partition (Espa\u00f1ol)|EFI system partition]]\n| 1 GiB\n|-\n| {{ic|[SWAP]}}\n| {{ic|/dev/''partici\u00f3n_swap''}}\n| Linux swap\n| 4 GiB como m\u00ednimo\n|-\n| {{ic|/}}\n| {{ic|/dev/''partici\u00f3n_raiz''}}\n| Linux x86-64 root (/)\n| Resto del dispositivo. A lo menos 23-32 GiB.\n|}\n\n# [[EFI system partition (Espa\u00f1ol)#Montar la partici\u00f3n|Otros puntos de montaje]] como {{ic|/efi}}, son posibles, siempre que el cargador de arranque utilizado sea capaz de cargar las im\u00e1genes del kernel e initramfs desde el volumen ra\u00edz. V\u00e9ase la advertencia en [[Arch boot process (Espa\u00f1ol)#Gestor de arranque]].\n\n{| class=\"wikitable\"\n|+ BIOS con [[MBR]]\n|-\n! Punto de montaje en el sistema instalado\n! Partici\u00f3n\n! [[Wikipedia:es:C\u00f3digo de tipo de partici\u00f3n|Tpo de partici\u00f3n]]\n! Tama\u00f1o sugerido\n|-\n| {{ic|[SWAP]}}\n| {{ic|/dev/''swap_partition''}}\n| Linux swap\n| 4 GiB como m\u00ednimo\n|-\n| {{ic|/mnt}}\n| {{ic|/dev/''root_partition''}}\n| Linux\n| Resto del dispositivo. A lo menos 23-32 GiB.\n|}\n\nV\u00e9ase tambi\u00e9n [[Partitioning#Partition scheme|Esquemas de particionado]].\n\n=== Formatear las particiones ===\n\nUna vez que se han creado las particiones, cada partici\u00f3n reci\u00e9n creada se debe formatear con un [[File systems (Espa\u00f1ol)|sistema de archivos]] apropiado. V\u00e9ase [[File systems (Espa\u00f1ol)#Crear un sistema de archivos]] para m\u00e1s informaci\u00f3n.\n\nPor ejemplo, para crear un sistema de archivos [[Ext4 (Espa\u00f1ol)|Ext4]] en {{ic|/dev/''partici\u00f3n_raiz''}}, ejecute:\n\n # mkfs.ext4 /dev/''partici\u00f3n_raiz''\n\nSi cre\u00f3 una partici\u00f3n para el [[swap (Espa\u00f1ol)|espacio de intercambio]], dele formato con {{man|8|mkswap}}:\n\n # mkswap /dev/''partici\u00f3n_swap''\n\n{{Note (Espa\u00f1ol)|Para dispositivos de bloques apilados, reemplace {{ic|/dev/''*_partici\u00f3n''}} con la ruta de dispositivo de bloques adecuada.}}\n\nSi cre\u00f3 una partici\u00f3n del sistema EFI, [[EFI system partition (Espa\u00f1ol)#Formatear la partici\u00f3n|dele formato]] a FAT32 utilizando {{man|8|mkfs.fat}}.\n\n{{Warning (Espa\u00f1ol)|Solo dele formato a la partici\u00f3n del sistema EFI si la cre\u00f3 durante el paso de particionado. Si ya hab\u00eda una partici\u00f3n del sistema EFI de antemano en la unidad, volver a formatearla puede destruir los cargadores de arranque de otros sistemas operativos instalados.}}\n\n # mkfs.fat -F 32 /dev/''partici\u00f3n_sistema_efi''\n\n=== Montar los sistemas de archivos ===\n\n[[mount (Espa\u00f1ol)|Monte]] el volumen ra\u00edz en {{ic|/mnt}}. Por ejemplo, si el volumen ra\u00edz es {{ic|/dev/''partici\u00f3n_raiz''}}:\n\n # mount /dev/''partici\u00f3n_raiz'' /mnt\n\nCree los puntos de montaje restantes en {{ic|/mnt}} (como {{ic|/mnt/boot}} para {{ic|/boot}}) y monte sus vol\u00famenes con la jerarqu\u00eda correspondiente.\n\n{{Tip (Espa\u00f1ol)|Ejecute {{man|8|mount}} con la opci\u00f3n {{ic|--mkdir}} para crear el punto de montaje especificado. Alternativamente, cr\u00e9elo utilizando {{man|1|mkdir}} de antemano.}}\n\nPara sistemas UEFI, monte la partici\u00f3n del sistema EFI:\n\n # mount --mkdir /dev/''partici\u00f3n_sistema_efi'' /mnt/boot\n\nSi cre\u00f3 un volumen de [[swap (Espa\u00f1ol)|intercambio]], act\u00edvelo con {{man|8|swapon}}:\n\n # swapon /dev/''partici\u00f3n_swap''\n\n{{man|8|genfstab}} detectar\u00e1 posteriormente los sistemas de archivos montados y el espacio de intercambio.\n\n== Instalaci\u00f3n ==\n\n=== Seleccionar los servidores de r\u00e9plica ===\n\nLos paquetes que se instalar\u00e1n se deben descargar desde los [[Mirrors (Espa\u00f1ol)|servidores de r\u00e9plicas]], que se definen en {{ic|/etc/pacman.d/mirrorlist}}. En el entorno live de instalaci\u00f3n, despu\u00e9s de conectarse a Internet, [[Reflector (Espa\u00f1ol)|reflector]] actualizar\u00e1 la lista de servidores eligiendo los 20 espejos HTTPS sincronizados m\u00e1s recientemente.\n\nCuanto m\u00e1s alto se coloca un servidor de r\u00e9plica en la lista, m\u00e1s prioridad tendr\u00e1 al descargar un paquete. Es posible que desee inspeccionar el archivo para ver si es satisfactorio. Si no es as\u00ed, [[textedit (Espa\u00f1ol)|modifique]] el archivo en consecuencia y mueva los servidores de r\u00e9plicas geogr\u00e1ficamente m\u00e1s cercanos a la parte superior de la lista, aunque se deben tener en consideraci\u00f3n otros criterios.\n\nUna copia del archivo \u00abmirrorlist\u00bb se realizar\u00e1 m\u00e1s tarde en el nuevo sistema por ''pacstrap'', por lo tanto vale la pena hacerlo bien en esta fase.\n\n=== Instalar paquetes esenciales ===\n\n{{Note (Espa\u00f1ol)|Ning\u00fan programa o archivo de configuraci\u00f3n (aparte de {{ic|/etc/pacman.d/mirrorlist}}) es copiado desde el entorno de instalaci\u00f3n al sistema final.}}\n\nUtilice el script {{man|8|pacstrap}} para instalar el paquete {{Pkg|base}}, un [[Kernel (Espa\u00f1ol)|Kernel]] de Linux y un firmware para hardware com\u00fan::\n\n # pacstrap -K /mnt base linux linux-firmware\n\n{{Tip (Espa\u00f1ol)|\n* Puede sustituir {{Pkg|linux}} por un paquete de [[Kernel (Espa\u00f1ol)|kernel]] de su elecci\u00f3n, o puede omitirlo completamente al instalarlo en un [[Wikipedia:es:Contenedorizaci\u00f3n (inform\u00e1tica)|contenedor]].\n* Puede omitir la instalaci\u00f3n del paquete de firmware al instalarlo en una m\u00e1quina virtual o contenedor.\n}}\n\nEl paquete {{Pkg|base}} no incluye todas las herramientas presentes en el medio de instalaci\u00f3n live, por lo que puede ser necesario instalar paquetes adicionales para que un sistema base sea completamente funcional. Para instalar otros paquetes o grupos de paquetes, agregue sus nombres como par\u00e1metros durante la ejecuci\u00f3n del comando ''pacstrap'' anterior u ocupe [[pacman (Espa\u00f1ol)|pacman]] para [[install (Espa\u00f1ol)|instalarlos]] cuando ejecute el [[#Chroot|cambio de ra\u00edz en el sistema nuevo]]. En particular, considere instalar:\n\n* Actualizaciones para el [[microcode (Espa\u00f1ol)|microc\u00f3digo]] de la CPU \u2014{{Pkg|amd-ucode}} o {{Pkg|intel-ucode}}\u2014 para corregir errores de hardware o como actualizaciones de seguridad;\n\n* [[File systems (Espa\u00f1ol)|utilidades del espacio de usuario para la gesti\u00f3n del sistema de archivos]] que se utilizar\u00e1n en el sistema con el prop\u00f3sito de crear sistemas de archivos y hacer [[fsck]];\n\n* utilidades para acceder y gestionar [[RAID (Espa\u00f1ol)#Instalaci\u00f3n|RAID]] o [[LVM (Espa\u00f1ol)#Instalar Arch Linux sobre LVM|LVM]] si es que van a ser utilizados en el sistema;\n\n* firmware espec\u00edfico para otros dispositivos no incluidos en {{Pkg|linux-firmware}} (por ejemplo, {{Pkg|sof-firmware}} para el [[Advanced Linux Sound Architecture (Espa\u00f1ol)#Instalaci\u00f3n|audio integrado]], {{Pkg|linux-firmware-marvell}} para los controladores de red inal\u00e1mbrica Marvell o cualquier otro paquete de firmware para los [[Broadcom wireless|controladores inal\u00e1mbricos Broadcom]]);\n\n* software necesario para la conexi\u00f3n a [[networking (Espa\u00f1ol)|redes]] (por ejemplo, un [[Network configuration (Espa\u00f1ol)#Gestores de red|administrador de red o cliente DHCP]], [[Network configuration/Wireless#Authentication|autenticador]] para redes Wi-Fi y/o [[ModemManager]] para conectarse a modems de banda ancha m\u00f3vil);\n\n* un [[List of applications/Documents#Console|editor de texto]] (por ejemplo, [[nano (Espa\u00f1ol)|nano]]) para editar los archivos de configuraci\u00f3n desde la consola;\n\n* paquetes para acceder a la documentaci\u00f3n en las p\u00e1ginas [[man (Espa\u00f1ol)|man]] e [[info (Espa\u00f1ol)|info]]: {{Pkg|man-db}}, {{Pkg|man-pages}} y {{Pkg|texinfo}}.\n\t\nA modo de comparaci\u00f3n, los paquetes disponibles en el sistema live se pueden encontrar en [https://geo.mirror.pkgbuild.com/iso/latest/arch/pkglist.x86_64.txt pkglist.x86_64.txt].\n\n== Configuraci\u00f3n del sistema ==\n\n=== Fstab ===\n\nGenere un archivo [[fstab (Espa\u00f1ol)]] (utilice {{ic|-U}} o {{ic|-L}} para especificar en dicho archivo las [[Persistent block device naming (Espa\u00f1ol)#by-uuid|UUID]] o las etiquetas, respectivamente):\n\n # genfstab -U /mnt >> /mnt/etc/fstab\n\nCompruebe el archivo resultante en {{ic|/mnt/etc/fstab}}, y [[textedit (Espa\u00f1ol)|modif\u00edquelo]] en caso de errores.\n\n=== Chroot ===\n\n[[Change root (Espa\u00f1ol)|Cambie la ra\u00edz]] al nuevo sistema:\n\n # arch-chroot /mnt\n\n=== Zona horaria ===\n\nDefina su [[System time#Time zone|zona horaria]]:\n\n # ln -sf /usr/share/zoneinfo/''Regi\u00f3n''/''Ciudad'' /etc/localtime\n\nEjecute {{man|8|hwclock}} para generar el archivo {{ic|/etc/adjtime}}:\n\n # hwclock --systohc\n\nEsta orden presume que el reloj del hardware esta configurado en [[Wikipedia:es:Tiempo universal coordinado|UTC]]. Vea la secci\u00f3n sobre la [[System time#Time standard|hora est\u00e1ndar]] para obtener m\u00e1s detalles.\n\nPara evitar que el reloj se desincronice y asegurar que la hora sea precisa, configure la [[time synchronization|sincronizaci\u00f3n horaria]] usando un cliente NTP ([[Wikipedia:es:Network Time Protocol|''Network Time Protocol'']]) como [[systemd-timesyncd (Espa\u00f1ol)|systemd-timesyncd]]\n\n=== Idioma del sistema ===\n\n[[textedit (Espa\u00f1ol)|Edite]] {{ic|/etc/locale.gen}} y descomente el [[locale (Espa\u00f1ol)]] necesario (por ejemplo, para Espa\u00f1a ser\u00eda {{ic|es_ES.UTF-8 UTF-8}}), adem\u00e1s de {{ic|en_US.UTF-8 UTF-8}}. Genere los locales ejecutando la orden:\n\n # locale-gen\n\n[[Create (Espa\u00f1ol)|Cree]] el archivo {{man|5|locale.conf}}, y [[Locale#Setting the system locale|defina la variable LANG]] en consecuencia (siguiendo con el ejemplo de Espa\u00f1a):\n\n{{hc|1=/etc/locale.conf|2=\nLANG=''es_ES.UTF-8''\n}}\n\nSi fuese necesario, defina la [[#Definir la distribuci\u00f3n de teclado y fuente en consola|distribuci\u00f3n de teclado y fuente]] en {{man|5|vconsole.conf}} para que permanezca en cada reinicio:\n\n{{hc|1=/etc/vconsole.conf|2=\nKEYMAP=''es''\n}}\n\n=== Configurar la red ===\n\n[[Create (Espa\u00f1ol)|Cree]] el archivo [[Network configuration (Espa\u00f1ol)#Establecer el nombre de host|hostname]]:\n\n{{hc|/etc/hostname|\n''elnombredesuequipo''\n}}\n\nComplete la [[Network configuration (Espa\u00f1ol)|conexi\u00f3n de red]] de nuevo para el entorno reci\u00e9n instalado. Eso puede incluir la instalaci\u00f3n del software de [[network management (Espa\u00f1ol)|gesti\u00f3n de redes]] preferido, su configuraci\u00f3n y la activaci\u00f3n de su unidad de systemd correspondiente para que inicie al arrancar.\n\n=== Initramfs ===\n\nNormalmente no es necesario crear una imagen ''initramfs'' nueva, dado que [[mkinitcpio (Espa\u00f1ol)]] se ejecuta durante la instalaci\u00f3n del paquete [[kernel (Espa\u00f1ol)|kernel]] con ''pacstrap''.\n\nPara [[Install Arch Linux on LVM#Adding mkinitcpio hooks|LVM]], [[dm-crypt (Espa\u00f1ol)|cifrado del sistema]] o [[RAID (Espa\u00f1ol)#Configurar mkinitcpio|RAID]], modifique {{man|5|mkinitcpio.conf}} y regenere la imagen initramfs:\n\n # mkinitcpio -P\n\n=== Contrase\u00f1a de root ===\n\nEstablezca la [[Users and groups (Espa\u00f1ol)#Base de datos del usuario|contrase\u00f1a]] de [[Wikipedia:es:Root|root]]:\n\n # passwd\n\n=== Instalar gestor de arranque ===\n\nElija e instale un [[Boot loader (Espa\u00f1ol)|gestor de arranque]] compatible con Linux. Si tiene una CPU Intel o AMD, active las actualizaciones de [[microcode (Espa\u00f1ol)|microc\u00f3digo]].\n\n== Reiniciar ==\n\nSalga del entorno chroot escribiendo {{ic|exit}} o presionando {{ic|Ctrl+d}}.\n\nOpcionalmente, puede desmontar manualmente todas las particiones con {{ic|umount -R /mnt}}: esto permite advertir cualquier partici\u00f3n \u00abocupada\u00bb, y buscar su causa con {{man|1|fuser}}.\n\nPor \u00faltimo, reinicie el equipo escribiendo {{ic|reboot}}: cualquier partici\u00f3n que todav\u00eda est\u00e9 montada ser\u00e1 desmontada autom\u00e1ticamente por ''systemd''. Recuerde retirar los medios de instalaci\u00f3n y luego inicie sesi\u00f3n en el nuevo sistema con la cuenta de root.\n\n== Posinstalaci\u00f3n ==\n\nVea el art\u00edculo [[General recommendations (Espa\u00f1ol)]] para obtener instrucciones sobre c\u00f3mo gestionar el sistema, as\u00ed como tutoriales sobre qu\u00e9 hacer despu\u00e9s de la instalaci\u00f3n (tales como crear cuentas de usuario sin privilegios, configurar una interfaz gr\u00e1fica de usuario, el sonido o un panel t\u00e1ctil).\n\nPara obtener una lista de aplicaciones que pueden ser de su inter\u00e9s, v\u00e9ase [[List of applications (Espa\u00f1ol)]]."
+    }
+  }
+}

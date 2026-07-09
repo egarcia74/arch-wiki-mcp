@@ -1,8 +1,97 @@
 # Arch Wiki MCP: Technical Constitution
 
-**Version:** 1.2  
+**Version:** 1.4  
 **Status:** Canonical  
-**Last Updated:** 2026-01-10
+**Last Updated:** 2026-07-09
+
+---
+
+## Amendment 1.4 — Migration Notes
+
+Found by using the server as an agent rather than testing it from outside.
+
+### Corrected in 1.4
+
+- **`extraction_method` reported `wikitext_byte_offset`.** It slices by character.
+  A provenance field that misstates the extraction method is not cosmetic in a
+  system whose product *is* provenance. Now `wikitext_character_offset`.
+
+### Changed in 1.4
+
+- **`warnings()` returns readable prose.** §5 requires the agent to quote warnings
+  to the user, but `message` shipped raw wikitext — `{{ic|network}}`, `[[user
+  group]]`, `''iwd''`, leading `::*` — making the mandated response shape
+  unreadable. `message` now resolves inline templates, links and emphasis;
+  `message_raw` preserves the verbatim body, and `content_hash` covers **that**,
+  so falsifiability against the wiki source is unchanged in kind.
+  `message_hash_cleaned` covers the prose the agent is obliged to quote, closing
+  the same attestation gap that `content_hash_cleaned` closes for code.
+
+  Ordered-list markers render as `1.` rather than `#`. A bare `#` in agent-facing
+  prose reads as a root shell prompt — the exact confusion that made the removed
+  `examples()` tool emit prose as bash.
+
+  *Migration:* every warning `content_hash` changes, because the body is now split
+  on the first **top-level** pipe. The old `split("|", 1)` truncated any message
+  containing a pipe inside a nested `{{ic|a{{!}}b}}` or `[[link|text]]`.
+
+- **Code blocks gained `content_hash_cleaned`.** `content_hash` attests
+  `content_raw`, but an agent executes `content`. The cleaning step was the only
+  non-verbatim transform in the chain and the only one no hash attested. Both
+  fingerprints now travel with every block, closing that gap in §7 falsifiability.
+
+- **Link exclusion is derived from the wiki, not hardcoded.** `links()` now reads
+  `action=query&meta=siteinfo&siprop=namespaces|namespacealiases|interwikimap`
+  (cached per process). The previous static list was missing 32 real interwiki
+  prefixes — `fedora`, `doi`, `phab`, `mw`, `meta`, `lv` and others — each of
+  which was reported as a navigable article link, and it wrongly excluded `man`
+  and `kernel`, which are not interwiki prefixes on this wiki.
+
+  Silently keeping an interwiki link is synthesis by inclusion, exactly as
+  silently dropping a real one is synthesis by omission. If siteinfo is
+  unreachable the static snapshot is used: `links()` is a navigation aid, not a
+  command source, and degrading it beats failing the call. The fallback is logged
+  and is never cached, so a transient failure cannot pin the rotted list for the
+  life of the process.
+
+---
+
+## Amendment 1.3 — Migration Notes
+
+Per §12 (API Governance), this breaking change to response structure is recorded here.
+
+### Removed in 1.3
+
+- **The `examples` tool**, and the prose-to-shell heuristic behind it. It read any
+  line beginning with `#` as a shell prompt, but `#` is wikitext's numbered-list
+  marker, so it returned prose tagged as `bash`. It contradicted §3 ("not a
+  command generator"), §8 ("generate synthetic examples" — prohibited), and
+  AGENTS.md §6 (Exclusive Command Source). The `arch-wiki-usage` prompt no longer
+  offers "heuristic inference" as an allowed response shape.
+
+  *Migration:* there is no replacement. When `commands()` returns `[]`, quote the
+  prose via `section()` and let the user decide, as §5 requires.
+
+### Changed in 1.3
+
+- **`commands()` fails closed.** It previously wrapped its body in
+  `except Exception: return []`, so a network error, a missing page, and a missing
+  anchor were indistinguishable from an honest empty result. A missing page or
+  anchor now raises. `[]` means the wiki specifies no command there — nothing else.
+- **`commands()` extracts `{{bc}}` and `{{hc}}`**, the templates that carry
+  essentially all real Arch Wiki code. It previously matched only indented lines,
+  `<pre>` and `<code>`; the latter two occur nowhere in the sampled corpus.
+  Inline `{{ic}}` remains excluded: it marks paths, flags and package names.
+- **`section()` slices by character offset.** MediaWiki's `byteoffset` indexes
+  characters despite its name; encoding first returned a neighbouring section's
+  text on any page containing a multibyte character, under a valid-looking hash.
+  A slice that does not land on a heading now raises.
+- **Code blocks gained `content_raw`, `header`, and `placeholders`.**
+  `content_hash` covers `content_raw` (the verbatim payload), preserving §7
+  falsifiability: a human can grep the wiki source. `content` is the same payload
+  with wikitext emphasis stripped and `{{ic}}`/`{{=}}` resolved.
+- **`links()` excludes namespace and interwiki links** and splits `Target#Anchor`
+  into `target_page` + `anchor`.
 
 ---
 

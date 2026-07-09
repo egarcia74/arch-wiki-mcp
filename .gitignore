@@ -21,6 +21,10 @@ wheels/
 .installed.cfg
 *.egg
 .pytest_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
 
 # OS
 .DS_Store

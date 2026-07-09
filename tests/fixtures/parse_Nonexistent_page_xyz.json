@@ -1,0 +1,8 @@
+{
+  "error": {
+    "code": "missingtitle",
+    "info": "The page you specified doesn't exist.",
+    "*": "See https://wiki.archlinux.org/api.php for API usage."
+  },
+  "servedby": "fixture"
+}

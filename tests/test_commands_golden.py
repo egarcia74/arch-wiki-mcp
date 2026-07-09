@@ -1,0 +1,124 @@
+"""
+Golden tests for command extraction.
+
+Arch Wiki code lives in {{bc}} (block code) and {{hc}} (file contents with a
+header), not in <pre>/<code> tags. Counts below were measured against the
+committed fixtures; they are the contract commands() must satisfy.
+"""
+
+import pytest
+
+from conftest import GRUB_REVID, load_wikitext
+from src import extractor
+
+# (page, {{bc}} blocks, {{hc}} blocks, indented blocks)
+TEMPLATE_COUNTS = [
+    ("GRUB", 17, 8, 40),
+    ("Installation_guide", 2, 3, 22),
+    ("Iwd", 0, 28, 29),
+    ("KDE", 6, 19, 35),
+    ("Pacman", 0, 1, 61),
+    ("Systemd", 1, 18, 17),
+    ("Users_and_groups", 0, 5, 31),
+]
+
+TOTAL_BC = sum(row[1] for row in TEMPLATE_COUNTS)
+TOTAL_HC = sum(row[2] for row in TEMPLATE_COUNTS)
+
+
+@pytest.mark.parametrize("page,n_bc,n_hc,n_indented", TEMPLATE_COUNTS)
+def test_every_template_block_is_extracted(page, n_bc, n_hc, n_indented):
+    blocks = extractor.parse_code_blocks(load_wikitext(page))
+    by_pattern = {}
+    for block in blocks:
+        by_pattern.setdefault(block.source_pattern, []).append(block)
+
+    assert len(by_pattern.get("template_bc", [])) == n_bc
+    assert len(by_pattern.get("template_hc", [])) == n_hc
+    assert len(by_pattern.get("indented_block", [])) == n_indented
+
+
+def test_corpus_template_totals_are_unchanged():
+    """Tripwire on TEMPLATE_COUNTS itself: extraction once recovered 7 of these 108."""
+    assert (TOTAL_BC, TOTAL_HC) == (26, 82)
+
+
+def test_bc_block_is_cleaned_and_traceable():
+    """The canonical GRUB EFI install command, verbatim and cleaned."""
+    blocks = extractor.commands("GRUB", "Installation")
+    match = [b for b in blocks if "--bootloader-id=GRUB" in b["content"] and b["source_pattern"] == "template_bc"]
+    assert len(match) == 1
+    block = match[0]
+
+    assert block["content"] == (
+        "# grub-install --target=x86_64-efi --efi-directory=esp --bootloader-id=GRUB"
+    )
+    assert block["content_raw"] == (
+        "# grub-install --target=x86_64-efi --efi-directory=''esp'' --bootloader-id=GRUB"
+    )
+    assert block["placeholders"] == ["esp"]
+    assert block["block_type"] == "block_code"
+    assert block["header"] is None
+    assert block["revid"] == GRUB_REVID
+    assert block["source_url"] == "https://wiki.archlinux.org/title/GRUB#Installation"
+
+
+def test_content_hash_is_over_raw_not_cleaned():
+    """Hashes must stay falsifiable by grepping the wiki source."""
+    for block in extractor.commands("GRUB"):
+        assert block["content_hash"] == extractor.hash_content(block["content_raw"])
+
+
+def test_hc_block_exposes_its_header():
+    """{{hc|/etc/default/grub|output=...}} — the 'output=' body alias."""
+    blocks = extractor.commands("GRUB")
+    match = [
+        b for b in blocks
+        if b["source_pattern"] == "template_hc" and "GRUB_ENABLE_CRYPTODISK=y" in b["content"]
+    ]
+    assert len(match) == 1
+    assert match[0]["header"] == "/etc/default/grub"
+    assert match[0]["block_type"] == "file_content"
+    assert match[0]["content"].strip() == "GRUB_ENABLE_CRYPTODISK=y"
+
+
+def test_shell_pipe_in_positional_param_is_not_a_separator():
+    """{{bc|DRI_PRIME{{=}}1 glxinfo | grep "OpenGL renderer"}} — the pipe is shell, not wikitext.
+
+    {{=}} is the MediaWiki escape for a literal '=' and must resolve.
+    """
+    blocks = extractor.parse_code_blocks(load_wikitext("KDE"))
+    match = [b for b in blocks if "glxinfo" in b.content]
+    assert len(match) == 1
+    assert match[0].content == 'DRI_PRIME=1 glxinfo | grep "OpenGL renderer"'
+
+
+def test_hc_body_keeps_piped_shell_and_drops_nowiki():
+    """A {{hc}} body wrapping <nowiki> with sed pipes must survive intact."""
+    blocks = extractor.parse_code_blocks(load_wikitext("KDE"))
+    match = [b for b in blocks if b.header == "/usr/local/bin/kde-no-shadow"]
+    assert len(match) == 1
+    assert "xwininfo -root -tree | sed" in match[0].content
+    assert "<nowiki>" not in match[0].content
+    assert match[0].content.startswith("#!/bin/bash")
+
+
+def test_inline_ic_never_becomes_a_command():
+    """{{ic}} is inline markup (paths, flags, package names), not a command."""
+    blocks = extractor.parse_code_blocks(load_wikitext("Pacman"))
+    assert all(b.source_pattern != "template_ic" for b in blocks)
+    # Pacman has 180 {{ic}} spans and exactly one {{hc}}; nothing should explode.
+    assert len([b for b in blocks if b.source_pattern == "template_hc"]) == 1
+
+
+def test_no_wikitext_markup_leaks_into_content():
+    for page, _, _, _ in TEMPLATE_COUNTS:
+        for block in extractor.parse_code_blocks(load_wikitext(page)):
+            assert "''" not in block.content
+            assert "{{ic" not in block.content
+
+
+def test_extraction_is_deterministic():
+    first = extractor.commands("GRUB", "Installation")
+    second = extractor.commands("GRUB", "Installation")
+    assert [b["content_hash"] for b in first] == [b["content_hash"] for b in second]

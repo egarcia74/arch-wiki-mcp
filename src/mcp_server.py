@@ -9,9 +9,11 @@ import json
 from typing import Optional
 from urllib.parse import urlparse
 
-# Add parent directory to path for extractor import
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import extractor
+# Allow `python3 src/mcp_server.py` to resolve the `src` package. Importing via
+# the package (not a bare `import extractor`) keeps a single module identity --
+# a bare import loads a second copy under a different sys.modules key.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from src import extractor
 
 # Schema documentation constants
 TITLE_DESC = "Page title or URL"

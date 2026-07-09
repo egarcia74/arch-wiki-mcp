@@ -1,3 +1,11 @@
+"""
+Records live MediaWiki API responses into tests/fixtures/.
+
+These fixtures back the golden tests, which pin exact revids, hashes, and block
+counts. Re-recording is a deliberate act: it will move those constants and the
+golden assertions must be updated in the same commit.
+"""
+
 import json
 import os
 import sys
@@ -6,6 +14,8 @@ from urllib.parse import urlencode
 
 # Ensure we can run this from repo root
 sys.path.insert(0, os.path.abspath("."))
+
+from src.extractor import fixture_filename
 
 API_ENDPOINT = "https://wiki.archlinux.org/api.php"
 USER_AGENT = "ArchWikiMCP/1.0 (Fixture Generator)"
@@ -30,9 +40,8 @@ def record_fixture(action, key):
     with urlopen(request) as response:
         data = json.loads(response.read().decode("utf-8"))
     
-    safe_key = "".join([c if c.isalnum() else "_" for c in key])
-    filename = f"tests/fixtures/{action}_{safe_key}.json"
-    
+    filename = os.path.join("tests/fixtures", fixture_filename(action, key))
+
     with open(filename, "w") as f:
         json.dump(data, f, indent=2)
     print(f"Saved to {filename}")

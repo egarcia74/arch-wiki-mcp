@@ -8,6 +8,7 @@ import hashlib
 import re
 import unicodedata
 from dataclasses import dataclass, asdict
+from functools import lru_cache
 from typing import Dict, List, Optional, Tuple
 from urllib.request import urlopen, Request
 from urllib.parse import urlencode, quote
@@ -94,25 +95,45 @@ def hash_content(text: str) -> str:
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
 
+def fixture_filename(action: str, key: str) -> str:
+    """
+    Filesystem name for a recorded API response.
+
+    The fixture recorder, the offline fetcher, and the tests must agree on this
+    mapping exactly, or recorded fixtures become unfindable. One definition.
+    """
+    safe_key = "".join(c if c.isalnum() else "_" for c in key)
+    return f"{action}_{safe_key}.json"
+
+
+@lru_cache(maxsize=None)
+def _read_fixture(fixture_path: str) -> str:
+    """Fixtures are immutable within a run; read each one once."""
+    if not os.path.exists(fixture_path):
+        raise FileNotFoundError(f"Offline mode enabled but fixture missing: {fixture_path}")
+    with open(fixture_path, "r") as f:
+        return f.read()
+
+
 def _fetch_offline(params: Dict) -> Dict:
     """Retrieve API response from local fixtures for offline testing."""
     fixtures_dir = os.environ.get("ARCHWIKI_FIXTURES", "tests/fixtures")
-    # Identify fixture by action and page/query
     action = params.get("action", "unknown")
-    if action == "parse":
-        key = params.get("page", "unknown")
-    else:
-        key = params.get("srsearch", "unknown")
-    
-    # Sanitize key for filesystem
-    safe_key = "".join([c if c.isalnum() else "_" for c in key])
-    fixture_path = os.path.join(fixtures_dir, f"{action}_{safe_key}.json")
-    
-    if not os.path.exists(fixture_path):
-        raise FileNotFoundError(f"Offline mode enabled but fixture missing: {fixture_path}")
-    
-    with open(fixture_path, "r") as f:
-        return json.load(f)
+    key = params.get("page", "unknown") if action == "parse" else params.get("srsearch", "unknown")
+
+    fixture_path = os.path.join(fixtures_dir, fixture_filename(action, key))
+    return json.loads(_read_fixture(fixture_path))
+
+
+def _fetch(params: Dict, timeout: int = 30) -> Dict:
+    """Single entry point for API access. ARCHWIKI_OFFLINE swaps in fixtures."""
+    if os.environ.get("ARCHWIKI_OFFLINE"):
+        return _fetch_offline(params)
+
+    url = f"{API_ENDPOINT}?{urlencode(params)}"
+    request = Request(url, headers={"User-Agent": USER_AGENT})
+    with urlopen(request, timeout=timeout) as response:
+        return json.loads(response.read().decode("utf-8"))
 
 
 def fetch_wiki_parse(page_title: str, timeout: int = 30) -> Dict:
@@ -126,15 +147,9 @@ def fetch_wiki_parse(page_title: str, timeout: int = 30) -> Dict:
         "prop": "wikitext|sections|revid",
         "format": "json",
     }
-    
-    if os.environ.get("ARCHWIKI_OFFLINE"):
-        data = _fetch_offline(params)
-    else:
-        url = f"{API_ENDPOINT}?{urlencode(params)}"
-        request = Request(url, headers={"User-Agent": USER_AGENT})
-        with urlopen(request, timeout=timeout) as response:
-            data = json.loads(response.read().decode("utf-8"))
-    
+
+    data = _fetch(params, timeout)
+
     if "error" in data:
         raise ValueError(f"API Error: {data['error'].get('info', data['error'])}")
     
@@ -361,15 +376,9 @@ def search(query: str, limit: int = 10, timeout: int = 30) -> List[Dict]:
         "srlimit": limit,
         "format": "json",
     }
-    
-    if os.environ.get("ARCHWIKI_OFFLINE"):
-        data = _fetch_offline(params)
-    else:
-        url = f"{API_ENDPOINT}?{urlencode(params)}"
-        request = Request(url, headers={"User-Agent": USER_AGENT})
-        with urlopen(request, timeout=timeout) as response:
-            data = json.loads(response.read().decode("utf-8"))
-    
+
+    data = _fetch(params, timeout)
+
     if "error" in data:
         raise ValueError(f"Search API Error: {data['error'].get('info', data['error'])}")
     

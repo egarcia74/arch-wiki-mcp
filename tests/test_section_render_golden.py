@@ -75,6 +75,42 @@ def test_wiki_ordered_lists_survive_as_ordered_lists():
     assert not extractor.commands("Installation_guide", "Boot_the_live_environment")
 
 
+# A rendered bullet followed by another raw marker: "- * foo", "1. # foo", "1. ** foo".
+# A marker is followed by whitespace or a further marker; `- #Icon themes` is not a
+# leak but a [[#Icon themes]] anchor link, whose label MediaWiki also renders with '#'.
+LEAKED_MARKER = re.compile(r"^\s*(?:1\.|-) [*#:;](?=[\s*#:;])")
+
+
+def test_no_list_marker_leaks_past_the_bullet_it_rendered():
+    """
+    _render_list_markers once read only the LAST character of the marker run, so
+    '##' rendered as '1. # body' -- putting a bare '#' straight back into prose,
+    the exact hazard it exists to remove. 40 lines in the corpus were affected,
+    and the start-of-line check above never saw them.
+    """
+    offenders = [
+        (page, anchor, line)
+        for page, anchor, block in rendered_sections()
+        for line in outside_fence(block.content)
+        if LEAKED_MARKER.match(line)
+    ]
+    assert offenders == []
+
+
+def test_nested_lists_keep_their_depth():
+    """'#*' is a bullet nested inside an ordered item, not the literal text '* '."""
+    content = extractor.section("GRUB", "Shim-lock").content
+    assert "  - play: to play sounds during boot" in content
+    assert "- * play" not in content
+
+
+def test_warning_messages_render_nested_lists_too():
+    """warnings().message shares the helper, so it carried the same defect."""
+    for warning in extractor.warnings("Installation_guide"):
+        for line in warning["message"].split("\n"):
+            assert not LEAKED_MARKER.match(line), line
+
+
 def test_every_code_template_becomes_a_balanced_fence():
     fences = 0
     for page, anchor, block in rendered_sections():

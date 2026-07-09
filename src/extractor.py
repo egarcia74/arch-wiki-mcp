@@ -503,34 +503,46 @@ def _resolve_links(text: str) -> str:
     return text
 
 
-# Leading wikitext indent/list markers on a template body: "::* Make sure ..."
+# The WHOLE leading marker run: "#**", "::*", "##". Matching only the last
+# character left the rest in the body -- '##' rendered as '1. # body', putting a
+# bare '#' back into prose, which is the very thing this function exists to stop.
 # Anchored at column 0: a line starting with a space is preformatted code, and
 # its indentation is content.
-# The list alternative must precede the bare-indent one: '::*' is a nested
-# bullet, and `[:;]+` would otherwise consume the '::' and strip nothing.
-_LEADING_LIST_MARKUP = re.compile(r"^([:;]*[*#]|[:;]+)[ \t]*")
+_LEADING_LIST_MARKUP = re.compile(r"^([*#:;]+)[ \t]*")
 
 
 def _render_list_markers(line: str) -> str:
     """
-    Turn wikitext list markup into plain-text bullets.
+    Turn wikitext list markup into plain-text bullets, preserving nesting depth.
 
     A bare '#' must never survive into agent-facing prose: it is wikitext's
     ordered-list marker, and mistaking it for a root shell prompt is exactly the
     confusion that made the old examples() tool emit prose as bash. An indented
     line is preformatted code and is left untouched.
+
+    '*' and '#' nest a list; ':' and ';' only indent, and carry no meaning once
+    the markup is gone. The innermost marker decides the bullet:
+
+        *     -> "- "          #     -> "1. "
+        **    -> "  - "        ##    -> "  1. "
+        #*    -> "  - "        #**   -> "    - "
     """
     match = _LEADING_LIST_MARKUP.match(line)
     if not match:
         return line
 
+    marker = match.group(1)
     body = line[match.end():]
-    marker = match.group(1)[-1]
-    if marker == "*":
-        return f"- {body}"
-    if marker == "#":
-        return f"1. {body}"
-    return body  # Bare ':' / ';' indentation carries no meaning in plain text
+
+    depth = sum(1 for char in marker if char in "*#")
+    if depth == 0:
+        return body  # Bare ':' / ';' indentation carries no meaning in plain text
+
+    if not body.strip():
+        return ""  # "#}}" -- a list marker holding only a template's closing brace
+
+    bullet = "- " if marker[-1] == "*" else "1. "
+    return f"{'  ' * (depth - 1)}{bullet}{body}"
 
 
 def _clean_message(raw: str) -> str:

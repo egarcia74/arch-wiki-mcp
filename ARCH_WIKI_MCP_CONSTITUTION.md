@@ -1,8 +1,37 @@
 # Arch Wiki MCP: Technical Constitution
 
-**Version:** 1.6  
+**Version:** 1.7  
 **Status:** Canonical  
 **Last Updated:** 2026-07-09
+
+---
+
+## Amendment 1.7 — Migration Notes
+
+Found by driving the server as an agent against the *live* wiki, not by testing it
+from outside. No field is added or removed. `content_hash` and the verbatim fields
+are unchanged; `content_hash_cleaned` and `message_hash_cleaned` move for text
+containing a nested list.
+
+### Changed in 1.7
+
+- **Nested list markers render with their depth.** `_render_list_markers` read only
+  the last character of the marker run and left the rest in the body, so `##` became
+  `1. # body` — putting a bare `#` back into agent-facing prose, the precise hazard
+  the function exists to remove. 40 lines across the corpus were affected, and
+  `warnings().message` shared the defect.
+
+  `*` and `#` now nest (`**` → `  - `, `##` → `  1. `, `#**` → `    - `), while `:`
+  and `;` indent only. A marker holding nothing but a template's closing brace
+  (`#}}`) no longer emits an empty `1.`.
+
+  The 1.6 test asserted only that no rendered line *begins* with `#`. `1. # body`
+  begins with `1`, so it passed. The invariant is now "no list marker survives past
+  the bullet it rendered", which is what 1.6 meant to say.
+
+- **A `#` from a resolved anchor link is not a leak.** `[[#Icon themes]]` renders as
+  `#Icon themes`, which is also how MediaWiki labels it. Faithfulness outranks
+  tidiness.
 
 ---
 

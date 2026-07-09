@@ -64,7 +64,7 @@ A reliable backend for IDEs, scripts, and agents.
 ✅ **Extractor**: Deterministic wikitext parser with hash stability  
 ✅ **MCP Server**: Thin wrapper exposing extractor as MCP tools  
 ✅ **Search**: MediaWiki search API integration complete  
-✅ **Tests**: 175 offline tests pinned to recorded wiki fixtures; 108/108 `{{bc}}`/`{{hc}}` blocks and 432/432 sections resolve correctly
+✅ **Tests**: 178 offline tests pinned to recorded wiki fixtures; 108/108 `{{bc}}`/`{{hc}}` blocks and 432/432 sections resolve correctly
 
 ## Quick Start
 

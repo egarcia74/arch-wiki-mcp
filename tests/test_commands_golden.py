@@ -55,7 +55,7 @@ def test_bc_block_is_cleaned_and_traceable():
     block = match[0]
 
     assert block["content"] == (
-        "# grub-install --target=x86_64-efi --efi-directory=esp --bootloader-id=GRUB"
+        "# grub-install --target=x86_64-efi --efi-directory=<esp> --bootloader-id=GRUB"
     )
     assert block["content_raw"] == (
         "# grub-install --target=x86_64-efi --efi-directory=''esp'' --bootloader-id=GRUB"
@@ -128,6 +128,33 @@ def test_inline_ic_never_becomes_a_command():
     assert all(b.source_pattern != "template_ic" for b in blocks)
     # Pacman has 180 {{ic}} spans and exactly one {{hc}}; nothing should explode.
     assert len([b for b in blocks if b.source_pattern == "template_hc"]) == 1
+
+
+def test_every_placeholder_is_marked_in_the_content_it_appears_in():
+    """
+    116 of the 327 blocks on these seven pages carry placeholders. A bare `esp`
+    looks runnable and is not; the marker makes a literal paste fail at the shell
+    rather than act on the wrong path.
+    """
+    marked = 0
+    for page, _, _, _ in TEMPLATE_COUNTS:
+        for block in extractor.parse_code_blocks(load_wikitext(page)):
+            if not block.placeholders:
+                continue
+            marked += 1
+            for token in block.placeholders:
+                assert f"<{token}>" in block.content, f"{page}: {token} left bare"
+    assert marked == 116
+
+
+def test_marking_only_affects_blocks_that_have_placeholders():
+    """A block the wiki never italicised must come out byte-identical to before."""
+    for page, _, _, _ in TEMPLATE_COUNTS:
+        for block in extractor.parse_code_blocks(load_wikitext(page)):
+            if block.placeholders:
+                continue
+            unmarked, _ = extractor._strip_inline_markup(block.content_raw)
+            assert block.content == unmarked.strip("\n")
 
 
 def test_no_wikitext_markup_leaks_into_content():

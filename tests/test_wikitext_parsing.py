@@ -55,10 +55,24 @@ def test_strip_param_name_only_strips_known_names():
     assert extractor._strip_param_name("GRUB_ENABLE=y", {"1"}) == "GRUB_ENABLE=y"
 
 
-def test_clean_payload_strips_emphasis_and_collects_placeholders():
+def test_clean_payload_marks_placeholders_and_strips_emphasis():
     content, placeholders = extractor._clean_payload("# mount ''device'' '''--verbose'''")
-    assert content == "# mount device --verbose"
+    assert content == "# mount <device> --verbose"
     assert placeholders == ["device"]  # bold is emphasis, not a placeholder
+
+
+def test_prose_italics_are_emphasis_not_placeholders():
+    """The same markup means 'substitute me' in code and nothing in prose."""
+    block = extractor.parse_templates("{{Note|Only ''root'' may run ''iwctl''}}")[0]
+    assert block.message == "Only root may run iwctl"
+    assert "<root>" not in block.message
+
+
+def test_a_marked_placeholder_is_not_silently_runnable():
+    """`<esp>` is shell redirection: a literal paste fails instead of acting wrongly."""
+    content, _ = extractor._clean_payload("# grub-install --efi-directory=''esp''")
+    assert "<esp>" in content
+    assert "=esp" not in content
 
 
 def test_clean_payload_resolves_escape_and_inline_code():

@@ -1,8 +1,42 @@
 # Arch Wiki MCP: Technical Constitution
 
-**Version:** 1.4  
+**Version:** 1.5  
 **Status:** Canonical  
 **Last Updated:** 2026-07-09
+
+---
+
+## Amendment 1.5 — Migration Notes
+
+Per §12 (API Governance): `content` changes for every code block containing a
+placeholder, and `content_hash_cleaned` moves with it. `content_raw` and
+`content_hash` are unchanged.
+
+### Changed in 1.5
+
+- **Placeholders stay marked in `content`.** Where the wiki italicises a token
+  inside a command, it names a value the reader must substitute. Cleaning used to
+  strip the italics and emit a bare `esp`, producing a string that *looks* runnable
+  and is not — a hash-attested command that acts on the wrong path. `content` now
+  renders it `<esp>`, which fails at the shell.
+
+  This is the constitution's own principle applied to its own output: §5 says fail
+  closed, and §7 asks that a claim be falsifiable. A structure that resists the
+  mistake outranks a prompt that forbids it. AGENTS.md §7 becomes the backstop, not
+  the primary defence.
+
+  116 of the 327 code blocks across the seven English corpus pages carry
+  placeholders. Blocks without them are byte-identical to 1.4.
+
+  *Migration:* substitute `<token>` for each entry in `placeholders` before running
+  a command, or read `content_raw` and substitute deliberately. Agents must not
+  strip the markers: doing so converts a loud failure into a silent one.
+
+  Italics in **prose** (`warnings().message`) remain ordinary emphasis and are still
+  removed. The same markup means different things in code and in prose.
+
+- **`content` is no longer documented as "safe to run".** It is runnable once its
+  placeholders are substituted. The previous wording was false for 35% of blocks.
 
 ---
 
@@ -39,6 +73,14 @@ Found by using the server as an agent rather than testing it from outside.
   `content_raw`, but an agent executes `content`. The cleaning step was the only
   non-verbatim transform in the chain and the only one no hash attested. Both
   fingerprints now travel with every block, closing that gap in §7 falsifiability.
+
+- **The agent contract was rewritten to match.** §12 governs interfaces, and the
+  injected `arch-wiki-usage` prompt is one. AGENTS.md §4 said "Content returned by
+  this MCP is verbatim evidence", which stopped being true when `content` and
+  `message` became rendered fields. §4 now carries a table mapping each tool to its
+  rendered field, its verbatim field, and the hash attesting each; new §7 forbids
+  presenting a `placeholders` token as a literal. The injected prompt says the same.
+  `tests/test_contract.py` fails when either document drifts from the schema.
 
 - **Link exclusion is derived from the wiki, not hardcoded.** `links()` now reads
   `action=query&meta=siteinfo&siprop=namespaces|namespacealiases|interwikimap`

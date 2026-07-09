@@ -415,13 +415,16 @@ def _resolve_inline_templates(text: str, _depth: int = 0) -> str:
     return "".join(out)
 
 
-def _strip_inline_markup(text: str) -> Tuple[str, List[str]]:
+def _strip_inline_markup(text: str, mark_placeholders: bool = False) -> Tuple[str, List[str]]:
     """
     Remove wikitext markup that is presentation, not content.
 
-    Returns the cleaned text and the tokens the author marked ''italic''. On the
-    Arch Wiki those denote values the reader must substitute (''esp'', ''device'').
-    Surfacing them reads the author's own markup; it infers nothing.
+    Returns the cleaned text and the tokens the author marked ''italic''.
+
+    Inside a code block, italics denote a value the reader must substitute
+    (''esp'', ''device''); `mark_placeholders` keeps that signal visible as
+    <esp>. Inside prose, italics are ordinary emphasis and are simply removed.
+    Either way this reads the author's own markup and infers nothing.
     """
     text = _HTML_COMMENT.sub("", text)
     text = _NOWIKI_TAG.sub("", text)
@@ -435,14 +438,21 @@ def _strip_inline_markup(text: str) -> Tuple[str, List[str]]:
     text = _BOLD.sub(r"\1", text)  # Bold before italic: ''' would else split as '' + '
 
     placeholders = list(dict.fromkeys(t for t in _ITALIC.findall(text) if t))
-    text = _ITALIC.sub(r"\1", text)
+    text = _ITALIC.sub(r"<\1>" if mark_placeholders else r"\1", text)
 
     return text, placeholders
 
 
 def _clean_payload(raw: str) -> Tuple[str, List[str]]:
-    """Render a code payload down to what a user would actually run."""
-    text, placeholders = _strip_inline_markup(raw)
+    """
+    Render a code payload down to what a user would run, after substitution.
+
+    Placeholders stay marked. The wiki italicises them precisely because they are
+    not literals, and emitting a bare `esp` produces a command that looks runnable
+    and silently is not. `<esp>` fails at the shell instead, so a literal paste is
+    resisted by structure rather than forbidden by a prompt.
+    """
+    text, placeholders = _strip_inline_markup(raw, mark_placeholders=True)
     return text.strip("\n"), placeholders
 
 

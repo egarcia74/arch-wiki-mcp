@@ -19,8 +19,9 @@ Run `pytest` from the repository root. All figures are enforced by tests.
 
 | Metric | Value | Enforced by |
 | :-- | :-- | :-- |
-| Tests | 125 passing | `pytest` |
-| Network calls during tests | 0 (verified with sockets blocked) | `tests/conftest.py` forces `ARCHWIKI_OFFLINE` |
+| Tests | 144 passing | `pytest` |
+| Network calls during tests | 0 | `tests/conftest.py` blocks sockets; `test_failures.py` proves the guard bites |
+| Runs on every push and PR | Python 3.10-3.13 + MCP stdio handshake | `.github/workflows/tests.yml` |
 | `{{bc}}`/`{{hc}}` blocks recovered | 108 / 108 | `test_commands_golden.py` |
 | Sections resolving to their own heading | 432 / 432 | `test_extractor.py` |
 | Pages in fixture corpus | 8 (incl. one translated) | `tests/fixtures/` |
@@ -174,6 +175,11 @@ had to *consume* the output.
 - **`content` was executed but unhashed.** `content_hash` attested `content_raw`;
   the cleaning transform — the only non-verbatim step in the chain — was attested
   by nothing. Now covered by `content_hash_cleaned`.
+- **`AGENTS.md` §4 told agents every field was verbatim.** It is the binding
+  contract, and after `content`/`message` became rendered fields it was wrong: an
+  agent obeying it would present `--efi-directory=esp` as wiki text, when the wiki
+  says `''esp''` and means "substitute your EFI partition". `test_contract.py` now
+  fails when the contract drifts from the tool schema.
 - **Interwiki prefixes were a static list**, missing 32 real prefixes (`fedora`,
   `doi`, `phab`, `mw`, `meta`, `lv`, …), each reported as a navigable article
   link, and wrongly excluding `man` and `kernel`. Now read from the wiki's own

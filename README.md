@@ -64,7 +64,7 @@ A reliable backend for IDEs, scripts, and agents.
 ✅ **Extractor**: Deterministic wikitext parser with hash stability  
 ✅ **MCP Server**: Thin wrapper exposing extractor as MCP tools  
 ✅ **Search**: MediaWiki search API integration complete  
-✅ **Tests**: 144 offline tests pinned to recorded wiki fixtures; 108/108 `{{bc}}`/`{{hc}}` blocks and 432/432 sections resolve correctly
+✅ **Tests**: 175 offline tests pinned to recorded wiki fixtures; 108/108 `{{bc}}`/`{{hc}}` blocks and 432/432 sections resolve correctly
 
 ## Quick Start
 
@@ -88,7 +88,7 @@ All tools accept `title_or_url` (e.g., `"GRUB"` or `https://wiki.archlinux.org/t
 
 * **`page`**: Full page metadata + wikitext + hash.
 * **`sections`**: List anchors and hierarchy.
-* **`section`**: Single section content + provenance.
+* **`section`**: Single section, rendered for quoting + the verbatim slice + provenance.
 * **`commands`**: Extract block-level code (`{{bc}}`, `{{hc}}`, indented) with SHA-256 hashes.
 * **`warnings`**: Surface `{{Warning}}`, `{{Note}}`, etc.
 * **`links`**: Extract internal wiki links.
@@ -125,6 +125,38 @@ There is deliberately no tool that infers commands from prose.
 
 `commands` fails closed. A missing page or missing anchor raises an error; `[]`
 means the wiki specifies no command there, and nothing else.
+
+### What `section` returns
+
+When `commands()` returns `[]`, the contract sends the agent here to quote the wiki's
+prose instead. So the same rendered/verbatim split applies:
+
+```json
+{
+  "section_heading": "Boot the live environment",
+  "extraction_method": "wikitext_character_offset",
+  "content": "### Boot the live environment\n\n**Note:** Arch Linux installation images do not support Secure Bo ...",
+  "content_raw": "=== Boot the live environment ===\n\n{{Note|Arch Linux installation images do not support Secure B ...",
+  "content_hash": "b2ec52eef0b639a0fb2a761bdaf3eab9ae6de8ae08091025ad9cf51d022892b7",
+  "content_hash_cleaned": "84215e9fe86f565beff8bace3b4ec95f38d01b92178510f7c3fea7da9f7f2b75",
+  "url": "https://wiki.archlinux.org/title/Installation_guide#Boot_the_live_environment",
+  "revid": 858613
+}
+```
+
+* `content` is rendered: headings become markdown, `{{bc}}`/`{{hc}}` become fenced
+  blocks, `{{Note}}` becomes `**Note:**`, links and inline templates resolve.
+* **Outside a fence, a leading `#` is a heading, never a shell prompt.** The wiki writes
+  ordered lists as `# step`, which renders as `1. step`. Raw, `# Point the current boot
+  device to the one which has the Arch Linux installation medium` is prose that reads
+  exactly like a root command — the confusion that got the old `examples` tool deleted.
+* A template the renderer does not know (`{{Accuracy|...}}`) is left as raw markup rather
+  than dropped. Dropping the wiki's own caveat would be synthesis by omission.
+* `content_raw` is the verbatim character slice; `content_hash` covers it, so the citation
+  stays falsifiable. `content_hash_cleaned` covers the rendered text you show.
+
+Code you intend to run should still come from `commands()`, which alone carries per-block
+hashes and `placeholders`.
 
 ### What `warnings` returns
 

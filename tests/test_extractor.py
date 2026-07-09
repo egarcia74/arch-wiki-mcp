@@ -31,7 +31,10 @@ def test_section_hash_is_deterministic():
     second = extractor.section("GRUB", "Installation")
 
     assert first.content_hash == second.content_hash
-    assert first.content_hash == extractor.hash_content(first.content)
+    # content_hash attests the verbatim slice, so it stays greppable in the source.
+    assert first.content_hash == extractor.hash_content(first.content_raw)
+    # ...and the rendered text an agent actually quotes is fingerprinted too.
+    assert first.content_hash_cleaned == extractor.hash_content(first.content)
     assert first.section_heading == "Installation"
     # The name is the claim: we slice by character, not by byte.
     assert first.extraction_method == "wikitext_character_offset"
@@ -110,7 +113,9 @@ def test_every_section_in_the_corpus_resolves_to_its_own_heading():
     for page in ("GRUB", "Installation_guide", "Iwd", "KDE", "Pacman", "Systemd"):
         for sect in extractor.sections(page):
             extracted = extractor.section(page, sect["anchor"])
-            assert extracted.content.startswith("="), f"{page}#{sect['anchor']}"
+            assert extracted.content_raw.startswith("="), f"{page}#{sect['anchor']}"
+            # The rendered slice must start at the same heading, as markdown.
+            assert extracted.content.startswith("#"), f"{page}#{sect['anchor']}"
 
 
 def test_examples_tool_is_gone():

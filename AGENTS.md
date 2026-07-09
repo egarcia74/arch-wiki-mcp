@@ -124,7 +124,7 @@ and the original content must still be shown.
 
 #### Which field is verbatim
 
-Two tools return the same evidence twice: once as the wiki wrote it, and once
+Three tools return the same evidence twice: once as the wiki wrote it, and once
 rendered for a reader. **Neither may be edited**, but they are not the same text,
 and each carries its own hash.
 
@@ -132,7 +132,7 @@ and each carries its own hash.
 | :----------- | :------------------- | :------------------- | :--------------------- | :--------------- |
 | `commands()` | `content`            | `content_raw`        | `content_hash_cleaned` | `content_hash`   |
 | `warnings()` | `message`            | `message_raw`        | `message_hash_cleaned` | `content_hash`   |
-| `section()`  | —                    | `content`            | —                      | `content_hash`   |
+| `section()`  | `content`            | `content_raw`        | `content_hash_cleaned` | `content_hash`   |
 
 The rendered field has wikitext markup resolved: `{{ic|iwctl}}` → `iwctl`,
 `[[user group]]` → `user group`. Inside a command, an italicised token is a
@@ -140,8 +140,17 @@ placeholder and stays marked: `''esp''` → `<esp>`. In prose, italics are ordin
 emphasis and are simply removed. That rendering is performed by this MCP, not by
 you. Do not perform it yourself, and do not undo it.
 
-`section()` returns raw wikitext only. If you quote it to a user, quote it as-is;
-you may not silently render it.
+In `section().content`, wiki headings become markdown headings, `{{bc}}`/`{{hc}}`
+become fenced ` ``` ` blocks, and `{{Note}}`/`{{Warning}}`/`{{Tip}}` become
+`**Note:**`-labelled prose. **Outside a fence, a leading `#` is a heading, never a
+shell prompt** — the wiki's own numbered lists render as `1.`. A `#` inside a fence
+is a real root prompt. Do not lift a fenced block out of `section()` and present it
+as a command: call `commands()`, which returns it with its own hash and
+`placeholders`.
+
+If a template appears raw in `content` (for example `{{Accuracy|...}}`), this MCP
+could not render it. Report it as-is. Never paraphrase it, and never drop it —
+omitting the wiki's own caveat is a fabrication of silence.
 
 ---
 
@@ -236,7 +245,7 @@ _This document is a binding operational contract. Violation of these rules const
 Agents must restrict their output to one of these three shapes:
 
 1. **Evidence Relay**: Extracted blocks (quotes or code) with mandatory provenance (URL, anchor, revid, hash). Show the rendered field (`content` / `message`); cite the verbatim one (`content_raw` / `message_raw`) and the hash that attests it. Declare any `placeholders`.
-2. **Pointer**: Used when `commands()` is empty but prose exists. "The wiki does not provide executable commands for this step. See the quoted instructions from `section()` below." (Followed by quoted prose with provenance).
+2. **Pointer**: Used when `commands()` is empty but prose exists. "The wiki does not provide executable commands for this step. See the quoted instructions from `section()` below." (Followed by `section().content` quoted with provenance.)
 3. **Failure**: Explicit `NotFound` or `EmptyResult` when no evidence exists. No "best guesses" allowed.
 
 ## No Inference from Prose

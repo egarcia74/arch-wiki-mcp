@@ -58,8 +58,10 @@ class ExtractedBlock:
     section_anchor: Optional[str]
     section_heading: Optional[str]
     extraction_method: str
-    content: str
-    content_hash: str  # SHA-256 of NFC-normalized content, whitespace preserved
+    content: str      # Rendered: markup resolved, code fenced, placeholders marked
+    content_raw: str  # Verbatim wikitext slice, exactly as the revision stores it
+    content_hash: str  # SHA-256 over content_raw, so it stays greppable in the source
+    content_hash_cleaned: str  # SHA-256 over content -- the text an agent quotes
 
 
 @dataclass
@@ -271,21 +273,47 @@ def _find_template_end(wikitext: str, start_idx: int) -> int:
 
     Triple braces ({{{parameter}}}) are consumed whole: a 2-char scan would read
     them as {{ + { and miscount the depth.
+
+    A '}}}' only closes a parameter when one is actually open. Otherwise it is
+    ambiguous, and the body decides which two of the three braces close us:
+
+      {{App|x|{{Pkg|y}}}}          '}}' closes Pkg, '}}' closes App
+      {{ic|menuentry {options}}}   '}' closes the literal brace, '}}' closes ic
+
+    So a '}' is read as a literal only while an unmatched '{' is open. Getting
+    this wrong either leaves the template unterminated -- it then survives into
+    output as raw markup -- or ends its span a brace early, which mis-slices the
+    body and leaks a stray '}' past the span mask.
     """
     depth = 0
+    parameter_depth = 0
+    brace_depth = 0  # unmatched literal '{' inside the body
     j = start_idx
     end = len(wikitext)
     while j < end - 1:
-        if wikitext.startswith("{{{", j) or wikitext.startswith("}}}", j):
+        if wikitext.startswith("{{{", j):
+            parameter_depth += 1
+            j += 3
+        elif wikitext.startswith("}}}", j) and parameter_depth > 0:
+            parameter_depth -= 1
             j += 3
         elif wikitext.startswith("{{", j):
             depth += 1
             j += 2
+        elif wikitext.startswith("}}}", j) and brace_depth > 0:
+            brace_depth -= 1
+            j += 1
         elif wikitext.startswith("}}", j):
             depth -= 1
             j += 2
             if depth == 0:
                 return j
+        elif wikitext[j] == "{":
+            brace_depth += 1
+            j += 1
+        elif wikitext[j] == "}" and brace_depth > 0:
+            brace_depth -= 1
+            j += 1
         else:
             j += 1
     return -1
@@ -352,7 +380,10 @@ _HTML_COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
 _BOLD = re.compile(r"'''(.*?)'''", re.DOTALL)
 _ITALIC = re.compile(r"''(.*?)''", re.DOTALL)
 # [[Target|display]] / [[Target]] / [[Target#Anchor]]
-_WIKILINK = re.compile(r"\[\[([^\[\]|]+)(?:\|([^\[\]]*))?\]\]")
+# Display text may itself contain brackets -- [[#General options|[options]]] --
+# so it is matched lazily up to the first ']]' rather than excluding '[' and ']'.
+# Forbidding them left that link unmatched, and it survived into prose as markup.
+_WIKILINK = re.compile(r"\[\[([^\[\]|]+)(?:\|(.*?))?\]\]")
 _EXTERNAL_LINK = re.compile(r"\[(https?://\S+?)(?:\s+([^\]]*))?\]")
 
 # Templates that wrap a literal value. Each maps its parameters to the text the
@@ -696,6 +727,157 @@ def parse_code_blocks(wikitext: str, revid: Optional[int] = None) -> List[CodeBl
     return blocks
 
 
+# ---------------------------------------------------------------------------
+# Section rendering
+#
+# AGENTS.md Rule 4 sends the agent here whenever commands() honestly returns []:
+# it must quote section() prose instead of inferring a command. Handing back raw
+# wikitext made that mandated fallback unsafe -- a numbered list item ("# Point
+# the current boot device ...") is indistinguishable from a root shell prompt.
+# That is the confusion that got examples() deleted; it survived in the one path
+# the constitution requires.
+#
+# The rendering is deliberately conservative. A template this renderer does not
+# know is left VERBATIM, never dropped: markup an agent can see is honest, and
+# silently deleting a sentence is synthesis by omission. The renderable set is
+# therefore a whitelist, and test_section_render_golden pins the residue.
+# ---------------------------------------------------------------------------
+
+_ADMONITIONS = {"note": "Note", "warning": "Warning", "tip": "Tip", "caution": "Caution"}
+_RENDERABLE_RE = re.compile(
+    r"\{\{(" + "|".join([*CODE_TEMPLATES, *_ADMONITIONS]) + r")\b", re.IGNORECASE
+)
+_HEADING = re.compile(r"^(={2,6})[ \t]*(.+?)[ \t]*\1[ \t]*$")
+_SENTINEL = re.compile("\x00(\\d+)\x00")
+_MAX_RENDER_DEPTH = 4
+
+
+def _render_code_template(name: str, interior: str) -> str:
+    """Render {{bc}}/{{hc}} as a fenced block, so prose can never be mistaken for it."""
+    spec = CODE_TEMPLATES[name]
+    params = _split_template_params(interior, spec.max_splits)
+
+    index = 1
+    header = None
+    if spec.header_names is not None:
+        header_raw = _strip_param_name(params[index], spec.header_names) if len(params) > index else ""
+        header, _ = _clean_payload(header_raw)
+        index += 1
+
+    raw = _strip_param_name(params[index], spec.body_names) if len(params) > index else ""
+    body, _ = _clean_payload(raw)
+
+    fence = f"```\n{body}\n```"
+    if not header:
+        return fence
+
+    # A {{hc}} header is either a file path (/etc/default/grub) or the command
+    # that produced the body (# efibootmgr -u). Emitted bare, the latter starts a
+    # line with '#' -- markdown reads that as a heading, and a reader as a root
+    # prompt sitting outside any fence. Backticks make it unambiguously a literal.
+    return f"`{header}`\n{fence}"
+
+
+def _render_admonition(name: str, interior: str, depth: int) -> str:
+    """Render {{Note|...}} and friends as labelled prose, recursing for nested code."""
+    params = _split_template_params(interior, 1)
+    raw = _strip_param_name(params[1], {"1"}) if len(params) > 1 else ""
+    body = render_section_wikitext(raw, depth + 1).strip()
+
+    label = f"**{_ADMONITIONS[name]}:**"
+    # A bullet or a fence glued to the label reads as part of the first item.
+    separator = "\n" if "\n" in body or body.startswith(("- ", "1. ", "```")) else " "
+    return f"{label}{separator}{body}"
+
+
+def _render_prose_line(line: str) -> str:
+    """
+    Render one non-template line.
+
+    A space-prefixed line is preformatted code, so it keeps its indentation and
+    gets code semantics -- placeholders marked, exactly as commands() marks them.
+    Everything else is prose, where ''italics'' are emphasis rather than
+    substitution slots.
+    """
+    if line[:1] in (" ", "\t") and line.strip():
+        text, _ = _strip_inline_markup(line, mark_placeholders=True)
+        return text
+
+    text, _ = _strip_inline_markup(line)
+
+    heading = _HEADING.match(text)
+    if heading:
+        return f"{'#' * len(heading.group(1))} {heading.group(2)}"
+
+    return _render_list_markers(_resolve_links(text))
+
+
+def _render_prose(text: str) -> str:
+    return "\n".join(_render_prose_line(line) for line in text.split("\n"))
+
+
+def _splice_line(line: str, blocks: List[str]) -> str:
+    """
+    Expand block sentinels, lifting each onto its own line.
+
+    {{bc}} occurs mid-sentence -- "remount {{ic|...}}. {{bc|# mount ...}} See the
+    [[Gentoo:...]]" -- so a fence spliced in place would glue its ``` markers to
+    the prose on either side.
+    """
+    segments: List[str] = []
+    position = 0
+    for match in _SENTINEL.finditer(line):
+        prefix = line[position:match.start()].rstrip()
+        if prefix:
+            segments.append(prefix)
+        segments.append(blocks[int(match.group(1))])
+        position = match.end()
+
+    if not segments:
+        return line
+
+    tail = line[position:].lstrip()
+    if tail:
+        segments.append(tail)
+    return "\n".join(segments)
+
+
+def render_section_wikitext(wikitext: str, _depth: int = 0) -> str:
+    """
+    Render a section's wikitext down to text an agent can quote to a user.
+
+    Renderable templates are masked to newline-free sentinels first, so whether a
+    line is preformatted is decided by its position in the *original* wikitext.
+    Splitting the text on template spans instead would leave the prose trailing a
+    mid-line template starting with a space; it would then render as indented
+    code, links unresolved, inside no fence.
+
+    Unknown templates survive verbatim -- see the module comment above.
+    """
+    if _depth > _MAX_RENDER_DEPTH:
+        return wikitext
+
+    blocks: List[str] = []
+    masked: List[str] = []
+    position = 0
+    for start, end, name in _iter_top_level_templates(wikitext, _RENDERABLE_RE):
+        interior = wikitext[start + 2:end - 2]
+        masked.append(wikitext[position:start])
+        masked.append(f"\x00{len(blocks)}\x00")
+        blocks.append(
+            _render_code_template(name, interior) if name in CODE_TEMPLATES
+            else _render_admonition(name, interior, _depth)
+        )
+        position = end
+
+    masked.append(wikitext[position:])
+
+    rendered = _render_prose("".join(masked))
+    if blocks:
+        rendered = "\n".join(_splice_line(line, blocks) for line in rendered.split("\n"))
+    return rendered.strip()
+
+
 # Non-content namespaces. [[Category:X]] and [[File:X]] are page metadata, not
 # navigable article links.
 _NAMESPACE_PREFIXES = frozenset({
@@ -939,10 +1121,12 @@ def section(title: str, anchor: str) -> ExtractedBlock:
     """
     MCP Tool: Extract single section by anchor with full provenance.
 
-    Returns ExtractedBlock with section content and hash.
+    `content` is rendered for quoting; `content_raw` is the verbatim slice that
+    `content_hash` attests, so the citation stays falsifiable against the wiki.
     """
     parse_data = fetch_wiki_parse(title)
-    target_section, content = _resolve_section(parse_data, anchor)
+    target_section, content_raw = _resolve_section(parse_data, anchor)
+    content = render_section_wikitext(content_raw)
 
     return ExtractedBlock(
         title=parse_data["title"],
@@ -953,7 +1137,9 @@ def section(title: str, anchor: str) -> ExtractedBlock:
         section_heading=target_section["line"],
         extraction_method="wikitext_character_offset",
         content=content,
-        content_hash=hash_content(content)
+        content_raw=content_raw,
+        content_hash=hash_content(content_raw),
+        content_hash_cleaned=hash_content(content)
     )
 
 
@@ -1002,7 +1188,8 @@ def warnings(title: str, anchor: Optional[str] = None) -> List[Dict]:
     """
     if anchor:
         extracted = section(title, anchor)
-        wikitext = extracted.content
+        # The raw slice: these parse wikitext, and .content is now rendered.
+        wikitext = extracted.content_raw
         url_base = extracted.url
         revid = extracted.revid
     else:
@@ -1035,7 +1222,8 @@ def links(title: str, anchor: Optional[str] = None) -> List[Dict]:
     """
     if anchor:
         extracted = section(title, anchor)
-        wikitext = extracted.content
+        # The raw slice: these parse wikitext, and .content is now rendered.
+        wikitext = extracted.content_raw
         url_base = extracted.url
     else:
         page_data = page(title)

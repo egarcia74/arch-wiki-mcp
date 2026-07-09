@@ -128,3 +128,17 @@ def test_unsupported_templates_are_ignored():
 def test_supported_types_are_case_insensitive(name):
     block = extractor.parse_templates("{{%s|body}}" % name)[0]
     assert block.type == name.upper()
+
+
+def test_anchored_tools_parse_the_raw_slice_not_the_rendered_one():
+    """
+    warnings() and links() build on section(), and section().content is rendered:
+    its {{Note|...}} templates and [[links]] are already resolved away. Feeding
+    that back to a wikitext parser silently yields [] -- which this project's
+    fail-closed contract tells the agent means "the wiki says nothing here".
+    """
+    anchored = extractor.warnings("Iwd", "Usage")
+    assert len(anchored) == 1
+    assert anchored[0]["type"] == "NOTE"
+
+    assert extractor.links("GRUB", "Installation")

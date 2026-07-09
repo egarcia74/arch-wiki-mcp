@@ -23,10 +23,11 @@ def test_spanish_page_has_a_real_body_not_a_redirect():
     assert any(ord(c) > 127 for c in wikitext), "expected multibyte content"
 
 
-def test_multibyte_section_slicing_uses_byte_offsets():
+def test_multibyte_section_slicing_uses_character_offsets():
     """
-    MediaWiki byteoffset counts UTF-8 bytes. Slicing the Python string by those
-    numbers would drift by one position per multibyte character seen so far.
+    Despite its name, MediaWiki's `byteoffset` indexes the wikitext by CHARACTER.
+    Slicing the Python string as if the offset counted UTF-8 bytes would drift by
+    one position per multibyte character seen so far.
     """
     parse = load_parse(SPANISH)
     wikitext = parse["wikitext"]["*"]
@@ -34,7 +35,8 @@ def test_multibyte_section_slicing_uses_byte_offsets():
 
     for sect in parse["sections"]:
         extracted = extractor.section(SPANISH, sect["anchor"])
-        first_line = extracted.content.split("\n", 1)[0]
+        # content_raw is the verbatim slice; content has been rendered for quoting.
+        first_line = extracted.content_raw.split("\n", 1)[0]
         # The slice must begin exactly at this section's own heading. Treating the
         # offset as a byte index drifts by one position per multibyte character
         # seen so far, landing in the previous section's prose.

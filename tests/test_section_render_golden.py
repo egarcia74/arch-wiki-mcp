@@ -211,3 +211,28 @@ def test_rendering_is_deterministic():
 )
 def test_render_unit_cases(wikitext, expected):
     assert extractor.render_section_wikitext(wikitext) == expected
+
+
+def test_an_admonition_body_starting_with_a_space_is_prose_not_code():
+    """
+    "{{Note| The iwd backend ...}}" -- that space is mid-line in the source, not at
+    column 0, so it marks nothing. Treated as preformatted, the whole note rendered
+    as code: links stayed raw and ''bar'' became <bar>, fabricating a placeholder in
+    prose that AGENTS.md tells the agent is a value the user must substitute.
+
+    No fixture page contains one, which is why the corpus tests never saw it; it was
+    found by driving the live wiki (NetworkManager#Configuring_MAC_address_randomization).
+    """
+    rendered = extractor.render_section_wikitext("{{Note| See [[Foo|the foo page]] and ''bar''.}}")
+    assert rendered == "**Note:** See the foo page and bar."
+    assert "<bar>" not in rendered
+
+
+def test_an_admonition_body_starting_with_a_newline_still_keeps_its_lines():
+    assert extractor.render_section_wikitext("{{Note|\n* one\n* two\n}}") == "**Note:**\n- one\n- two"
+
+
+def test_indented_code_inside_an_admonition_is_still_code():
+    """Only the first line's leading space is insignificant; column 0 still rules."""
+    rendered = extractor.render_section_wikitext("{{Note|\n mount ''device''\n}}")
+    assert "<device>" in rendered

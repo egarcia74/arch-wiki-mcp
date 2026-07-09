@@ -34,6 +34,36 @@ def test_find_template_end_handles_triple_braces():
     assert find_end(text) == len(text)
 
 
+def test_find_template_end_closes_nested_template_at_a_shared_tail():
+    """
+    '{{App|x|{{Pkg|y}}}}' ends in '}}}}'. Reading the first three as a parameter
+    close leaves the template unterminated, and it survives as raw markup.
+    """
+    text = "{{Pkg|impala}}}}"
+    assert text[: find_end(text)] == "{{Pkg|impala}}"
+
+
+def test_find_template_end_treats_a_literal_brace_as_content():
+    """'{{ic|menuentry {opts}}}': the '}}}' here is '}' + '}}', not a parameter."""
+    text = '{{ic|menuentry "title" {entry options}}}'
+    assert find_end(text) == len(text)
+
+
+def test_a_literal_brace_body_resolves_whole():
+    content, _ = extractor._clean_payload('{{ic|menuentry "title" {entry options}}}')
+    assert content == 'menuentry "title" {entry options}'
+
+
+def test_nested_template_inside_an_unknown_one_still_resolves():
+    text, _ = extractor._strip_inline_markup("{{App|impala|A TUI.|https://x|{{Pkg|impala}}}}")
+    assert text == "{{App|impala|A TUI.|https://x|impala}}"
+
+
+def test_find_template_end_handles_a_wikitable_body():
+    text = "{{Note|{|class=x\n|a\n|}}}"
+    assert find_end(text) == len(text)
+
+
 def test_find_template_end_unclosed_returns_minus_one():
     assert extractor._find_template_end("{{bc|never closed", 0) == -1
 

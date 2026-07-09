@@ -149,8 +149,9 @@ as a command: call `commands()`, which returns it with its own hash and
 `placeholders`.
 
 If a template appears raw in `content` (for example `{{Accuracy|...}}`), this MCP
-could not render it. Report it as-is. Never paraphrase it, and never drop it —
-omitting the wiki's own caveat is a fabrication of silence.
+could not render it, and it is reproduced byte-for-byte — insides included, so a
+nested `{{ic|...}}` inside it stays raw too. Report it as-is. Never paraphrase it,
+and never drop it — omitting the wiki's own caveat is a fabrication of silence.
 
 ---
 

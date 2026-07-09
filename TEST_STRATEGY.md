@@ -185,6 +185,31 @@ had to *consume* the output.
   link, and wrongly excluding `man` and `kernel`. Now read from the wiki's own
   `siteinfo` tables.
 
+### The live audit
+
+`make audit` renders every section of 36 live pages (1834 sections) and checks the
+contract's invariants against them: no root-prompt lookalike outside a fence, no
+list marker leaking past its bullet, no list skipping a nesting level, balanced
+fences, `content_hash` attesting `content_raw`, and every unrendered template
+appearing byte-for-byte as the wiki wrote it.
+
+It asserts nothing about *what* a page says — only that whatever it says comes out
+obeying the contract. It is deliberately outside pytest, which blocks sockets.
+
+This is not redundant with the fixture suite. Five defects reached `master` past a
+green suite and were caught on first contact with live content:
+
+| defect | fixture corpus said |
+| :--- | :--- |
+| `##` → `1. # body` (bare `#` back in prose) | green; 40 affected lines were *in* the fixtures |
+| `{{Note| body}}` rendered as code | green; no fixture has a leading-space body |
+| `warnings()` dropped every Spanish admonition | green; corpus is English |
+| `{{Accuracy|{{ic|x}}}}` altered inside "verbatim" | green |
+| nested list lost its first indent | green |
+
+The first two were *present in the recorded fixtures* and invisible because the
+assertions looked one character to the left. Re-recording would not have helped.
+
 ### Remaining gaps
 
 - **The section renderer resolves a whitelist.** `{{bc}}`, `{{hc}}`, `{{Note}}`,

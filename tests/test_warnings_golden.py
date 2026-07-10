@@ -165,7 +165,7 @@ def test_a_nested_first_item_keeps_the_indent_its_siblings_have():
 
 
 def test_a_leading_space_in_the_body_is_still_insignificant():
-    """"{{Note| body}}" -- that space sits mid-line in the source and means nothing."""
+    """In {{Note| body}}, that leading space sits mid-line in the source and means nothing."""
     assert extractor._clean_message(" The iwd backend refuses.") == "The iwd backend refuses."
 
 

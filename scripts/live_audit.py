@@ -242,6 +242,22 @@ def audit_page(page, report, residual, stats):
         report["warnings_raised"].append(f"{page}: {exc!r}")
         found = []
 
+    # "Nothing the wiki merely QUOTES becomes evidence" is NOT checked here, on
+    # purpose. It is a claim about the POSITION a block was extracted from, and
+    # neither commands() nor warnings() reports position. Every textual proxy is
+    # both unsound and unable to fail:
+    #
+    #   - "content_raw appears inside some <nowiki> payload" flags a legitimate
+    #     block, because Help:Style carries a real {{bc|#!/bin/sh ...}} and quotes
+    #     that same script elsewhere.
+    #   - "extraction from a pre-masked page agrees" is false for an honest block
+    #     whose body legitimately contains <nowiki>, and goes vacuous the moment
+    #     mask_nowiki() is the thing that regressed.
+    #
+    # The invariant is enforced in tests/test_wikitext_parsing.py instead, where a
+    # synthetic page fixes the positions, and each of the six scanners is observed
+    # going red with its mask removed. A check that cannot fail is not a check.
+
     # warnings().message is prose an agent is REQUIRED to quote. It renders lists
     # through the same helper as section(), but strips whitespace separately -- so
     # the nesting invariant has to be checked here too, not inferred from sections.

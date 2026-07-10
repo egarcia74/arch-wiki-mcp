@@ -206,29 +206,42 @@ is this repo's own failure mode, aimed at itself. Clearing the variable silently
 would be worse than refusing: a run must never _look_ like it audited the wiki when
 it did not.
 
-This is not redundant with the fixture suite. Seven defects reached `master` past a
-green suite and were caught on first contact with live content:
+This is not redundant with the fixture suite. Eight defects reached `master` past a
+green suite. Every one of them was found by reading live content or by review —
+none by the suite:
 
-| defect                                                  | the fixture corpus said                         |
-| :------------------------------------------------------ | :---------------------------------------------- |
-| `##` → `1. # body` (a bare `#` back in prose)           | green; 40 affected lines were _in_ the fixtures |
-| `{{Note\| body}}` rendered as code                      | green; no fixture has a leading-space body      |
-| `warnings()` dropped every Spanish admonition           | green; the corpus is English                    |
-| `{{Accuracy\|{{ic\|x}}}}` altered inside "verbatim"     | green                                           |
-| a nested list lost its first indent                     | green                                           |
-| `<nowiki>` expanded what it was protecting              | green; the guard deleted the comments too       |
-| a bodiless `{{bc}}` was a command hashed as `e3b0c442…` | green; no fixture contains one                  |
+| defect                                                      | the fixture corpus said                         |
+| :---------------------------------------------------------- | :---------------------------------------------- |
+| `##` → `1. # body` (a bare `#` back in prose)               | green; 40 affected lines were _in_ the fixtures |
+| `{{Note\| body}}` rendered as code                          | green; no fixture has a leading-space body      |
+| `warnings()` dropped every Spanish admonition               | green; the corpus is English                    |
+| `{{Accuracy\|{{ic\|x}}}}` altered inside "verbatim"         | green                                           |
+| a nested list lost its first indent                         | green                                           |
+| `<nowiki>` expanded what it was protecting                  | green; the guard deleted the comments too       |
+| a quoted `{{bc}}` became a command; `{{Warning}}` a warning | green; found by review, not by any test         |
+| a bodiless `{{bc}}` was a command hashed as `e3b0c442…`     | green; no fixture contains one                  |
 
 Three of these were _present in the recorded fixtures_ and invisible because the
 assertions looked one character to the left. Re-recording would not have helped.
 
-The `<nowiki>` case is the sharpest. `commands("Iwd")` returned a dbus config with
-its comment lines deleted, and `test_marking_only_affects_blocks_that_have_placeholders`
-compared that output against a reference computed the same broken way. Both sides
-agreed, so the assertion passed. **A test that recomputes the behaviour it is
-checking cannot find a bug in it.** The fixture held the evidence the whole time;
-the invariant that eventually caught it — every `<nowiki>` payload appears verbatim
-in the rendered output — was stated against the wiki, not against our own code.
+The `<nowiki>` rendering case is the sharpest. `commands("Iwd")` returned a dbus
+config with its comment lines deleted, and
+`test_marking_only_affects_blocks_that_have_placeholders` compared that output
+against a reference computed the same broken way. Both sides agreed, so the
+assertion passed. **A test that recomputes the behaviour it is checking cannot find
+a bug in it.** The fixture held the evidence the whole time; the invariant that
+eventually caught it — every `<nowiki>` payload appears verbatim in the rendered
+output — was stated against the wiki, not against our own code.
+
+The quoted-template case is the humbling one: the audit could not have found it
+either. Fixing the renderer left the _scanners_ untouched, so
+`<nowiki>{{bc|echo hi}}</nowiki>` still produced a command and
+`<nowiki>{{Warning|rm -rf /}}</nowiki>` still produced a `WARNING` the article never
+issued. It was caught in code review. And it cannot be audited on live pages: it is
+a claim about the _position_ a block was extracted from, which no output field
+records, and every textual proxy either flags honest blocks (`Help:Style` quotes a
+script it also really runs) or goes vacuous exactly when the masking regresses. It
+is pinned in unit tests instead, where a synthetic page fixes the positions.
 
 ### Remaining gaps
 

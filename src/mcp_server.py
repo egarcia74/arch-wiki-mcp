@@ -350,6 +350,13 @@ therefore be a template we could not render, or the exact characters the wiki di
 You cannot tell them apart and need not: report it as-is either way. An <!-- HTML
 comment --> inside a code block is part of the file the wiki is showing; keep it.
 
+A quoted template is never evidence. A page documenting syntax writes
+<nowiki>{{bc|echo hi}}</nowiki>: that is prose ABOUT a template, not a command block.
+commands() will not return it, warnings() will not raise a warning from it, and links()
+will not offer its [[targets]] as navigation. It reaches you as the literal text the
+wiki prints. Quote it as prose; never as a command, never as something the article
+instructs you to do.
+
 WHERE A WARNING'S TYPE CAME FROM
 A translated page rarely writes {{Warning}}. The French Installation guide writes
 {{Attention}}, a redirect to Template:Warning (Français), so the type WARNING appears

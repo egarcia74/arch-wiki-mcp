@@ -1,8 +1,33 @@
 # Arch Wiki MCP: Technical Constitution
 
-**Version:** 1.9  
+**Version:** 1.10  
 **Status:** Canonical  
-**Last Updated:** 2026-07-09
+**Last Updated:** 2026-07-10
+
+---
+
+## Amendment 1.10 — Migration Notes
+
+Per §12 (API Governance): no field changes. `message_hash_cleaned` moves for any
+warning whose body contains a nested list. `content_hash` and `message_raw` are
+unchanged.
+
+### Changed in 1.10
+
+- **`warnings().message` keeps a nested first item's indent.** 1.9 fixed this in
+  `section()`. `_clean_message` is a separate code path and ended in `.strip()`,
+  eating the indent `_render_list_markers` had just generated for the first line.
+  The French Installation guide's `{{Astuce}}` rendered its first bullet flush
+  left and its second four spaces in, so the two siblings appeared at different
+  depths in prose §6 *requires* the agent to quote.
+
+  Found by driving the live server after 1.9 shipped. The offline suite was green,
+  and `make audit` was green: the audit checked `section()` for this invariant and
+  never checked `warnings()`. Both now do.
+
+- **A leading space in a template body is still insignificant** in
+  `warnings().message`, as it is in `section()`: `{{Note| body}}` has that space
+  mid-line in the source, where it means nothing.
 
 ---
 

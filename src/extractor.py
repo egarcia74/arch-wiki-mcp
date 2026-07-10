@@ -559,11 +559,17 @@ def _clean_message(raw: str) -> str:
     {{ic|...}} and [[links]] made the mandated response shape unreadable. The
     verbatim text is preserved alongside as message_raw, and that is what the
     content_hash covers.
+
+    Whitespace is handled at both ends for the same reason it is in
+    _render_admonition: a leading space in "{{Note| body}}" sits mid-line in the
+    source and means nothing, while the leading spaces _render_list_markers emits
+    are a nested item's depth. Stripping both promoted a nested first item a level
+    above its own siblings.
     """
-    text, _ = _strip_inline_markup(raw)
+    text, _ = _strip_inline_markup(raw.lstrip(" \t"))
     text = _resolve_links(text)
     text = "\n".join(_render_list_markers(line) for line in text.split("\n"))
-    return text.strip()
+    return text.strip("\n").rstrip()
 
 
 def _parse_single_template(

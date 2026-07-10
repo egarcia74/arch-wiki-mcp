@@ -196,6 +196,14 @@ appearing byte-for-byte as the wiki wrote it.
 It asserts nothing about _what_ a page says — only that whatever it says comes out
 obeying the contract. It is deliberately outside pytest, which blocks sockets.
 
+It **refuses to run** when `ARCHWIKI_OFFLINE` is set. That variable routes every
+fetch to `tests/fixtures`, so a shell that still exported it — after `make test` in
+the same session — made the audit re-render the seven pinned pages it exists to look
+past, print "No invariant violations", and exit 0. A green check that checked nothing
+is this repo's own failure mode, aimed at itself. Clearing the variable silently
+would be worse than refusing: a run must never _look_ like it audited the wiki when
+it did not.
+
 This is not redundant with the fixture suite. Five defects reached `master` past a
 green suite and were caught on first contact with live content:
 

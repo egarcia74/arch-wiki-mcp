@@ -2,6 +2,11 @@
 MCP tool-surface tests: schema shape, title/URL handling, and error mapping.
 """
 
+import io
+import json
+import tomllib
+from pathlib import Path
+
 import pytest
 
 from conftest import GRUB_REVID
@@ -137,3 +142,54 @@ def test_search_tool():
 
 def test_search_tool_zero_results():
     assert mcp_server.tool_search("wifi not working")["results"] == []
+
+
+def _drive_server(stdin_text, monkeypatch, capsys):
+    """Feed raw lines to the stdio loop; return the parsed responses."""
+    monkeypatch.setattr(mcp_server.sys, "stdin", io.StringIO(stdin_text))
+    mcp_server.run_mcp_server()
+    return [json.loads(line) for line in capsys.readouterr().out.splitlines() if line.strip()]
+
+
+def test_a_parse_error_never_answers_with_a_previous_request_id(monkeypatch, capsys):
+    """
+    A malformed line must not be blamed on the last request that parsed.
+
+    msg_id used to survive the iteration that bound it, so an unparseable line
+    emitted an error carrying the id of an already-answered request -- a client
+    keyed on id sees its result overwritten. JSON-RPC 2.0: null when unknown.
+    """
+    responses = _drive_server(
+        '{"jsonrpc":"2.0","id":1,"method":"tools/list"}\nNOT JSON\n', monkeypatch, capsys
+    )
+
+    assert len(responses) == 2
+    assert responses[0]["id"] == 1 and "result" in responses[0]
+    assert responses[1]["id"] is None, "parse error stole the id of request 1"
+    assert responses[1]["error"]["code"] == -32603
+
+
+def test_server_info_version_matches_the_package_version(monkeypatch, capsys):
+    """
+    The only way a client can tell a reloaded server from a stale process is
+    serverInfo.version. Nothing pinned it to pyproject, so it could silently
+    lag a release and quietly answer for the previous build.
+    """
+    pyproject = Path(__file__).parent.parent / "pyproject.toml"
+    declared = tomllib.loads(pyproject.read_text())["project"]["version"]
+
+    responses = _drive_server(
+        '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}\n', monkeypatch, capsys
+    )
+    assert responses[0]["result"]["serverInfo"]["version"] == declared
+
+
+def test_tools_call_without_a_name_is_invalid_params(monkeypatch, capsys):
+    responses = _drive_server(
+        '{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"arguments":{}}}\n',
+        monkeypatch,
+        capsys,
+    )
+
+    assert responses[0]["id"] == 7
+    assert responses[0]["error"]["code"] == -32602

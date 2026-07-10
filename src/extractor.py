@@ -849,7 +849,14 @@ def _render_admonition(name: str, interior: str, depth: int) -> str:
     # and eating that indent silently promotes it a level above its own siblings.
     body = render_section_wikitext(raw.lstrip(" \t"), depth + 1).strip("\n")
 
-    label = f"**{_ADMONITIONS[canonical_admonition(name).lower()]}:**"
+    # _classify_template only routes here when this resolves, but that guard sits
+    # in another function: re-check rather than trust it at a distance. Not an
+    # assert -- those compile out under -O, and this must never label silently.
+    canonical = canonical_admonition(name)
+    if canonical is None:
+        raise ValueError(f"not an admonition template: {name!r}")
+
+    label = f"**{_ADMONITIONS[canonical.lower()]}:**"
     # A bullet, a fence, or an indented line glued to the label reads as part of it.
     inline = not ("\n" in body or body[:1].isspace() or body.startswith(("- ", "1. ", "```")))
     return f"{label}{' ' if inline else chr(10)}{body}"

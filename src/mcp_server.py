@@ -7,7 +7,7 @@ import sys
 import os
 import json
 from dataclasses import asdict
-from typing import Optional
+from typing import Any, Dict, Optional
 from urllib.parse import urlparse
 
 # Allow `python3 src/mcp_server.py` to resolve the `src` package. Importing via
@@ -268,7 +268,7 @@ def _handle_initialize(msg_id: int) -> dict:
         "id": msg_id,
         "result": {
             "protocolVersion": "2024-11-05",
-            "serverInfo": {"name": "arch-wiki-mcp", "version": "1.5.2"},
+            "serverInfo": {"name": "arch-wiki-mcp", "version": "1.5.3"},
             "capabilities": {"tools": {}, "prompts": {}}
         }
     }
@@ -473,6 +473,12 @@ def _handle_tools_list(msg_id: int) -> dict:
 
 def _handle_tools_call(msg_id: int, params: dict) -> dict:
     tool_name = params.get("name")
+    if not isinstance(tool_name, str):
+        return {
+            "jsonrpc": "2.0",
+            "id": msg_id,
+            "error": {"code": -32602, "message": "Invalid params: 'name' must be a string"}
+        }
     arguments = params.get("arguments", {})
     result = handle_tool_call(tool_name, arguments)
     return {
@@ -490,6 +496,11 @@ def _handle_tools_call(msg_id: int, params: dict) -> dict:
 def run_mcp_server():
     """Run as MCP server - JSON-RPC over stdio."""
     for line in sys.stdin:
+        # Rebound per line. Carried over, a parse failure would answer with the
+        # id of the previous -- already answered -- request, and a client keyed
+        # on id would see that result overwritten by an error. JSON-RPC 2.0
+        # requires a null id when the request id cannot be determined.
+        msg_id = None
         try:
             message = json.loads(line)
             method = message.get("method")
@@ -518,7 +529,7 @@ def run_mcp_server():
         except Exception as e:
             _send_response({
                 "jsonrpc": "2.0",
-                "id": msg_id if 'msg_id' in locals() else None,
+                "id": msg_id,
                 "error": {"code": -32603, "message": f"Internal error: {str(e)}"}
             })
 
@@ -553,6 +564,7 @@ def main():
     tool = sys.argv[1]
     
     # Build arguments dict
+    arguments: Dict[str, Any]
     if tool == "search":
         arguments = {"query": sys.argv[2]}
         if len(sys.argv) > 3:

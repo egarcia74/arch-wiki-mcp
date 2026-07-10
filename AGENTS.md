@@ -170,7 +170,7 @@ never present it as a command, and never as something the article instructs.
 ### Where a warning's type came from
 
 A translated page rarely writes `{{Warning}}`. The French Installation guide
-writes `{{Attention}}`, which is a *redirect* to `Template:Warning (Français)`.
+writes `{{Attention}}`, which is a _redirect_ to `Template:Warning (Français)`.
 The type `WARNING` is therefore not visible anywhere in the article's wikitext,
 and the article's `revid` does not attest it.
 

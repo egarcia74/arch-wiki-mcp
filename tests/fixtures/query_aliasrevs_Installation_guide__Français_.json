@@ -1,0 +1,29 @@
+{
+  "batchcomplete": "",
+  "query": {
+    "pages": {
+      "32767": {
+        "pageid": 32767,
+        "ns": 10,
+        "title": "Template:Astuce",
+        "revisions": [
+          {
+            "revid": 675789,
+            "parentid": 675577
+          }
+        ]
+      },
+      "32769": {
+        "pageid": 32769,
+        "ns": 10,
+        "title": "Template:Attention",
+        "revisions": [
+          {
+            "revid": 675792,
+            "parentid": 675580
+          }
+        ]
+      }
+    }
+  }
+}

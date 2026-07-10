@@ -88,6 +88,37 @@ class WarningBlock:
     content_hash: str  # SHA-256 over message_raw, so it stays greppable in the source
     message_hash_cleaned: str  # SHA-256 over message -- the text the agent must quote
     revid: Optional[int] = None
+    # Null when the template spelled its own type ({{Warning}}, {{Note (Español)}}).
+    # Set when `type` was learned from a redirect, which the article's revid does
+    # not cover: see TemplateResolution.
+    alias: Optional[str] = None  # Redirect that carried the type, normalized: "Attention"
+    alias_target: Optional[str] = None  # Where it points: "Template:Warning (Français)"
+    alias_revid: Optional[int] = None  # Revision of the REDIRECT page itself
+
+
+@dataclass(frozen=True)
+class TemplateResolution:
+    """
+    What a template name denotes, and -- if we had to ask the wiki -- how we know.
+
+    `type` is None for a name that resolved to something that is not an
+    admonition ({{ic}}, {{Pkg}}); that is a real answer, and it is cached.
+
+    A name like {{Attention}} spells out nothing: its type comes from
+    Template:Attention being a redirect to Template:Warning (Français). Nothing in
+    the article attests that. Retarget the redirect and the block's `type` flips
+    with no change to the article's revid, message_raw, or content_hash.
+
+    So we pin the redirect. `alias_revid` is the revision of the REDIRECT page --
+    the page a retarget edits -- and not of its destination. MediaWiki resolves
+    titles before prop=revisions runs, so `redirects=1` reports the destination's
+    revid, which a retarget leaves untouched. It is the wrong number to trust,
+    and it must be fetched in a separate query with redirects off.
+    """
+    type: Optional[str] = None
+    alias: Optional[str] = None
+    alias_target: Optional[str] = None
+    alias_revid: Optional[int] = None
 
 
 @dataclass
@@ -573,7 +604,7 @@ def _clean_message(raw: str) -> str:
 
 
 def _parse_single_template(
-    content: str, types: Dict[str, Optional[str]], revid: Optional[int]
+    content: str, types: Dict[str, TemplateResolution], revid: Optional[int]
 ) -> Optional[WarningBlock]:
     """
     Parse the interior content of a template and return a WarningBlock if valid.
@@ -581,39 +612,46 @@ def _parse_single_template(
     Splits on the first TOP-LEVEL pipe. A naive split("|", 1) truncated any
     message containing a pipe inside a nested {{ic|a|b}} or [[link|text]].
 
-    `types` maps a template name to the admonition it denotes. A translated page
-    spells it {{Note (Español)}} or {{Attention}}, so the name alone is not enough.
+    `types` maps a template name to what it denotes, and to the redirect that
+    said so. A translated page spells it {{Note (Español)}} or {{Attention}}, so
+    the name alone is not enough -- and when a redirect supplied the type, the
+    block carries that redirect so a client can check it.
     """
     parts = _split_template_params(content, 1)
     raw_name = parts[0].strip()
 
-    name = types.get(raw_name.lower()) or canonical_admonition(raw_name)
-    if name not in ADMONITION_TYPES:
+    resolution = types.get(raw_name.lower())
+    if resolution is None:
+        resolution = TemplateResolution(type=canonical_admonition(raw_name))
+    if resolution.type not in ADMONITION_TYPES:
         return None
 
     message_raw = _strip_param_name(parts[1], {"1"}).strip() if len(parts) > 1 else ""
     message = _clean_message(message_raw)
 
     return WarningBlock(
-        type=name,
+        type=resolution.type,
         message=message,
         message_raw=message_raw,
         content_hash=hash_content(message_raw),
         message_hash_cleaned=hash_content(message),
-        revid=revid
+        revid=revid,
+        alias=resolution.alias,
+        alias_target=resolution.alias_target,
+        alias_revid=resolution.alias_revid,
     )
 
 
 def parse_templates(
     wikitext: str,
     revid: Optional[int] = None,
-    types: Optional[Dict[str, Optional[str]]] = None,
+    types: Optional[Dict[str, TemplateResolution]] = None,
 ) -> List[WarningBlock]:
     """
     Robustly parse MediaWiki templates for warnings, notes, tips.
     Handles nesting, multi-params, and |1= syntax.
 
-    `types` maps template names to admonition types for a translated page. Without
+    `types` maps template names to what they denote on a translated page. Without
     it, only names that spell themselves out are recognized -- enough for English,
     and blind to {{Attention}}. warnings() supplies it; see admonition_types().
     """
@@ -1067,8 +1105,9 @@ _NOT_A_TEMPLATE_TITLE = re.compile(r"[:#=|!{}\[\]]")
 _TITLES_PER_QUERY = 50
 
 # Populated only on success, and only for names the wiki actually resolved.
-# name.lower() -> "WARNING" | None (resolved, and not an admonition)
-_template_aliases: Dict[str, Optional[str]] = {}
+# name.lower() -> TemplateResolution. A resolution whose .type is None means
+# "resolved, and not an admonition" ({{ic}}, {{Pkg}}) -- a real answer, cached.
+_template_aliases: Dict[str, TemplateResolution] = {}
 
 
 def reset_template_alias_cache() -> None:
@@ -1088,21 +1127,68 @@ def canonical_admonition(name: str) -> Optional[str]:
     return upper if upper in ADMONITION_TYPES else None
 
 
-def fetch_template_aliases(names: List[str], cache_key: str, timeout: int = 30) -> Dict[str, Optional[str]]:
-    """
-    Ask MediaWiki where each template name redirects, in one batched request.
+def _batched(titles: List[str]) -> List[List[str]]:
+    return [titles[i:i + _TITLES_PER_QUERY] for i in range(0, len(titles), _TITLES_PER_QUERY)]
 
-    Returns name.lower() -> admonition type, or None when the name resolves to
-    something that is not an admonition. Raises on an unanswered query: callers
-    must fail closed rather than report an English-only subset as complete.
+
+def fetch_redirect_revids(titles: List[str], cache_key: str, timeout: int = 30) -> Dict[str, int]:
+    """
+    The current revision of each redirect page, keyed by its full title.
+
+    Deliberately queried WITHOUT redirects=1. With it, MediaWiki resolves the
+    title first and hands back the destination's revid -- a page a retarget never
+    touches. The revision that moves when someone repoints {{Attention}} is the
+    revision of Template:Attention, and this is the only way to read it.
+    """
+    revids: Dict[str, int] = {}
+    for index, batch in enumerate(_batched(sorted(titles))):
+        suffix = "" if len(titles) <= _TITLES_PER_QUERY else f"_{index + 1}"
+        data = _fetch(
+            {
+                "action": "query",
+                "titles": "|".join(batch),
+                "prop": "revisions",
+                "rvprop": "ids",
+                "format": "json",
+            },
+            timeout,
+            key=f"aliasrevs_{cache_key}{suffix}",
+        )
+
+        if "error" in data:
+            raise ValueError(f"Redirect revision API Error: {data['error'].get('info', data['error'])}")
+        if "query" not in data:
+            raise ValueError(f"Unexpected redirect revision response format: {data}")
+
+        for page in data["query"].get("pages", {}).values():
+            revisions = page.get("revisions")
+            if revisions:
+                revids[page["title"]] = revisions[0]["revid"]
+
+    return revids
+
+
+def fetch_template_aliases(names: List[str], cache_key: str, timeout: int = 30) -> Dict[str, TemplateResolution]:
+    """
+    Ask MediaWiki what each template name denotes, and pin how we learned it.
+
+    Returns name.lower() -> TemplateResolution. Raises on an unanswered query:
+    callers must fail closed rather than report an English-only subset as
+    complete.
+
+    Two queries, not one, and the second only when a name actually redirects to
+    an admonition. An English page resolves {{ic}} and {{Pkg}} to "not an
+    admonition" and stops there, paying nothing. Only a page that leans on a
+    redirect for a safety-critical type pays for attesting it.
     """
     if not names:
         return {}
 
     ordered = sorted(names)
-    resolved: Dict[str, Optional[str]] = {name.lower(): None for name in ordered}
+    resolved: Dict[str, TemplateResolution] = {name.lower(): TemplateResolution() for name in ordered}
+    aliases: Dict[str, Tuple[str, str, str]] = {}  # lowered source -> (source title, target title, type)
 
-    batches = [ordered[i:i + _TITLES_PER_QUERY] for i in range(0, len(ordered), _TITLES_PER_QUERY)]
+    batches = _batched(ordered)
     for index, batch in enumerate(batches):
         suffix = "" if len(batches) == 1 else f"_{index + 1}"
         data = _fetch(
@@ -1124,8 +1210,27 @@ def fetch_template_aliases(names: List[str], cache_key: str, timeout: int = 30) 
         for redirect in data["query"].get("redirects", []):
             source = redirect["from"].split(":", 1)[-1].lower()
             target = redirect["to"].split(":", 1)[-1]
-            if source in resolved:
-                resolved[source] = canonical_admonition(target)
+            admonition = canonical_admonition(target)
+            if source in resolved and admonition:
+                aliases[source] = (redirect["from"], redirect["to"], admonition)
+
+    if aliases:
+        revids = fetch_redirect_revids([source for source, _, _ in aliases.values()], cache_key, timeout)
+        for source, (source_title, target_title, admonition) in aliases.items():
+            revid = revids.get(source_title)
+            if revid is None:
+                # We know this page carries a WARNING and cannot say why. Silence
+                # would be worse: fail closed, exactly as an unanswered query does.
+                raise ValueError(
+                    f"No revision for redirect {source_title!r}: cannot attest that it "
+                    f"denotes {admonition}."
+                )
+            resolved[source] = TemplateResolution(
+                type=admonition,
+                alias=source_title.split(":", 1)[-1],
+                alias_target=target_title,
+                alias_revid=revid,
+            )
 
     return resolved
 
@@ -1135,13 +1240,15 @@ def fetch_template_aliases(names: List[str], cache_key: str, timeout: int = 30) 
 _ALIAS_FAILURES = (URLError, TimeoutError, ConnectionError, OSError, json.JSONDecodeError, ValueError)
 
 
-def admonition_types(wikitext: str, cache_key: str) -> Dict[str, Optional[str]]:
+def admonition_types(wikitext: str, cache_key: str) -> Dict[str, TemplateResolution]:
     """
-    Map every top-level template name in `wikitext` to its admonition type.
+    Map every top-level template name in `wikitext` to what it denotes.
 
-    Names that spell themselves out are free. The rest are resolved once, cached
-    across pages, and a failure raises: returning the English matches alone would
-    be an empty-or-partial result the agent is told to read as the wiki's silence.
+    Names that spell themselves out are free, and self-attesting: the spelling is
+    in the wikitext the article's revid already covers. The rest are resolved once
+    against the wiki, cached across pages, and carry the redirect they came from.
+    A failure raises: returning the English matches alone would be an
+    empty-or-partial result the agent is told to read as the wiki's silence.
     """
     names = {
         name
@@ -1149,12 +1256,12 @@ def admonition_types(wikitext: str, cache_key: str) -> Dict[str, Optional[str]]:
         if name and not _NOT_A_TEMPLATE_TITLE.search(name)
     }
 
-    types: Dict[str, Optional[str]] = {}
+    types: Dict[str, TemplateResolution] = {}
     unresolved = []
     for name in names:
         canonical = canonical_admonition(name)
         if canonical:
-            types[name] = canonical
+            types[name] = TemplateResolution(type=canonical)
         elif name in _template_aliases:
             types[name] = _template_aliases[name]
         else:
@@ -1445,19 +1552,11 @@ def warnings(title: str, anchor: Optional[str] = None) -> List[Dict]:
         url_base = make_wiki_url(parse_data["title"])
 
     warning_blocks = parse_templates(wikitext, revid, types)
-    
-    return [
-        {
-            "type": w.type,
-            "message": w.message,
-            "message_raw": w.message_raw,
-            "content_hash": w.content_hash,
-            "message_hash_cleaned": w.message_hash_cleaned,
-            "source_url": url_base,
-            "revid": w.revid
-        }
-        for w in warning_blocks
-    ]
+
+    # asdict, not a hand-listed literal: the literal is how tool_section() came to
+    # attest a hash over text it never returned. A new field must reach the agent
+    # by default, not by someone remembering to add it in a second place.
+    return [{**asdict(w), "source_url": url_base} for w in warning_blocks]
 
 
 def links(title: str, anchor: Optional[str] = None) -> List[Dict]:

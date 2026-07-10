@@ -1,8 +1,50 @@
 # Arch Wiki MCP: Technical Constitution
 
-**Version:** 1.10  
+**Version:** 1.11  
 **Status:** Canonical  
 **Last Updated:** 2026-07-10
+
+---
+
+## Amendment 1.11 — Migration Notes
+
+Per §12 (API Governance): `warnings()` gains three additive fields — `alias`,
+`alias_target`, `alias_revid`. All are `null` for every warning on an English
+page, and for the suffixed localized forms (`{{Note (Español)}}`). No existing
+field changes, and no hash moves.
+
+### Changed in 1.11
+
+- **A warning type derived from a template redirect now carries that redirect.**
+  The French Installation guide writes `{{Attention}}`, which is a redirect to
+  `Template:Warning (Français)`. The type `WARNING` appears nowhere in the
+  article's wikitext, the article's `revid` does not cover the redirect page, and
+  `content_hash` attests only `message_raw`. Retargeting `Template:Attention`
+  flipped a block's `type` with **no change to `revid`, `content_hash`, or
+  `message_raw`** — a safety-critical field derived from an unattested source, in
+  a project whose product is falsifiable citation.
+
+  `alias_revid` is the revision of the **redirect page itself**. Not the
+  article's, and — the trap — not the redirect target's. MediaWiki resolves
+  titles before `prop=revisions` runs, so a `redirects=1` query reports the
+  destination's revid, which a retarget never touches. Reading the right number
+  requires a second query with redirects off.
+
+- **The second query fires only when a name actually redirects to an
+  admonition.** English pages resolve `{{ic}}` and `{{Pkg}}` to "not an
+  admonition" and pay nothing. Of the nine recorded alias pages, exactly one —
+  the French Installation guide — makes the extra request.
+
+- **An unattestable redirect raises.** If the redirect resolves but its revision
+  cannot be read, we know the page carries a `WARNING` and cannot say why.
+  Returning it unattested would be the claim this amendment forbids; dropping it
+  would be a suppressed warning. It fails closed, as an unanswered alias query
+  already did.
+
+- **`warnings()` serializes with `asdict`.** It hand-listed its keys, which is
+  how `tool_section()` came to attest a hash over text it never returned (1.8).
+  A new field now reaches the agent by default rather than by someone
+  remembering a second place to add it.
 
 ---
 

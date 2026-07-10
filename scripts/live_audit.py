@@ -223,6 +223,24 @@ def audit_page(page, report, residual, stats):
         if LEAKED_MARKER.search(warning["message"]):
             report["warning_message_leaked_a_marker"].append(f"{page}: {warning['type']}")
 
+        # A type learned from a redirect must say so, completely. Half-provenance
+        # is worse than none: it looks attested and pins nothing.
+        alias_fields = (warning["alias"], warning["alias_target"], warning["alias_revid"])
+        if any(alias_fields) and not all(alias_fields):
+            report["alias_provenance_incomplete"].append(f"{page}: {warning['type']} {alias_fields}")
+
+        # And a template that spells its own type must claim no redirect: an alias
+        # on {{Warning}} would attest a lookup that never happened.
+        if warning["alias"] and extractor.canonical_admonition(warning["alias"]):
+            report["alias_claimed_for_a_self_spelling_name"].append(
+                f"{page}: {warning['alias']}"
+            )
+
+        # The redirect page is never the article. If they coincide we have pinned
+        # the wrong page, which is the failure this provenance exists to detect.
+        if warning["alias_revid"] is not None and warning["alias_revid"] == warning["revid"]:
+            report["alias_revid_equals_article_revid"].append(f"{page}: {warning['alias']}")
+
     audited_public_api = False
     for section in parse["sections"]:
         anchor = section.get("anchor")

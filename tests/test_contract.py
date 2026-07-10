@@ -62,6 +62,9 @@ def test_the_injected_prompt_names_every_ambiguous_field(field):
 def test_the_derived_field_set_is_the_one_we_expect():
     """Tripwire: a field leaving this set means the schema shrank silently."""
     assert contract_fields() == [
+        "alias",
+        "alias_revid",
+        "alias_target",
         "content_hash_cleaned",
         "content_raw",
         "message_hash_cleaned",
@@ -127,6 +130,26 @@ def test_the_section_tool_returns_rendered_content_over_the_wire():
     assert "# Point the current boot device" in result["content_raw"]
 
 
+def _plain(text: str) -> str:
+    """Strip markdown/quoting noise so both documents can be matched the same way."""
+    return re.sub(r"\s+", " ", re.sub(r"[`*\"]", "", text))
+
+
+@pytest.mark.parametrize("source", ["AGENTS.md", "usage_prompt"])
+def test_the_contract_cites_the_redirect_page_not_its_destination(source):
+    """
+    alias_revid is a revision of Template:<alias>. Pairing it with alias_target
+    names a title and a revision belonging to two different pages -- a citation
+    that resolves to nothing, in the one field added to make the type falsifiable.
+
+    Both documents shipped exactly that instruction ("cite alias_target at
+    alias_revid"). The tool output was right and the manual was wrong, which is
+    the failure this whole test module exists to catch.
+    """
+    text = _plain(AGENTS_MD if source == "AGENTS.md" else usage_prompt())
+    assert "cite Template:<alias> at alias_revid" in text
+
+
 def documented_hashes() -> set:
     """Every SHA-256 the README prints as if it were real."""
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
@@ -140,6 +163,9 @@ def reproducible_hashes() -> set:
     for command in extractor.commands("GRUB", "Installation"):
         produced |= {command["content_hash"], command["content_hash_cleaned"]}
     for warning in extractor.warnings("Iwd", "Usage"):
+        produced |= {warning["content_hash"], warning["message_hash_cleaned"]}
+    # The README's alias-provenance example is a real block off a real page.
+    for warning in extractor.warnings("Installation guide (Français)"):
         produced |= {warning["content_hash"], warning["message_hash_cleaned"]}
     return produced
 

@@ -97,14 +97,114 @@ def test_escapes_and_magic_words_are_never_sent_as_titles():
     """{{=}}, {{!}}, {{DISPLAYTITLE:x}} and {{int:y}} are not wiki pages."""
     wikitext = "{{=}} {{!}} {{DISPLAYTITLE:x}} {{int:savechanges}} {{Note|hi}}"
     types = extractor.admonition_types(wikitext, "unused-no-fixture-needed")
-    assert types == {"note": "NOTE"}
+    assert types == {"note": extractor.TemplateResolution(type="NOTE")}
 
 
 def test_resolved_aliases_are_cached_across_pages():
     extractor.warnings(FRENCH)
-    assert extractor._template_aliases["astuce"] == "TIP"
-    assert extractor._template_aliases["attention"] == "WARNING"
-    assert extractor._template_aliases["ic"] is None  # resolved, and not an admonition
+    assert extractor._template_aliases["astuce"].type == "TIP"
+    assert extractor._template_aliases["attention"].type == "WARNING"
+    # Resolved, and not an admonition. A real answer, and cached as one.
+    assert extractor._template_aliases["ic"].type is None
+
+
+def test_a_type_learned_from_a_redirect_carries_that_redirect():
+    """
+    The gap this closes. {{Attention}} is a WARNING only because the wiki says
+    Template:Attention redirects to Template:Warning (Français). The article's
+    revid does not cover that page, and content_hash covers only message_raw --
+    so retargeting the redirect flipped `type` with nothing in the block moving.
+    """
+    warning = next(w for w in extractor.warnings(FRENCH) if w["type"] == "WARNING")
+
+    assert warning["alias"] == "Attention"
+    assert warning["alias_target"] == "Template:Warning (Français)"
+    assert warning["alias_revid"] == 675792
+
+    # The revid of the REDIRECT page, never the article's, and never its target's.
+    assert warning["alias_revid"] != warning["revid"]
+
+
+def test_a_type_the_template_spells_out_claims_no_redirect():
+    """
+    {{Warning}} and {{Note (Español)}} are self-attesting: the spelling sits in
+    the wikitext the article's revid already covers. Inventing an alias for them
+    would attest a lookup that never happened.
+    """
+    for page in (ENGLISH, SPANISH):
+        for warning in extractor.warnings(page):
+            assert warning["alias"] is None, page
+            assert warning["alias_target"] is None, page
+            assert warning["alias_revid"] is None, page
+
+
+def test_the_redirect_revid_is_the_redirect_page_not_its_destination():
+    resolved = extractor.fetch_template_aliases(["Attention"], FRENCH)
+    assert resolved["attention"] == extractor.TemplateResolution(
+        type="WARNING",
+        alias="Attention",
+        alias_target="Template:Warning (Français)",
+        alias_revid=675792,
+    )
+
+
+def test_the_revid_query_asks_the_redirect_pages_with_redirects_off(monkeypatch):
+    """
+    Asserts the REQUEST, not the response, and that is the whole point.
+
+    An offline fixture is keyed by page, so _fetch hands back the same JSON
+    whichever titles we ask for. Querying the redirect's *destination* instead of
+    the redirect itself therefore passes every response-level assertion -- I
+    reverted the code to do exactly that and all 224 tests stayed green.
+
+    Two things must hold, and only the outgoing params can show them:
+      - we ask for Template:Attention, the page a retarget edits, not
+        Template:Warning (Français), which such an edit never touches;
+      - redirects=1 is absent, because with it MediaWiki resolves the title
+        before prop=revisions runs and answers about the destination anyway.
+    """
+    sent = []
+    original = extractor._fetch
+
+    def _spy(params, timeout=30, key=None):
+        sent.append(params)
+        return original(params, timeout, key)
+
+    monkeypatch.setattr(extractor, "_fetch", _spy)
+    extractor.fetch_template_aliases(["Attention", "Astuce"], FRENCH)
+
+    revid_queries = [p for p in sent if p.get("prop") == "revisions"]
+    assert len(revid_queries) == 1, "expected exactly one revid query"
+    params = revid_queries[0]
+
+    titles = params["titles"].split("|")
+    assert titles == ["Template:Astuce", "Template:Attention"]
+    assert "redirects" not in params, "redirects=1 would answer about the destination"
+    assert params["rvprop"] == "ids"
+
+
+def test_an_unattestable_redirect_fails_closed_rather_than_guessing(monkeypatch):
+    """
+    We know the page carries a WARNING and cannot say why. Returning it unattested
+    would be the very claim this change exists to forbid; dropping it would be a
+    suppressed warning. Raise.
+    """
+    monkeypatch.setattr(extractor, "fetch_redirect_revids", lambda *a, **k: {})
+
+    with pytest.raises(ValueError, match="cannot attest"):
+        extractor.fetch_template_aliases(["Attention"], FRENCH)
+
+
+def test_english_pages_pay_nothing_for_attestation(monkeypatch):
+    """
+    The second query fires only for a name that redirects to an admonition. No
+    English page has one, and none may pay a request for that.
+    """
+    def _refuse(*args, **kwargs):
+        raise AssertionError("fetch_redirect_revids called for a page with no alias")
+
+    monkeypatch.setattr(extractor, "fetch_redirect_revids", _refuse)
+    assert len(extractor.warnings(ENGLISH)) == 12
 
 
 def test_the_renderer_handles_the_suffixed_form():

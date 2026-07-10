@@ -153,6 +153,37 @@ could not render it, and it is reproduced byte-for-byte — insides included, so
 nested `{{ic|...}}` inside it stays raw too. Report it as-is. Never paraphrase it,
 and never drop it — omitting the wiki's own caveat is a fabrication of silence.
 
+### Where a warning's type came from
+
+A translated page rarely writes `{{Warning}}`. The French Installation guide
+writes `{{Attention}}`, which is a *redirect* to `Template:Warning (Français)`.
+The type `WARNING` is therefore not visible anywhere in the article's wikitext,
+and the article's `revid` does not attest it.
+
+So a `warnings()` block whose type was learned that way carries the redirect:
+
+| Field          | Meaning                                          |
+| :------------- | :----------------------------------------------- |
+| `alias`        | The redirect that supplied the type: `Attention` |
+| `alias_target` | Where it points: `Template:Warning (Français)`   |
+| `alias_revid`  | Revision of the **redirect page itself**         |
+
+`alias_revid` is the revision of the redirect page, not of the article and not of
+the redirect's target. It is the only one of the three that moves when someone
+repoints the redirect.
+
+All three are `null` when the template spelled its own type (`{{Warning}}`,
+`{{Note (Español)}}`); those are self-attesting, because the spelling is in the
+wikitext that `revid` already covers.
+
+When `alias` is present, the `type` you report rests on a page other than the one
+you are citing. If you assert the type is authoritative, cite **`Template:<alias>`
+at `alias_revid`** — that pair names one page at one revision — and state
+separately that it redirects to `alias_target`. Do not write `alias_target` at
+`alias_revid`: the revision belongs to the redirect, not to its destination, and
+that citation resolves to nothing. Never present a redirect-derived `WARNING` as
+though the article itself declared it.
+
 ---
 
 ### 5. Do Not Merge Sources

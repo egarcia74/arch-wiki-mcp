@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from conftest import GRUB_REVID
-from src import mcp_server
+from src import extractor, mcp_server
 
 # tomllib is 3.11+, and pyproject declares requires-python = ">=3.10". Reading
 # the one line we need keeps the floor honest without a tomli dependency in a
@@ -146,8 +146,56 @@ def test_search_tool():
     assert results[0]["url"].startswith("https://wiki.archlinux.org/title/")
 
 
+def test_search_puts_the_exact_title_first():
+    """
+    Full-text search alone buries it: searching GRUB returned GRUB2 (Indonesia)
+    before GRUB. The wiki's own search box answers the exact-title question too.
+    """
+    results = mcp_server.tool_search("GRUB")["results"]
+    assert results[0]["title"] == "GRUB"
+    assert results[0]["match"] == "title"
+    assert all(r["match"] == "text" for r in results[1:])
+
+
+def test_search_answers_a_multiword_question():
+    """
+    srwhat has no default on this wiki, so the API searched TITLES ONLY and
+    search("wifi not working") returned [] while the wiki held 47 matching
+    pages. [] is this MCP's way of saying the wiki specifies nothing, so the
+    discovery entry point was manufacturing silence.
+    """
+    results = mcp_server.tool_search("wifi not working")["results"]
+    assert results, "the wiki has dozens of matching pages"
+    assert all(r["match"] == "text" for r in results)
+
+
+def test_search_asks_the_wiki_both_questions(monkeypatch):
+    """
+    Asserts the REQUEST, because the response cannot tell us.
+
+    The offline fixture is keyed by srsearch and ignores srwhat, so it hands back
+    the same JSON whichever mode we ask for. I reverted search() to title-only and
+    the test above stayed green. The bug lives in the query; only the outgoing
+    params show it -- exactly as with the redirect-revid lookup.
+    """
+    sent = []
+    original = extractor._fetch
+
+    def _spy(params, timeout=30, key=None):
+        sent.append(params)
+        return original(params, timeout, key)
+
+    monkeypatch.setattr(extractor, "_fetch", _spy)
+    mcp_server.tool_search("GRUB")
+
+    modes = [p.get("srwhat") for p in sent if p.get("list") == "search"]
+    assert modes == ["nearmatch", "text"], f"srwhat sequence was {modes}"
+    assert "title" not in modes, "title-only search is what returned [] for real questions"
+
+
 def test_search_tool_zero_results():
-    assert mcp_server.tool_search("wifi not working")["results"] == []
+    """The only honest empty result: the wiki really has nothing."""
+    assert mcp_server.tool_search("zzzqqxnotathing")["results"] == []
 
 
 def _drive_server(stdin_text, monkeypatch, capsys):

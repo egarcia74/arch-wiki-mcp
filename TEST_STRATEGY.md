@@ -69,14 +69,23 @@ Values below are reproducible from the committed fixtures (GRUB `revid 858930`).
 | Fake warning section | `warnings("Pacman", "Delete_everything")`               | Error            | `ValueError: Section with anchor 'Delete_everything' not found in page 'Pacman'` | **PASS** |
 | Non-existent page    | `commands("Nonexistent page xyz")`                      | Error            | `ValueError: API Error: The page you specified doesn't exist.`                   | **PASS** |
 | Transcluded section  | `section("Transcluded example", "Transcluded_section")` | Error            | `ValueError: ... is transcluded (null byte offset)`                              | **PASS** |
-| Vague query          | `search("wifi not working")`                            | Results or empty | `[]`                                                                             | **PASS** |
+| Answerable question  | `search("wifi not working")`                            | Results          | 5 results; the wiki holds 47                                                     | **PASS** |
+| Nothing to find      | `search("zzzqqxnotathing")`                             | `[]`             | `[]`                                                                             | **PASS** |
 | Genuinely empty      | `commands(page_without_code)`                           | `[]`             | `[]`                                                                             | **PASS** |
 
-The last two rows matter together. `[]` must mean "the wiki specifies nothing
+The last three rows matter together. `[]` must mean "the wiki specifies nothing
 here" and nothing else. Until 2026-07 `commands()` wrapped its body in
 `except Exception: return []`, so a network failure, a missing page and a missing
 anchor were all indistinguishable from an honest empty result — and the first
 row of this table, previously marked **PASS**, did not hold.
+
+The `search` rows were worse. This table used to read
+`Vague query | search("wifi not working") | Results or empty | [] | PASS` — an
+expectation that accepts either answer cannot fail, and it certified a bug for
+months. `srwhat` has no default on this wiki, so the API searched **titles only**
+and returned `[]` for a question the wiki answers on 47 pages. The row now demands
+results, and a separate row demands `[]` for a query the wiki genuinely cannot
+answer.
 
 ### Phase 2: Synthesis & Merging Traps
 

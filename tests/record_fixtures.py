@@ -43,7 +43,8 @@ CORPUS = [
     ("query", "GRUB"),
     ("query", "C++"),
     ("query", "Iwd (简体中文)"),
-    ("query", "wifi not working"),
+    ("query", "wifi not working"),  # Multi-word question: title-only search returned []
+    ("query", "zzzqqxnotathing"),  # Genuinely nothing: the only honest empty result
     ("query", "siteinfo"),  # Authoritative namespace + interwiki tables for links()
 ]
 
@@ -52,38 +53,48 @@ CORPUS = [
 HAND_AUTHORED = {"parse_Transcluded_example.json", "parse_Nonexistent_page_xyz.json"}
 
 
-def record_fixture(action, key, force=False):
-    filename = os.path.join("tests/fixtures", fixture_filename(action, key))
-
+def _save(filename, params, force):
     if os.path.exists(filename) and not force:
         print(f"Skipping {filename} (exists; pass --force to re-record)")
         return
 
-    params = {
-        "action": action,
-        "format": "json"
-    }
-    if action == "parse":
-        params["page"] = key
-        params["prop"] = "wikitext|sections|revid"
-    elif key == "siteinfo":
-        params["meta"] = "siteinfo"
-        params["siprop"] = SITEINFO_PROPS
-    else:
-        params["list"] = "search"
-        params["srsearch"] = key
-        params["srlimit"] = 5
-
-    url = f"{API_ENDPOINT}?{urlencode(params)}"
-    print(f"Recording {action} for {key}...")
-
-    request = Request(url, headers={"User-Agent": USER_AGENT})
+    request = Request(f"{API_ENDPOINT}?{urlencode(params)}", headers={"User-Agent": USER_AGENT})
     with urlopen(request) as response:
         data = json.loads(response.read().decode("utf-8"))
 
     with open(filename, "w") as f:
         json.dump(data, f, indent=2)
     print(f"Saved to {filename}")
+
+
+def record_fixture(action, key, force=False):
+    fixture = lambda k: os.path.join("tests/fixtures", fixture_filename(action, k))  # noqa: E731
+
+    if action == "parse":
+        _save(fixture(key), {
+            "action": action, "format": "json",
+            "page": key, "prop": "wikitext|sections|revid",
+        }, force)
+        return
+
+    if key == "siteinfo":
+        _save(fixture(key), {
+            "action": action, "format": "json",
+            "meta": "siteinfo", "siprop": SITEINFO_PROPS,
+        }, force)
+        return
+
+    # search() asks the wiki two questions, so two fixtures. Recording only the
+    # full-text one would leave the exact-title lookup unbacked, and the offline
+    # suite would fail closed on a missing fixture rather than answer wrongly.
+    _save(fixture(key), {
+        "action": action, "format": "json",
+        "list": "search", "srsearch": key, "srlimit": 5, "srwhat": "text",
+    }, force)
+    _save(fixture(f"nearmatch_{key}"), {
+        "action": action, "format": "json",
+        "list": "search", "srsearch": key, "srlimit": 1, "srwhat": "nearmatch",
+    }, force)
 
 
 def unresolved_template_names(page_title):

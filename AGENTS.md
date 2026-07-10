@@ -177,9 +177,12 @@ All three are `null` when the template spelled its own type (`{{Warning}}`,
 wikitext that `revid` already covers.
 
 When `alias` is present, the `type` you report rests on a page other than the one
-you are citing. If you assert the type is authoritative, cite `alias_target` at
-`alias_revid` alongside the article's own `revid`. Never present a redirect-derived
-`WARNING` as though the article itself declared it.
+you are citing. If you assert the type is authoritative, cite **`Template:<alias>`
+at `alias_revid`** — that pair names one page at one revision — and state
+separately that it redirects to `alias_target`. Do not write `alias_target` at
+`alias_revid`: the revision belongs to the redirect, not to its destination, and
+that citation resolves to nothing. Never present a redirect-derived `WARNING` as
+though the article itself declared it.
 
 ---
 

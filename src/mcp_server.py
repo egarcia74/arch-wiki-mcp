@@ -349,8 +349,11 @@ learned that way the block carries `alias` (the redirect, "Attention"), `alias_t
 article, and not of the redirect's target). All three are null when the template spelled
 its own type ({{Warning}}, {{Note (Español)}}), which the article's revid already covers.
 If `alias` is set, the type rests on a page other than the one you are citing: cite
-alias_target at alias_revid alongside the article's revid, and never present a
-redirect-derived WARNING as though the article itself declared it.
+"Template:<alias>" at alias_revid -- that pair names one page at one revision -- and say
+separately that it redirects to alias_target. Never cite alias_target at alias_revid:
+that revision belongs to the redirect, not to its destination, so the pair names no
+page that exists. Never present a redirect-derived WARNING as though the article itself
+declared it.
 
 PLACEHOLDERS
 If a command block has a non-empty `placeholders` list, those tokens are values the

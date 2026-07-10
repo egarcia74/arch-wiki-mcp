@@ -130,6 +130,26 @@ def test_the_section_tool_returns_rendered_content_over_the_wire():
     assert "# Point the current boot device" in result["content_raw"]
 
 
+def _plain(text: str) -> str:
+    """Strip markdown/quoting noise so both documents can be matched the same way."""
+    return re.sub(r"\s+", " ", re.sub(r"[`*\"]", "", text))
+
+
+@pytest.mark.parametrize("source", ["AGENTS.md", "usage_prompt"])
+def test_the_contract_cites_the_redirect_page_not_its_destination(source):
+    """
+    alias_revid is a revision of Template:<alias>. Pairing it with alias_target
+    names a title and a revision belonging to two different pages -- a citation
+    that resolves to nothing, in the one field added to make the type falsifiable.
+
+    Both documents shipped exactly that instruction ("cite alias_target at
+    alias_revid"). The tool output was right and the manual was wrong, which is
+    the failure this whole test module exists to catch.
+    """
+    text = _plain(AGENTS_MD if source == "AGENTS.md" else usage_prompt())
+    assert "cite Template:<alias> at alias_revid" in text
+
+
 def documented_hashes() -> set:
     """Every SHA-256 the README prints as if it were real."""
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")

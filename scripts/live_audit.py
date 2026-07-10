@@ -33,6 +33,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src import extractor
 
+# Not derived from __doc__: that is None under `python -OO`.
+DESCRIPTION = "Audit the extractor's invariants against the live Arch Wiki."
+
 # Chosen for coverage of shapes, not popularity: tables, heavy code, prose-only,
 # nested lists, multibyte bodies, and the three admonition spellings.
 DEFAULT_PAGES = [
@@ -214,7 +217,7 @@ def audit_page(page, report, residual, stats):
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__.split("\n")[1])
+    parser = argparse.ArgumentParser(description=DESCRIPTION)
     parser.add_argument("pages", nargs="*", default=[], help="pages to audit")
     args = parser.parse_args()
 

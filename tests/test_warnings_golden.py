@@ -189,6 +189,46 @@ def test_dedenting_never_flattens_real_nesting():
     assert extractor._clean_message("plain prose") == "plain prose"
 
 
+def test_dedenting_never_touches_a_preformatted_line():
+    """
+    A space-prefixed line is preformatted code; its indent is the wiki's, not
+    ours. Counting it toward the common indent measured 1 for
+    "#** see:\\n # pacman -Fy", and shifting the block by it put a bare '#' at
+    column 0 -- the root-prompt lookalike the whole rule exists to prevent, and
+    a wrecked bullet besides. Raised by Codex on PR #12.
+
+    Latent, not live: the corpus's preformatted warning lines (Pacman, GRUB,
+    Users and groups) sit beside no list item, so the common indent was 0.
+    """
+    assert extractor._clean_message("#** see:\n # pacman -Fy") == "- see:\n # pacman -Fy"
+
+    # The preformatted line neither sets the common indent nor receives the shift.
+    assert extractor._clean_message("#** a\n # code\n#** b") == "- a\n # code\n- b"
+
+
+def leading_whitespace(line):
+    return line[: len(line) - len(line.lstrip(" \t"))]
+
+
+def test_every_preformatted_line_in_the_corpus_keeps_its_indent():
+    """
+    Markup inside such a line is still resolved (''x'' -> x); only its
+    indentation is content, and only that must survive byte-for-byte.
+    """
+    checked = 0
+    for page in CORPUS + ["Installation guide (Français)"]:
+        for warning in extractor.warnings(page):
+            for source, rendered in zip(
+                warning["message_raw"].split("\n"), warning["message"].split("\n")
+            ):
+                if extractor._is_preformatted(source):
+                    checked += 1
+                    assert leading_whitespace(rendered) == leading_whitespace(source), (
+                        f"{page}: {source!r} -> {rendered!r}"
+                    )
+    assert checked >= 4, f"corpus should exercise preformatted lines, saw {checked}"
+
+
 def test_a_leading_space_in_the_body_is_still_insignificant():
     """In {{Note| body}}, that leading space sits mid-line in the source and means nothing."""
     assert extractor._clean_message(" The iwd backend refuses.") == "The iwd backend refuses."

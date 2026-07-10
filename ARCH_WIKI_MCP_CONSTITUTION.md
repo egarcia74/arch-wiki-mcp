@@ -30,10 +30,25 @@ on the English, Spanish and French Installation guides. `content_hash` and
   to the incidental value `"    - a"` rather than to the sibling relationship, and
   now asserts the relationship.
 
-- **`make audit` gained `warning_message_opens_indented`.** Three of 177 warning
-  messages in the recorded corpus violated it, including on the English
-  Installation guide. It was in the fixtures the whole time: the suite checked
-  that no message *skipped* a nesting level, never that it *started* at one.
+- **A preformatted line takes no part in the dedent.** Its leading space came from
+  the wiki, not from us. Counting it measured a common indent of one for
+  `"#** see:\n # pacman -Fy"`, and shifting the block by it put a bare `#` at
+  column 0 — reintroducing the root-prompt lookalike this rule exists to prevent,
+  and wrecking the bullet besides. Such lines neither set the common indent nor
+  receive the shift.
+
+  Latent, never live: the four preformatted lines in the recorded corpus (Pacman,
+  GRUB, Users and groups) sit beside no list item, so the common indent was zero.
+  One wiki edit away. Raised by Codex in review.
+
+- **`make audit` gained `warning_message_opens_indented` and
+  `warning_message_root_prompt_lookalike`.** Three of 177 warning messages in the
+  recorded corpus violated the first, including on the English Installation guide.
+  It was in the fixtures the whole time: the suite checked that no message
+  *skipped* a nesting level, never that it *started* at one. The second states for
+  `warnings()` what has been checked for `section()` since 1.7 — a bare `#` at
+  column 0 is a root prompt to a reader and a heading to markdown. The same
+  invariant, on the other code path that renders the same thing.
 
 ---
 

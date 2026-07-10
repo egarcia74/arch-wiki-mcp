@@ -274,6 +274,17 @@ def audit_page(page, report, residual, stats):
         if first_line != first_line.lstrip(" "):
             report["warning_message_opens_indented"].append(f"{page}: {warning['type']}")
 
+        # A bare '#' at column 0 is a root prompt to a reader and a heading to
+        # markdown. Rendered list markers never produce one, and a preformatted
+        # line keeps the space that marks it as code -- so this can only mean an
+        # indent was eaten. section() has been checked for this since 1.7;
+        # warnings() never was, and shares neither the code path nor the guard.
+        for line in warning["message"].split("\n"):
+            if line.startswith("#") and not MARKDOWN_HEADING.match(line):
+                report["warning_message_root_prompt_lookalike"].append(
+                    f"{page}: {warning['type']}: {line[:50]!r}"
+                )
+
         # A type learned from a redirect must say so, completely. Half-provenance
         # is worse than none: it looks attested and pins nothing.
         alias_fields = (warning["alias"], warning["alias_target"], warning["alias_revid"])

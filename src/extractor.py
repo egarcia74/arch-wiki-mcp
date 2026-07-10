@@ -640,29 +640,45 @@ def _render_list_markers(line: str) -> str:
     return f"{'  ' * (depth - 1)}{bullet}{body}"
 
 
-def _dedent_orphan_indent(text: str) -> str:
+def _is_preformatted(source_line: str) -> bool:
+    """A space-prefixed source line is preformatted code; its indent is content."""
+    return source_line[:1] in (" ", "\t") and bool(source_line.strip())
+
+
+def _dedent_orphan_indent(rendered: List[Tuple[str, str]]) -> List[str]:
     """
-    Remove an indent every line shares, so a fragment does not open as code.
+    Remove an indent that _render_list_markers invented, and only that.
 
     The Installation guide writes "{{Tip|#** The ISO uses ...}}": the marker's
     depth is relative to a list that lives OUTSIDE the template. Extracted on its
-    own, the tip has no parent, and _render_list_markers faithfully emits its four
-    spaces -- which markdown reads as a code block, in the one field §6 requires
-    an agent to quote to a user. Prose rendered as a shell transcript is the
-    confusion that got examples() deleted.
+    own, the tip has no parent, and the four spaces generated for it are read by
+    markdown as a code block -- in the one field §6 requires an agent to quote to
+    a user. Prose rendered as a shell transcript is what got examples() deleted.
 
-    Only a *common* indent goes. Any line that is genuinely shallower keeps every
-    sibling's relative depth, so real nesting inside a message survives untouched.
+    A preformatted line takes no part. Its leading space came from the wiki, not
+    from us: "#** see:\\n # pacman -Fy" measured a common indent of one, and
+    shifting the block by it put a bare '#' at column 0 -- reintroducing the
+    root-prompt lookalike this whole rule exists to prevent. Such lines neither
+    set the common indent nor receive the shift.
+
+    Only a *common* indent goes, so a line that is genuinely shallower keeps every
+    sibling's relative depth and real nesting inside a message survives untouched.
     """
-    lines = [line for line in text.split("\n") if line.strip()]
-    if not lines:
-        return text
+    movable = [
+        line for source, line in rendered
+        if line.strip() and not _is_preformatted(source)
+    ]
+    if not movable:
+        return [line for _, line in rendered]
 
-    common = min(len(line) - len(line.lstrip(" ")) for line in lines)
+    common = min(len(line) - len(line.lstrip(" ")) for line in movable)
     if not common:
-        return text
+        return [line for _, line in rendered]
 
-    return "\n".join(line[common:] if line.strip() else line for line in text.split("\n"))
+    return [
+        line if _is_preformatted(source) or not line.strip() else line[common:]
+        for source, line in rendered
+    ]
 
 
 def _clean_message(raw: str) -> str:
@@ -683,8 +699,13 @@ def _clean_message(raw: str) -> str:
     hidden, protected = _hide_nowiki(raw.lstrip(" \t"))
     text, _ = _strip_inline_markup(hidden)
     text = _resolve_links(text)
-    text = "\n".join(_render_list_markers(line) for line in text.split("\n"))
-    text = _dedent_orphan_indent(text)
+
+    # Each source line is carried alongside what it rendered to: only the source
+    # can say whether a leading space is a list depth we generated or preformatted
+    # code the wiki wrote.
+    rendered = [(line, _render_list_markers(line)) for line in text.split("\n")]
+    text = "\n".join(_dedent_orphan_indent(rendered))
+
     return _restore_nowiki(text.strip("\n").rstrip(), protected)
 
 

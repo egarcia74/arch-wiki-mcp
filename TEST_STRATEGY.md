@@ -192,8 +192,8 @@ contract's invariants against them: no root-prompt lookalike outside a fence, no
 list marker leaking past its bullet, no list skipping a nesting level, balanced
 fences, `content_hash` attesting `content_raw`, every unrendered template appearing
 byte-for-byte as the wiki wrote it, every `<nowiki>` payload surviving verbatim into
-the rendered output, and every redirect-derived warning carrying complete alias
-provenance.
+the rendered output, no warning message opening at an orphaned indent, and every
+redirect-derived warning carrying complete alias provenance.
 
 It asserts nothing about _what_ a page says — only that whatever it says comes out
 obeying the contract. It is deliberately outside pytest, which blocks sockets.
@@ -206,7 +206,7 @@ is this repo's own failure mode, aimed at itself. Clearing the variable silently
 would be worse than refusing: a run must never _look_ like it audited the wiki when
 it did not.
 
-This is not redundant with the fixture suite. Eight defects reached `master` past a
+This is not redundant with the fixture suite. Nine defects reached `master` past a
 green suite. Every one of them was found by reading live content or by review —
 none by the suite:
 
@@ -220,9 +220,15 @@ none by the suite:
 | `<nowiki>` expanded what it was protecting                  | green; the guard deleted the comments too       |
 | a quoted `{{bc}}` became a command; `{{Warning}}` a warning | green; found by review, not by any test         |
 | a bodiless `{{bc}}` was a command hashed as `e3b0c442…`     | green; no fixture contains one                  |
+| a `{{Tip}}` opened four spaces in, i.e. as a code block     | green; 3 of 177 messages, _in_ the fixtures     |
 
-Three of these were _present in the recorded fixtures_ and invisible because the
+Four of these were _present in the recorded fixtures_ and invisible because the
 assertions looked one character to the left. Re-recording would not have helped.
+
+The last row is the pattern in miniature. The suite asserted that no warning
+message _skipped_ a nesting level; it never asked what level a message _started_
+at. `{{Tip|#** …}}` on the English Installation guide therefore opened four spaces
+in — a markdown code block — and 177 assertions agreed it was fine.
 
 The `<nowiki>` rendering case is the sharpest. `commands("Iwd")` returned a dbus
 config with its comment lines deleted, and

@@ -278,7 +278,7 @@ def _handle_initialize(msg_id: int) -> dict:
         "id": msg_id,
         "result": {
             "protocolVersion": "2024-11-05",
-            "serverInfo": {"name": "arch-wiki-mcp", "version": "1.6.1"},
+            "serverInfo": {"name": "arch-wiki-mcp", "version": "1.6.2"},
             "capabilities": {"tools": {}, "prompts": {}}
         }
     }

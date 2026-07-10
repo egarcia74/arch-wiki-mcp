@@ -1,8 +1,54 @@
 # Arch Wiki MCP: Technical Constitution
 
-**Version:** 1.12  
+**Version:** 1.13  
 **Status:** Canonical  
 **Last Updated:** 2026-07-10
+
+---
+
+## Amendment 1.13 — Migration Notes
+
+Per §12 (API Governance): no field changes. `message_hash_cleaned` moves for the
+three warnings whose body opened at an orphaned list depth — the `{{Tip|#** …}}`
+on the English, Spanish and French Installation guides. `content_hash` and
+`message_raw` are unchanged everywhere.
+
+### Changed in 1.13
+
+- **`warnings().message` never opens indented.** The Installation guide writes
+  `{{Tip|#** The ISO uses …}}`. That marker's depth is relative to a list living
+  *outside* the template, so the extracted tip had no parent and
+  `_render_list_markers` faithfully emitted four leading spaces. Markdown reads
+  four leading spaces as a **code block** — so a tip rendered as a shell
+  transcript, in the one field §6 requires an agent to quote to a user. Prose
+  presented as a command is the confusion that got `examples()` deleted; it had
+  simply moved to another field.
+
+  Only a *common* indent is removed, so a message with real internal nesting keeps
+  every sibling's relative depth. The 1.10 invariant — a nested first item never
+  sits shallower than its siblings — is unchanged and still tested; it was pinned
+  to the incidental value `"    - a"` rather than to the sibling relationship, and
+  now asserts the relationship.
+
+- **A preformatted line takes no part in the dedent.** Its leading space came from
+  the wiki, not from us. Counting it measured a common indent of one for
+  `"#** see:\n # pacman -Fy"`, and shifting the block by it put a bare `#` at
+  column 0 — reintroducing the root-prompt lookalike this rule exists to prevent,
+  and wrecking the bullet besides. Such lines neither set the common indent nor
+  receive the shift.
+
+  Latent, never live: the four preformatted lines in the recorded corpus (Pacman,
+  GRUB, Users and groups) sit beside no list item, so the common indent was zero.
+  One wiki edit away. Raised by Codex in review.
+
+- **`make audit` gained `warning_message_opens_indented` and
+  `warning_message_root_prompt_lookalike`.** Three of 177 warning messages in the
+  recorded corpus violated the first, including on the English Installation guide.
+  It was in the fixtures the whole time: the suite checked that no message
+  *skipped* a nesting level, never that it *started* at one. The second states for
+  `warnings()` what has been checked for `section()` since 1.7 — a bare `#` at
+  column 0 is a root prompt to a reader and a heading to markdown. The same
+  invariant, on the other code path that renders the same thing.
 
 ---
 

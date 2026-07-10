@@ -160,8 +160,73 @@ def test_a_nested_first_item_keeps_the_indent_its_siblings_have():
     shares neither the code path nor, until now, the test. Found by driving the
     live server: the French Installation guide's {{Astuce}} rendered its first
     bullet flush left and its second four spaces in.
+
+    The invariant is that siblings share a depth -- not that the depth is four
+    spaces. This pinned "    - a", which is the orphan indent 1.13 removes.
     """
-    assert extractor._clean_message("#** a\n#** b") == "    - a\n    - b"
+    assert extractor._clean_message("#** a\n#** b") == "- a\n- b"
+    # The 1.10 regression itself: the first item must never sit shallower.
+    assert extractor._clean_message("#** a\n#*** b") == "- a\n  - b"
+
+
+def test_a_message_never_opens_indented():
+    """
+    Four leading spaces are a markdown code block. {{Tip|#** ...}} on the
+    Installation guide takes its depth from a list outside the template, so the
+    extracted tip had no parent and opened as a shell transcript -- in the field
+    the contract requires an agent to quote. It sat in the fixtures all along.
+    """
+    for page in CORPUS + ["Installation guide (Français)"]:
+        for warning in extractor.warnings(page):
+            first = warning["message"].split("\n")[0]
+            assert first == first.lstrip(" "), f"{page}: {warning['type']} opens indented"
+
+
+def test_dedenting_never_flattens_real_nesting():
+    """Only a *common* indent is removed, so relative depth survives."""
+    assert extractor._clean_message("* top\n** nested") == "- top\n  - nested"
+    assert extractor._clean_message("#** a\n#*** b\n#** c") == "- a\n  - b\n- c"
+    assert extractor._clean_message("plain prose") == "plain prose"
+
+
+def test_dedenting_never_touches_a_preformatted_line():
+    """
+    A space-prefixed line is preformatted code; its indent is the wiki's, not
+    ours. Counting it toward the common indent measured 1 for
+    "#** see:\\n # pacman -Fy", and shifting the block by it put a bare '#' at
+    column 0 -- the root-prompt lookalike the whole rule exists to prevent, and
+    a wrecked bullet besides. Raised by Codex on PR #12.
+
+    Latent, not live: the corpus's preformatted warning lines (Pacman, GRUB,
+    Users and groups) sit beside no list item, so the common indent was 0.
+    """
+    assert extractor._clean_message("#** see:\n # pacman -Fy") == "- see:\n # pacman -Fy"
+
+    # The preformatted line neither sets the common indent nor receives the shift.
+    assert extractor._clean_message("#** a\n # code\n#** b") == "- a\n # code\n- b"
+
+
+def leading_whitespace(line):
+    return line[: len(line) - len(line.lstrip(" \t"))]
+
+
+def test_every_preformatted_line_in_the_corpus_keeps_its_indent():
+    """
+    Markup inside such a line is still resolved (''x'' -> x); only its
+    indentation is content, and only that must survive byte-for-byte.
+    """
+    checked = 0
+    for page in CORPUS + ["Installation guide (Français)"]:
+        for warning in extractor.warnings(page):
+            for source, rendered in zip(
+                warning["message_raw"].split("\n"), warning["message"].split("\n")
+            ):
+                if extractor._is_preformatted(source):
+                    checked += 1
+                    assert leading_whitespace(rendered) == leading_whitespace(source), (
+                        f"{page}: {source!r} -> {rendered!r}"
+                    )
+    assert checked >= 4, f"corpus should exercise preformatted lines, saw {checked}"
 
 
 def test_a_leading_space_in_the_body_is_still_insignificant():

@@ -25,6 +25,7 @@ Exits non-zero if any invariant is violated.
 
 import argparse
 import collections
+import os
 import re
 import sys
 from pathlib import Path
@@ -35,6 +36,30 @@ from src import extractor
 
 # Not derived from __doc__: that is None under `python -OO`.
 DESCRIPTION = "Audit the extractor's invariants against the live Arch Wiki."
+
+
+class OfflineModeError(RuntimeError):
+    """ARCHWIKI_OFFLINE would make this audit answer from the fixtures."""
+
+
+def require_live_mode(environ=None):
+    """
+    Refuse to run against fixtures.
+
+    _fetch() honours ARCHWIKI_OFFLINE, so a shell that still has it exported --
+    from a pytest run, or `make test` in the same session -- routes every fetch
+    to tests/fixtures. The audit then renders the same seven pinned pages it was
+    built to look past, prints "No invariant violations", and exits 0.
+
+    Silently clearing the variable would be worse: this must not *look* like it
+    audited the wiki when it did not. That is the failure this repo exists to
+    prevent, aimed at itself.
+    """
+    if (environ if environ is not None else os.environ).get("ARCHWIKI_OFFLINE"):
+        raise OfflineModeError(
+            "ARCHWIKI_OFFLINE is set: this audit would answer from tests/fixtures "
+            "and report a green run without contacting the wiki. Unset it."
+        )
 
 # Chosen for coverage of shapes, not popularity: tables, heavy code, prose-only,
 # nested lists, multibyte bodies, and the three admonition spellings.
@@ -220,6 +245,12 @@ def main():
     parser = argparse.ArgumentParser(description=DESCRIPTION)
     parser.add_argument("pages", nargs="*", default=[], help="pages to audit")
     args = parser.parse_args()
+
+    try:
+        require_live_mode()
+    except OfflineModeError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
 
     pages = args.pages or DEFAULT_PAGES
     report = collections.defaultdict(list)

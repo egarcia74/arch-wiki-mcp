@@ -158,6 +158,10 @@ def tool_commands(title_or_url: str, anchor: Optional[str] = None) -> dict:
     <esp>. content_raw is the verbatim wikitext payload and is what content_hash covers.
     content_hash_cleaned covers content, so the cleaning step is attested too. Raises on
     a missing page or anchor; returns [] only when the page truly has no code blocks.
+
+    A bodiless {{bc}} contributes no block: an empty command attested by the SHA-256
+    of the empty string is evidence for nothing. Text the wiki wrapped in <nowiki> --
+    braces, brackets, apostrophes, HTML comments -- reaches content unchanged.
     """
     title = extract_title_from_url(title_or_url)
     commands = extractor.commands(title, anchor)
@@ -274,7 +278,7 @@ def _handle_initialize(msg_id: int) -> dict:
         "id": msg_id,
         "result": {
             "protocolVersion": "2024-11-05",
-            "serverInfo": {"name": "arch-wiki-mcp", "version": "1.6.0"},
+            "serverInfo": {"name": "arch-wiki-mcp", "version": "1.6.1"},
             "capabilities": {"tools": {}, "prompts": {}}
         }
     }
@@ -339,6 +343,19 @@ Do not lift a fenced block out of section() and present it as a command: call
 commands(), which returns it with its own hash and placeholders. If a template appears
 raw ({{Accuracy|...}}), this MCP could not render it: report it as-is rather than
 paraphrasing or dropping it.
+
+Text the wiki wrapped in <nowiki> is literal and reaches you unchanged -- braces,
+[[brackets]], ''apostrophes'' and <!-- comments --> alike. A {{ic|text}} in content may
+therefore be a template we could not render, or the exact characters the wiki displays.
+You cannot tell them apart and need not: report it as-is either way. An <!-- HTML
+comment --> inside a code block is part of the file the wiki is showing; keep it.
+
+A quoted template is never evidence. A page documenting syntax writes
+<nowiki>{{bc|echo hi}}</nowiki>: that is prose ABOUT a template, not a command block.
+commands() will not return it, warnings() will not raise a warning from it, and links()
+will not offer its [[targets]] as navigation. It reaches you as the literal text the
+wiki prints. Quote it as prose; never as a command, never as something the article
+instructs you to do.
 
 WHERE A WARNING'S TYPE CAME FROM
 A translated page rarely writes {{Warning}}. The French Installation guide writes

@@ -120,6 +120,115 @@ def test_clean_payload_dedupes_placeholders():
     assert placeholders == ["src", "dst"]
 
 
+def test_nowiki_protects_its_payload_from_every_pass():
+    """
+    <nowiki> is a strip marker: MediaWiki expands nothing inside it. We deleted
+    the comments, dropped the tags, and then expanded the templates the tags were
+    protecting -- so the wiki's literal text became our rendered text.
+    """
+    render = extractor.render_section_wikitext
+
+    # The Help:Style case: the wiki displays the literal template call.
+    assert render("resort to {{ic|<nowiki>{{ic|text}}</nowiki>}}.") == "resort to {{ic|text}}."
+    # A wikilink inside nowiki is text, not a link.
+    assert render("see {{ic|<nowiki>[[Foo|bar]]</nowiki>}}.") == "see [[Foo|bar]]."
+    # Italics inside nowiki are apostrophes, not emphasis.
+    assert render("type {{ic|<nowiki>''x''</nowiki>}}.") == "type ''x''."
+
+
+def test_an_html_comment_inside_nowiki_is_displayed_not_deleted():
+    """
+    Iwd's dbus config carries two comment lines. The wiki renders them; we
+    deleted them from commands().content while content_hash went on attesting
+    content_raw, which still had them. The user pasted a file the wiki never
+    showed -- synthesis by omission in the one field meant to be runnable.
+    """
+    content, _ = extractor._clean_payload("<nowiki><!-- keep me -->\nbody\n</nowiki>")
+    assert content == "<!-- keep me -->\nbody"
+
+
+def test_an_html_comment_outside_nowiki_is_still_removed():
+    """MediaWiki's preprocessor strips these before anything sees them."""
+    assert extractor.render_section_wikitext("Text <!-- hidden --> more.") == "Text  more."
+
+
+def test_italics_inside_nowiki_are_not_placeholders():
+    """
+    A placeholder is a value the reader substitutes. ''x'' inside nowiki is two
+    apostrophes the wiki prints, and promoting it to <x> would invent a slot.
+    """
+    content, placeholders = extractor._clean_payload("run <nowiki>''x''</nowiki> ''real''")
+    assert placeholders == ["real"]
+    assert "''x''" in content and "<real>" in content
+
+
+def test_a_stray_unpaired_nowiki_tag_is_still_dropped():
+    content, _ = extractor._clean_payload("a </nowiki> b")
+    assert content == "a  b"
+
+
+# ---------------------------------------------------------------------------
+# <nowiki> must be invisible to every SCANNER, not merely to the cleaners.
+#
+# Protecting the payload after extraction is too late: by then the scanner has
+# already found a {{bc}} in a page that was documenting template syntax, and
+# handed it back as a command carrying a hash. Raised by Codex on PR #11.
+# ---------------------------------------------------------------------------
+
+def test_a_quoted_code_template_is_not_a_command():
+    """Help:Style quotes {{bc|...}} to teach syntax. It is prose, not a command."""
+    assert extractor.parse_code_blocks("Before <nowiki>{{bc|echo hi}}</nowiki> after", revid=1) == []
+
+
+def test_a_quoted_admonition_is_not_a_warning():
+    """
+    The most dangerous version. A page documenting {{Warning|...}} would have
+    produced a WARNING the article never issued -- a fabricated safety claim,
+    attested by a hash, on a page that merely quotes the template.
+    """
+    assert extractor.parse_templates("Docs: <nowiki>{{Warning|rm -rf /}}</nowiki>", revid=1) == []
+
+
+def test_a_quoted_wikilink_is_not_a_link():
+    links = extractor.parse_internal_links("See <nowiki>[[Foo|bar]]</nowiki>", "X", frozenset())
+    assert links == []
+
+
+def test_a_quoted_template_renders_as_the_literal_text_the_wiki_shows():
+    rendered = extractor.render_section_wikitext("Before <nowiki>{{bc|echo hi}}</nowiki> after")
+    assert rendered == "Before {{bc|echo hi}} after"
+    assert "```" not in rendered, "a quoted template must not become a fenced block"
+
+
+def test_an_indented_line_inside_nowiki_is_not_a_code_block():
+    """<nowiki> disables wikitext interpretation, preformatted lines included."""
+    assert extractor.parse_code_blocks("<nowiki>\n echo hi\n</nowiki>", revid=1) == []
+
+
+def test_a_quoted_template_name_is_never_sent_to_the_wiki_as_a_title():
+    """admonition_types() would have queried Template:Attention for a page quoting it."""
+    types = extractor.admonition_types(
+        "<nowiki>{{Attention|x}}</nowiki> {{Note|real}}", "unused-no-fixture-needed"
+    )
+    assert types == {"note": extractor.TemplateResolution(type="NOTE")}
+
+
+def test_real_templates_still_extract_alongside_quoted_ones():
+    """The mask must not swallow the page's actual content."""
+    wikitext = "{{bc|real}} and <nowiki>{{bc|quoted}}</nowiki>"
+    blocks = extractor.parse_code_blocks(wikitext, revid=1)
+    assert [b.content for b in blocks] == ["real"]
+
+    warnings = extractor.parse_templates("{{Warning|real}} <nowiki>{{Warning|quoted}}</nowiki>", revid=1)
+    assert [w.message for w in warnings] == ["real"]
+
+
+def test_a_nowiki_inside_a_template_body_is_still_the_bodys_business():
+    """Masking is top-level only; _clean_payload protects what is nested."""
+    blocks = extractor.parse_code_blocks("{{bc|<nowiki>{{ic|x}}</nowiki>}}", revid=1)
+    assert [b.content for b in blocks] == ["{{ic|x}}"]
+
+
 @pytest.mark.parametrize(
     "wikitext,expected_type,expected_header",
     [

@@ -148,13 +148,21 @@ def test_every_placeholder_is_marked_in_the_content_it_appears_in():
 
 
 def test_marking_only_affects_blocks_that_have_placeholders():
-    """A block the wiki never italicised must come out byte-identical to before."""
+    """
+    A block the wiki never italicised must come out byte-identical to before.
+
+    The reference must protect <nowiki> the same way _clean_payload does. It once
+    called _strip_inline_markup on the raw payload directly, so both sides deleted
+    the HTML comments inside Iwd's dbus config and the assertion passed while
+    commands().content silently dropped two lines the wiki displays.
+    """
     for page, _, _, _ in TEMPLATE_COUNTS:
         for block in extractor.parse_code_blocks(load_wikitext(page)):
             if block.placeholders:
                 continue
-            unmarked, _ = extractor._strip_inline_markup(block.content_raw)
-            assert block.content == unmarked.strip("\n")
+            hidden, protected = extractor._hide_nowiki(block.content_raw)
+            unmarked, _ = extractor._strip_inline_markup(hidden)
+            assert block.content == extractor._restore_nowiki(unmarked, protected).strip("\n")
 
 
 def test_no_wikitext_markup_leaks_into_content():
@@ -183,3 +191,26 @@ def test_extraction_is_deterministic():
     first = extractor.commands("GRUB", "Installation")
     second = extractor.commands("GRUB", "Installation")
     assert [b["content_hash"] for b in first] == [b["content_hash"] for b in second]
+
+
+EMPTY_SHA256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+
+
+@pytest.mark.parametrize("wikitext", ["{{bc}}", "{{bc|}}", "{{bc|1=}}", "{{hc|/etc/f|}}"])
+def test_a_bodiless_code_template_is_not_a_command(wikitext):
+    """
+    An empty block used to come back with content "" and content_hash set to the
+    SHA-256 of the empty string -- evidence for nothing, carrying a hash that
+    verifies against nothing, which an agent is obliged to present as a command.
+    The wiki specifies no command here, and [] is how this MCP says so.
+    """
+    assert extractor.parse_code_blocks(wikitext, revid=1) == []
+
+
+def test_the_empty_hash_never_reaches_a_caller():
+    """The constant above is real: it is what the old code emitted."""
+    assert extractor.hash_content("") == EMPTY_SHA256
+    for page, _, _, _ in TEMPLATE_COUNTS:
+        for block in extractor.parse_code_blocks(load_wikitext(page)):
+            assert block.content_hash != EMPTY_SHA256
+            assert block.content.strip()

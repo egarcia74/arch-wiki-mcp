@@ -100,7 +100,9 @@ def unresolved_template_names(page_title):
 
     names = {
         name
-        for _, _, name in extractor._iter_top_level_templates(wikitext, extractor._ANY_TEMPLATE_RE)
+        for _, _, name in extractor._iter_top_level_templates(
+            extractor.mask_nowiki(wikitext), extractor._ANY_TEMPLATE_RE
+        )
         if name and not extractor._NOT_A_TEMPLATE_TITLE.search(name)
     }
     return sorted(n for n in names if not extractor.canonical_admonition(n))

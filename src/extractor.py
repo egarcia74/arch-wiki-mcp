@@ -414,6 +414,51 @@ def _strip_param_name(text: str, allowed: AbstractSet[str]) -> str:
 
 _NOWIKI_TAG = re.compile(r"</?nowiki>")
 _HTML_COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
+
+# MediaWiki treats <nowiki> as a strip marker: nothing inside it is expanded, and
+# an HTML comment inside it is displayed rather than removed. We used to delete
+# comments, drop the tags, and then expand the templates the tags were protecting
+# -- so {{ic|<nowiki>{{ic|text}}</nowiki>}} rendered as "text" where the wiki shows
+# the literal "{{ic|text}}", and the Iwd dbus config lost the comment lines the
+# wiki displays. The payload is lifted out before any of that runs and put back
+# after, byte for byte.
+_NOWIKI_SPAN = re.compile(r"<nowiki>(.*?)</nowiki>", re.DOTALL | re.IGNORECASE)
+# 'nowiki' keeps this distinct from render_section_wikitext's \x00<digits>\x00
+# template sentinels, which share the delimiter but never the payload.
+_NOWIKI_SENTINEL = re.compile("\x00nowiki(\\d+)\x00")
+
+
+def _hide_nowiki(text: str) -> Tuple[str, List[str]]:
+    """
+    Lift <nowiki> payloads out of `text`, leaving inert sentinels behind.
+
+    The second of two layers, and both are load-bearing. mask_nowiki() stops the
+    *scanners* finding structure inside a nowiki span -- a quoted {{bc}} is not a
+    command. This stops the *cleaners* rewriting a payload handed to them: a code
+    template's body, or the interior of an inline {{ic|...}}, which is never
+    masked because it resolves in place. Removing this one turns
+    {{ic|<nowiki>{{ic|text}}</nowiki>}} back into "text".
+    """
+    protected: List[str] = []
+
+    def _stash(match: "re.Match") -> str:
+        protected.append(match.group(1))
+        return f"\x00nowiki{len(protected) - 1}\x00"
+
+    return _NOWIKI_SPAN.sub(_stash, text), protected
+
+
+def _restore_nowiki(text: str, protected: List[str]) -> str:
+    """
+    Put each payload back exactly as the wiki wrote it.
+
+    Must run after link resolution and list rendering, not just after markup
+    stripping: a sentinel carries no [[ or ]], so those passes leave it alone,
+    and restoring early would expose the payload to them.
+    """
+    if not protected:
+        return text
+    return _NOWIKI_SENTINEL.sub(lambda m: protected[int(m.group(1))], text)
 _BOLD = re.compile(r"'''(.*?)'''", re.DOTALL)
 _ITALIC = re.compile(r"''(.*?)''", re.DOTALL)
 # [[Target|display]] / [[Target]] / [[Target#Anchor]]
@@ -493,9 +538,13 @@ def _strip_inline_markup(text: str, mark_placeholders: bool = False) -> Tuple[st
     (''esp'', ''device''); `mark_placeholders` keeps that signal visible as
     <esp>. Inside prose, italics are ordinary emphasis and are simply removed.
     Either way this reads the author's own markup and infers nothing.
+
+    Expects <nowiki> payloads to have been lifted out by _hide_nowiki already:
+    a comment or a template inside one is the wiki's own literal text, and
+    nothing here may touch it. The caller restores them once every pass has run.
     """
     text = _HTML_COMMENT.sub("", text)
-    text = _NOWIKI_TAG.sub("", text)
+    text = _NOWIKI_TAG.sub("", text)  # a stray, unpaired tag; the spans are gone
     text = _resolve_inline_templates(text)
 
     # After template resolution: an escape inside a body would otherwise have
@@ -520,8 +569,17 @@ def _clean_payload(raw: str) -> Tuple[str, List[str]]:
     and silently is not. `<esp>` fails at the shell instead, so a literal paste is
     resisted by structure rather than forbidden by a prompt.
     """
-    text, placeholders = _strip_inline_markup(raw, mark_placeholders=True)
-    return text.strip("\n"), placeholders
+    hidden, protected = _hide_nowiki(raw)
+    text, placeholders = _strip_inline_markup(hidden, mark_placeholders=True)
+
+    # Pacman writes ''<nowiki>http://...</nowiki>'': the italics wrap the span, so
+    # the placeholder token IS the sentinel. Restore it, or the declared
+    # placeholder is an internal marker the reader cannot find in the command.
+    placeholders = [_restore_nowiki(token, protected) for token in placeholders]
+
+    # Restore before trimming: "{{bc|<nowiki>\ncode\n</nowiki>}}" wraps its payload
+    # in newlines that the fence supplies, and they are not part of the code.
+    return _restore_nowiki(text, protected).strip("\n"), placeholders
 
 
 def _resolve_links(text: str) -> str:
@@ -597,10 +655,11 @@ def _clean_message(raw: str) -> str:
     are a nested item's depth. Stripping both promoted a nested first item a level
     above its own siblings.
     """
-    text, _ = _strip_inline_markup(raw.lstrip(" \t"))
+    hidden, protected = _hide_nowiki(raw.lstrip(" \t"))
+    text, _ = _strip_inline_markup(hidden)
     text = _resolve_links(text)
     text = "\n".join(_render_list_markers(line) for line in text.split("\n"))
-    return text.strip("\n").rstrip()
+    return _restore_nowiki(text.strip("\n").rstrip(), protected)
 
 
 def _parse_single_template(
@@ -657,25 +716,30 @@ def parse_templates(
     """
     warnings = []
     types = types or {}
-    
+
+    # Scan the mask, slice the source. "<nowiki>{{Warning|rm -rf /}}</nowiki>" is a
+    # page documenting template syntax, not a warning the article issues -- and a
+    # fabricated WARNING is the most dangerous thing this tool can return.
+    scan = mask_nowiki(wikitext)
+
     i = 0
-    while i < len(wikitext):
-        start_idx = wikitext.find("{{", i)
+    while i < len(scan):
+        start_idx = scan.find("{{", i)
         if start_idx == -1:
             break
-            
-        end_idx = _find_template_end(wikitext, start_idx)
+
+        end_idx = _find_template_end(scan, start_idx)
         if end_idx == -1:
             i = start_idx + 2
             continue
-            
+
         content = wikitext[start_idx+2:end_idx-2]
         i = end_idx
-        
+
         block = _parse_single_template(content, types, revid)
         if block:
             warnings.append(block)
-            
+
     return warnings
 
 
@@ -738,18 +802,22 @@ _NON_NEWLINE = re.compile(r"[^\n]")
 
 
 def _extract_code_templates(
-    wikitext: str, revid: Optional[int]
+    scan: str, wikitext: str, revid: Optional[int]
 ) -> Tuple[List[CodeBlock], List[Tuple[int, int]]]:
     """
     Extract {{bc}} (block code) and {{hc}} (file contents with a header).
 
     These carry essentially all real Arch Wiki code. Returns the blocks and the
     spans they consumed, so the indented scanner can skip them.
+
+    `scan` is `wikitext` with <nowiki> blanked, and is what the search runs on;
+    every payload is sliced from `wikitext`, which the mask keeps offset-aligned.
+    A {{bc}} the wiki merely quotes must never become a command.
     """
     blocks: List[CodeBlock] = []
     spans: List[Tuple[int, int]] = []
 
-    for start, end, name in _iter_top_level_templates(wikitext, _CODE_TEMPLATE_RE):
+    for start, end, name in _iter_top_level_templates(scan, _CODE_TEMPLATE_RE):
         spec = CODE_TEMPLATES[name]
         params = _split_template_params(wikitext[start + 2:end - 2], spec.max_splits)
 
@@ -762,7 +830,15 @@ def _extract_code_templates(
 
         raw = _strip_param_name(params[index], spec.body_names) if len(params) > index else ""
 
-        blocks.append(_make_block(raw, spec.block_type, spec.source_pattern, revid, header=header))
+        block = _make_block(raw, spec.block_type, spec.source_pattern, revid, header=header)
+
+        # A bodiless {{bc}} yields content "" attested by the SHA-256 of the empty
+        # string -- an empty command block an agent would present as evidence, and
+        # a hash that verifies against nothing. The wiki specifies no command here,
+        # and [] is how this MCP says that. The span is still consumed so the
+        # indented scanner does not rescan it.
+        if block.content.strip():
+            blocks.append(block)
         spans.append((start, end))
 
     return blocks, spans
@@ -774,6 +850,9 @@ def _mask_spans(wikitext: str, spans: List[Tuple[int, int]]) -> str:
 
     Space-prefixed lines inside a {{bc}}/{{hc}} body would otherwise be scanned a
     second time and re-emitted as phantom indented blocks.
+
+    Length-preserving: offsets into the result index the original text, so a
+    scanner may run on the mask and slice from the source.
     """
     if not spans:
         return wikitext
@@ -788,6 +867,36 @@ def _mask_spans(wikitext: str, spans: List[Tuple[int, int]]) -> str:
     return "".join(out)
 
 
+def _union_spans(spans: List[Tuple[int, int]]) -> List[Tuple[int, int]]:
+    """Sorted, non-overlapping. A template body may contain a whole <nowiki> span."""
+    merged: List[Tuple[int, int]] = []
+    for start, end in sorted(spans):
+        if merged and start <= merged[-1][1]:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], end))
+        else:
+            merged.append((start, end))
+    return merged
+
+
+def nowiki_spans(wikitext: str) -> List[Tuple[int, int]]:
+    """Where each <nowiki>...</nowiki> sits, tags included."""
+    return [(m.start(), m.end()) for m in _NOWIKI_SPAN.finditer(wikitext)]
+
+
+def mask_nowiki(wikitext: str) -> str:
+    """
+    `wikitext` with every <nowiki> span blanked, same length, newlines kept.
+
+    Every scanner must run on this rather than on the source. <nowiki> means "do
+    not interpret", so a {{bc}} inside it is not a code block, a {{Warning}}
+    inside it is not a warning, and a [[link]] inside it is not a link -- they
+    are characters the wiki prints. Cleaning the payload afterwards is too late:
+    by then the scanner has already found a command in a page's documentation of
+    template syntax, and handed it over carrying a hash.
+    """
+    return _mask_spans(wikitext, nowiki_spans(wikitext))
+
+
 def parse_code_blocks(wikitext: str, revid: Optional[int] = None) -> List[CodeBlock]:
     """
     STRICT EXTRACTION: only formal, block-level wiki code constructs.
@@ -797,9 +906,14 @@ def parse_code_blocks(wikitext: str, revid: Optional[int] = None) -> List[CodeBl
 
     Inline {{ic}} is deliberately excluded: it marks paths, flags and package
     names, not runnable commands.
+
+    <nowiki> disables wikitext interpretation entirely, so a span of it yields no
+    command -- neither a quoted {{bc}} nor an indented line inside it.
     """
-    blocks, spans = _extract_code_templates(wikitext, revid)
-    blocks.extend(_extract_indented_blocks(_mask_spans(wikitext, spans).split("\n"), revid))
+    hidden = nowiki_spans(wikitext)
+    blocks, spans = _extract_code_templates(mask_nowiki(wikitext), wikitext, revid)
+    consumed = _union_spans(spans + hidden)
+    blocks.extend(_extract_indented_blocks(_mask_spans(wikitext, consumed).split("\n"), revid))
     return blocks
 
 
@@ -909,17 +1023,19 @@ def _render_prose_line(line: str) -> str:
     Everything else is prose, where ''italics'' are emphasis rather than
     substitution slots.
     """
-    if line[:1] in (" ", "\t") and line.strip():
-        text, _ = _strip_inline_markup(line, mark_placeholders=True)
-        return text
+    hidden, protected = _hide_nowiki(line)
 
-    text, _ = _strip_inline_markup(line)
+    if line[:1] in (" ", "\t") and line.strip():
+        text, _ = _strip_inline_markup(hidden, mark_placeholders=True)
+        return _restore_nowiki(text, protected)
+
+    text, _ = _strip_inline_markup(hidden)
 
     heading = _HEADING.match(text)
     if heading:
-        return f"{'#' * len(heading.group(1))} {heading.group(2)}"
+        return _restore_nowiki(f"{'#' * len(heading.group(1))} {heading.group(2)}", protected)
 
-    return _render_list_markers(_resolve_links(text))
+    return _restore_nowiki(_render_list_markers(_resolve_links(text)), protected)
 
 
 def _render_prose(text: str) -> str:
@@ -984,21 +1100,44 @@ def render_section_wikitext(wikitext: str, _depth: int = 0) -> str:
     if _depth > _MAX_RENDER_DEPTH:
         return wikitext
 
+    # Classify on the mask. A {{bc}} the wiki quotes inside <nowiki> is prose that
+    # happens to look like a template: rendering it as a fence turns a page's
+    # documentation of syntax into a command block an agent may hand to a user.
+    scan = mask_nowiki(wikitext)
+
+    templates = [(start, end, name) for start, end, name in _iter_top_level_templates(scan, _ANY_TEMPLATE_RE)]
+
+    # Only top-level <nowiki>: one inside a template body is that body's business,
+    # and _clean_payload protects it there. `payload` is carried, never re-sliced,
+    # because the tags match case-insensitively and are not a fixed width.
+    items: List[Tuple[int, int, Optional[str], Optional[str]]] = [
+        (start, end, name, None) for start, end, name in templates
+    ]
+    items += [
+        (m.start(), m.end(), None, m.group(1))
+        for m in _NOWIKI_SPAN.finditer(wikitext)
+        if not any(s < m.start() < e for s, e, _ in templates)
+    ]
+    items.sort(key=lambda item: item[0])
+
     blocks: List[Tuple[str, bool]] = []
     masked: List[str] = []
     position = 0
-    for start, end, name in _iter_top_level_templates(wikitext, _ANY_TEMPLATE_RE):
-        kind = _classify_template(name)
-        if kind == "inline":
-            continue  # {{ic|...}}, {{=}}: resolved later, in place
-
-        interior = wikitext[start + 2:end - 2]
-        if kind == "code":
-            rendered, is_block = _render_code_template(name.strip().lower(), interior), True
-        elif kind == "admonition":
-            rendered, is_block = _render_admonition(name, interior, _depth), True
+    for start, end, name, payload in items:
+        if name is None:  # a <nowiki> span: its payload is literal, verbatim
+            rendered, is_block = payload or "", False
         else:
-            rendered, is_block = wikitext[start:end], False
+            kind = _classify_template(name)
+            if kind == "inline":
+                continue  # {{ic|...}}, {{=}}: resolved later, in place
+
+            interior = wikitext[start + 2:end - 2]
+            if kind == "code":
+                rendered, is_block = _render_code_template(name.strip().lower(), interior), True
+            elif kind == "admonition":
+                rendered, is_block = _render_admonition(name, interior, _depth), True
+            else:
+                rendered, is_block = wikitext[start:end], False
 
         masked.append(wikitext[position:start])
         masked.append(f"\x00{len(blocks)}\x00")
@@ -1252,7 +1391,7 @@ def admonition_types(wikitext: str, cache_key: str) -> Dict[str, TemplateResolut
     """
     names = {
         name
-        for _, _, name in _iter_top_level_templates(wikitext, _ANY_TEMPLATE_RE)
+        for _, _, name in _iter_top_level_templates(mask_nowiki(wikitext), _ANY_TEMPLATE_RE)
         if name and not _NOT_A_TEMPLATE_TITLE.search(name)
     }
 
@@ -1338,13 +1477,16 @@ def parse_internal_links(
     Handles [[Target]], [[Target|Display]], [[Target#Anchor|Display]], and the
     same-page [[#Anchor]] form. Namespace and interwiki links are excluded, as
     are multi-parameter media links like [[File:x.png|thumb|caption]].
+
+    A [[link]] the wiki wrapped in <nowiki> is the characters of a link, printed.
+    It navigates nowhere, and offering it as navigation invents a citation.
     """
     if excluded_prefixes is None:
         excluded_prefixes = excluded_link_prefixes()
 
     links = []
 
-    for match in re.finditer(r"\[\[([^\[\]]+)\]\]", wikitext):
+    for match in re.finditer(r"\[\[([^\[\]]+)\]\]", mask_nowiki(wikitext)):
         target_part, separator, display_part = match.group(1).partition("|")
 
         target = target_part.strip()

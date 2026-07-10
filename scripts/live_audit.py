@@ -131,6 +131,26 @@ def strip_template_spans(content):
     return "".join(kept)
 
 
+def nowiki_payloads(raw):
+    """Each <nowiki> payload in the source, as the wiki means it to be displayed."""
+    return [m.group(1) for m in extractor._NOWIKI_SPAN.finditer(raw)]
+
+
+def strip_nowiki_payloads(content, raw):
+    """
+    `content` minus the text <nowiki> protected.
+
+    That text is the wiki's literal output: a nowiki'd [[Foo]] is not a wikilink
+    we failed to resolve, and a nowiki'd ''x'' is two apostrophes, not emphasis.
+    The rendered content carries no tags to tell them apart, so the source must.
+    """
+    for payload in nowiki_payloads(raw):
+        needle = payload.strip("\n")
+        if needle:
+            content = content.replace(needle, "", 1)
+    return content
+
+
 def prose_lines(content):
     """
     The rendered lines that are prose, and must therefore carry no markup.
@@ -164,7 +184,15 @@ def audit_section(page, anchor, raw, page_wikitext, report):
     if content.count("```") % 2:
         fail("unbalanced_fence", "odd number of fence markers")
 
-    for line in prose_lines(content):
+    # <nowiki> is a strip marker: MediaWiki expands nothing inside it, so whatever
+    # it wraps must reach the reader unchanged. We used to delete the HTML comments
+    # inside it and then expand the very templates it was protecting.
+    for payload in nowiki_payloads(raw):
+        needle = payload.strip("\n")
+        if needle and needle not in content:
+            fail("nowiki_payload_altered", repr(needle[:70]))
+
+    for line in prose_lines(strip_nowiki_payloads(content, raw)):
         if line.startswith("#") and not MARKDOWN_HEADING.match(line):
             fail("root_prompt_lookalike", repr(line[:70]))
         if LEAKED_MARKER.match(line):
@@ -214,6 +242,22 @@ def audit_page(page, report, residual, stats):
         report["warnings_raised"].append(f"{page}: {exc!r}")
         found = []
 
+    # "Nothing the wiki merely QUOTES becomes evidence" is NOT checked here, on
+    # purpose. It is a claim about the POSITION a block was extracted from, and
+    # neither commands() nor warnings() reports position. Every textual proxy is
+    # both unsound and unable to fail:
+    #
+    #   - "content_raw appears inside some <nowiki> payload" flags a legitimate
+    #     block, because Help:Style carries a real {{bc|#!/bin/sh ...}} and quotes
+    #     that same script elsewhere.
+    #   - "extraction from a pre-masked page agrees" is false for an honest block
+    #     whose body legitimately contains <nowiki>, and goes vacuous the moment
+    #     mask_nowiki() is the thing that regressed.
+    #
+    # The invariant is enforced in tests/test_wikitext_parsing.py instead, where a
+    # synthetic page fixes the positions, and each of the six scanners is observed
+    # going red with its mask removed. A check that cannot fail is not a check.
+
     # warnings().message is prose an agent is REQUIRED to quote. It renders lists
     # through the same helper as section(), but strips whitespace separately -- so
     # the nesting invariant has to be checked here too, not inferred from sections.
@@ -256,9 +300,11 @@ def audit_page(page, report, residual, stats):
         stats["sections"] += 1
         content = audit_section(page, anchor, raw, page_wikitext, report)
         # Outside fences only: Help:Style *documents* {{bc}} inside a code block,
-        # and that literal is content, not a template we declined to render.
+        # and that literal is content, not a template we declined to render. The
+        # same is true of anything the wiki wrapped in <nowiki> -- Help:Style spells
+        # {{ic}} and {{pkg}} that way in prose, and they are text, not markup.
         for _, _, name in extractor._iter_top_level_templates(
-            unfenced(content), extractor._ANY_TEMPLATE_RE
+            unfenced(strip_nowiki_payloads(content, raw)), extractor._ANY_TEMPLATE_RE
         ):
             if is_wiki_template(name.strip().lower()):
                 residual[name.strip().lower()] += 1

@@ -62,6 +62,9 @@ def test_the_injected_prompt_names_every_ambiguous_field(field):
 def test_the_derived_field_set_is_the_one_we_expect():
     """Tripwire: a field leaving this set means the schema shrank silently."""
     assert contract_fields() == [
+        "alias",
+        "alias_revid",
+        "alias_target",
         "content_hash_cleaned",
         "content_raw",
         "message_hash_cleaned",
@@ -140,6 +143,9 @@ def reproducible_hashes() -> set:
     for command in extractor.commands("GRUB", "Installation"):
         produced |= {command["content_hash"], command["content_hash_cleaned"]}
     for warning in extractor.warnings("Iwd", "Usage"):
+        produced |= {warning["content_hash"], warning["message_hash_cleaned"]}
+    # The README's alias-provenance example is a real block off a real page.
+    for warning in extractor.warnings("Installation guide (Français)"):
         produced |= {warning["content_hash"], warning["message_hash_cleaned"]}
     return produced
 

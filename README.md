@@ -179,9 +179,45 @@ English-only subset would be an `[]` that an agent reads as "the wiki warns of n
   "content_hash": "9e183a7fb724a74e42120dc6f7e3d9631ca1036fb8758e3a481d1ff2ca22ed3a",
   "message_hash_cleaned": "27693d93de0969fc34ac243581e2f66693c6ae2b0f8cabc3098b86b49a290223",
   "source_url": "https://wiki.archlinux.org/title/Iwd#Usage",
-  "revid": 847035
+  "revid": 847035,
+  "alias": null,
+  "alias_target": null,
+  "alias_revid": null
 }
 ```
+
+### Where a warning's type came from
+
+`{{Note}}` spells out its own type, so the three `alias` fields above are `null`:
+the evidence is in the wikitext that `revid` already covers.
+
+`{{Attention}}` does not. It is a *redirect* to `Template:Warning (Français)`, and
+the word `WARNING` appears nowhere in the article. Nothing in the block above
+would attest such a type — so a block that gets its type this way carries the
+redirect, including the revision of **the redirect page itself**:
+
+```json
+{
+  "type": "WARNING",
+  "message": "Ne formatez la partition système EFI que si vous l'avez créée pendant le partitionnement. S'il y avait déjà une partition système EFI sur le disque précédemment, son formatage peut détruire les chargeurs d'amorçage des autres systèmes d'exploitation installés.",
+  "content_hash": "f007b1d054b1b6d2bc8d53a692d8ae530d7824256af4aa5fc5043a8d9e1ddb91",
+  "source_url": "https://wiki.archlinux.org/title/Installation_guide_%28Fran%C3%A7ais%29",
+  "revid": 875238,
+  "alias": "Attention",
+  "alias_target": "Template:Warning (Français)",
+  "alias_revid": 675792
+}
+```
+
+`revid` 875238 is the article. `alias_revid` 675792 is `Template:Attention`. They
+are different pages, and only the second one moves if someone repoints the
+redirect — which is the whole reason it is pinned. It is deliberately **not** the
+revision of `Template:Warning (Français)`: MediaWiki resolves titles before
+`prop=revisions` runs, so the obvious one-query lookup returns the destination's
+revid, and a retarget never touches that.
+
+If the redirect resolves but its revision cannot be read, `warnings()` raises. We
+would know the page carries a `WARNING` and be unable to say why.
 
 ## Constitutional Guarantees
 

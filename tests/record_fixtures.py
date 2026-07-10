@@ -106,35 +106,76 @@ def unresolved_template_names(page_title):
     return sorted(n for n in names if not extractor.canonical_admonition(n))
 
 
+def _record_query(filename, params, label, force):
+    """Fetch and save one API response, or load the recorded one. Returns the data."""
+    if os.path.exists(filename) and not force:
+        print(f"Skipping {filename} (exists; pass --force to re-record)")
+        with open(filename, encoding="utf-8") as handle:
+            return json.load(handle)
+
+    print(f"Recording {label}...")
+    request = Request(f"{API_ENDPOINT}?{urlencode(params)}", headers={"User-Agent": USER_AGENT})
+    with urlopen(request) as response:
+        data = json.loads(response.read().decode("utf-8"))
+
+    with open(filename, "w", encoding="utf-8") as handle:
+        json.dump(data, handle, indent=2, ensure_ascii=False)
+    print(f"Saved to {filename}")
+    return data
+
+
 def record_aliases(page_title, force=False):
-    """Record the redirect resolution for one page's template names."""
+    """
+    Record the redirect resolution for one page's template names.
+
+    Two fixtures, mirroring the two queries warnings() makes. The second is
+    recorded only when a name actually redirects to an admonition, because that
+    is the only case the runtime fetches it -- a fixture nothing reads would rot
+    unnoticed, and its absence is what proves the second query was skipped.
+    """
     names = unresolved_template_names(page_title)
     batch_size = extractor._TITLES_PER_QUERY
     batches = [names[i:i + batch_size] for i in range(0, len(names), batch_size)] or [[]]
 
+    redirect_titles = []
     for index, batch in enumerate(batches):
         suffix = "" if len(batches) == 1 else f"_{index + 1}"
-        filename = os.path.join(
-            "tests/fixtures", fixture_filename("query", f"aliases_{page_title}{suffix}")
+        data = _record_query(
+            os.path.join("tests/fixtures", fixture_filename("query", f"aliases_{page_title}{suffix}")),
+            {
+                "action": "query",
+                "titles": "|".join(f"Template:{name}" for name in batch),
+                "redirects": "1",
+                "format": "json",
+            },
+            f"template aliases for {page_title} ({len(batch)} names)",
+            force,
         )
-        if os.path.exists(filename) and not force:
-            print(f"Skipping {filename} (exists; pass --force to re-record)")
-            continue
+        for redirect in data.get("query", {}).get("redirects", []):
+            if extractor.canonical_admonition(redirect["to"].split(":", 1)[-1]):
+                redirect_titles.append(redirect["from"])
 
-        params = {
-            "action": "query",
-            "titles": "|".join(f"Template:{name}" for name in batch),
-            "redirects": "1",
-            "format": "json",
-        }
-        print(f"Recording template aliases for {page_title} ({len(batch)} names)...")
-        request = Request(f"{API_ENDPOINT}?{urlencode(params)}", headers={"User-Agent": USER_AGENT})
-        with urlopen(request) as response:
-            data = json.loads(response.read().decode("utf-8"))
+    if not redirect_titles:
+        return
 
-        with open(filename, "w", encoding="utf-8") as handle:
-            json.dump(data, handle, indent=2, ensure_ascii=False)
-        print(f"Saved to {filename}")
+    # The revision of each REDIRECT page. No redirects=1: with it, MediaWiki
+    # resolves the title and returns the destination's revid instead.
+    ordered = sorted(redirect_titles)
+    revid_batches = [ordered[i:i + batch_size] for i in range(0, len(ordered), batch_size)]
+    for index, batch in enumerate(revid_batches):
+        suffix = "" if len(ordered) <= batch_size else f"_{index + 1}"
+        _record_query(
+            os.path.join("tests/fixtures", fixture_filename("query", f"aliasrevs_{page_title}{suffix}")),
+            {
+                "action": "query",
+                "titles": "|".join(batch),
+                "prop": "revisions",
+                "rvprop": "ids",
+                "format": "json",
+            },
+            f"redirect revisions for {page_title} ({len(batch)} redirects)",
+            force,
+        )
 
 
 if __name__ == "__main__":

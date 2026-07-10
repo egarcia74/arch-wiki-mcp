@@ -176,7 +176,8 @@ def tool_warnings(title_or_url: str, anchor: Optional[str] = None) -> dict:
     Returns:
         {
             "warnings": List[Dict{type, message, message_raw, content_hash,
-                                  message_hash_cleaned, source_url, revid}]
+                                  message_hash_cleaned, source_url, revid,
+                                  alias, alias_target, alias_revid}]
         }
 
     message is readable prose, safe to quote to a user. message_raw is the verbatim
@@ -187,6 +188,11 @@ def tool_warnings(title_or_url: str, anchor: Optional[str] = None) -> dict:
     redirect to Template:Warning (Français)), so template names are resolved against
     the wiki first. If they cannot be resolved this raises: an English-only subset
     would be an incomplete [] that the agent reads as "the wiki warns of nothing".
+
+    A type learned from such a redirect is not attested by the article's revid, so
+    the block carries the redirect that supplied it: alias, alias_target, and
+    alias_revid -- the revision of the redirect page itself, which is what moves if
+    someone repoints it. All three are null when the template spelled its own type.
     """
     title = extract_title_from_url(title_or_url)
     warnings = extractor.warnings(title, anchor)
@@ -268,7 +274,7 @@ def _handle_initialize(msg_id: int) -> dict:
         "id": msg_id,
         "result": {
             "protocolVersion": "2024-11-05",
-            "serverInfo": {"name": "arch-wiki-mcp", "version": "1.5.3"},
+            "serverInfo": {"name": "arch-wiki-mcp", "version": "1.6.0"},
             "capabilities": {"tools": {}, "prompts": {}}
         }
     }
@@ -333,6 +339,18 @@ Do not lift a fenced block out of section() and present it as a command: call
 commands(), which returns it with its own hash and placeholders. If a template appears
 raw ({{Accuracy|...}}), this MCP could not render it: report it as-is rather than
 paraphrasing or dropping it.
+
+WHERE A WARNING'S TYPE CAME FROM
+A translated page rarely writes {{Warning}}. The French Installation guide writes
+{{Attention}}, a redirect to Template:Warning (Français), so the type WARNING appears
+nowhere in that article's wikitext and its revid does not attest it. When a type was
+learned that way the block carries `alias` (the redirect, "Attention"), `alias_target`
+(where it points) and `alias_revid` (the revision of the REDIRECT PAGE -- not of the
+article, and not of the redirect's target). All three are null when the template spelled
+its own type ({{Warning}}, {{Note (Español)}}), which the article's revid already covers.
+If `alias` is set, the type rests on a page other than the one you are citing: cite
+alias_target at alias_revid alongside the article's revid, and never present a
+redirect-derived WARNING as though the article itself declared it.
 
 PLACEHOLDERS
 If a command block has a non-empty `placeholders` list, those tokens are values the
@@ -443,7 +461,8 @@ def _handle_tools_list(msg_id: int) -> dict:
                         "Extract warning/note/tip templates from page or section, including "
                         "localized ones on translated pages ({{Note (Español)}}, {{Attention}}). "
                         "Raises rather than returning an incomplete list; [] means the wiki "
-                        "specifies no warning here."
+                        "specifies no warning here. A type derived from a template redirect "
+                        "carries that redirect (alias, alias_target, alias_revid)."
                     ),
                     "inputSchema": {
                         "type": "object",

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "arch-wiki-mcp"
-version = "1.5.2"
+version = "1.5.3"
 description = "Arch Wiki MCP Server - A Truth Perimeter for AI"
 authors = [
     { name = "egarcia74" }
@@ -30,3 +30,8 @@ addopts = "-ra"
 
 [tool.coverage.run]
 source = ["src"]
+
+[tool.pyright]
+# tests/test_live_audit_guard.py reaches scripts/ through a sys.path.insert that
+# a static checker cannot follow. Name the path rather than silence the import.
+extraPaths = [".", "scripts"]

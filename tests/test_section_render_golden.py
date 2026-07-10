@@ -24,8 +24,12 @@ TOTAL_CODE_TEMPLATES = 108
 # dropped: markup an agent can see is honest, and deleting a sentence is
 # synthesis by omission. This set is pinned so a newly-used template shows up as
 # a red test rather than as silently lost content.
+# "ic", "pkg" and "aur" appear here only NESTED INSIDE an unrendered template --
+# {{App|impala|...|{{Pkg|impala}}}} -- where they are the wiki's own bytes and must
+# not be touched. Outside one, they are always resolved; that is asserted separately.
 EXPECTED_RESIDUAL_TEMPLATES = {
     "app", "bug", "accuracy", "expansion", "merge", "out of date", "style", "dead link",
+    "ic", "pkg", "aur",
 }
 
 MARKDOWN_HEADING = re.compile(r"^#{2,6} \S")
@@ -153,14 +157,54 @@ def test_placeholders_are_marked_in_section_code_but_not_in_section_prose():
     assert "substitute esp with its mount point" in content  # prose: plain emphasis
 
 
+def outside_unrendered_templates(content):
+    """
+    `content` with every surviving {{...}} span removed.
+
+    Markup *inside* an unrendered template is the wiki's own text, preserved
+    byte-for-byte. Markup outside one is markup we failed to render.
+    """
+    spans = list(extractor._iter_top_level_templates(content, extractor._ANY_TEMPLATE_RE))
+    kept, position = [], 0
+    for start, end, _ in spans:
+        kept.append(content[position:start])
+        position = end
+    kept.append(content[position:])
+    return "".join(kept)
+
+
 def test_no_resolvable_markup_survives_rendering():
     for page, anchor, block in rendered_sections():
-        content = block.content
-        assert "''" not in content, f"{page}#{anchor}"
-        assert "[[" not in content, f"{page}#{anchor}"
-        assert "\x00" not in content, f"{page}#{anchor}: sentinel leaked"
+        assert "\x00" not in block.content, f"{page}#{anchor}: sentinel leaked"
+
+        prose = outside_unrendered_templates(block.content)
+        assert "''" not in prose, f"{page}#{anchor}"
+        assert "[[" not in prose, f"{page}#{anchor}"
         for name in ("ic", "Pkg", "AUR", "Note", "Warning", "Tip", "bc", "hc"):
-            assert "{{" + name not in content, f"{page}#{anchor}: {{{{{name}}}}} left raw"
+            assert "{{" + name not in prose, f"{page}#{anchor}: {{{{{name}}}}} left raw"
+
+
+def test_an_unrendered_template_keeps_its_insides_exactly():
+    """
+    {{Accuracy|Use {{ic|sleep 5}} ...}} rendered as {{Accuracy|Use sleep 5 ...}}:
+    the braces survived, the contents did not. That text looks raw, is not, and
+    content_hash_cleaned attests it all the same. "Verbatim" has to mean verbatim.
+    """
+    raw = "{{Accuracy|Use {{ic|sleep 5}} and ''foo''.}}"
+    assert extractor.render_section_wikitext(raw) == raw
+
+    for page, anchor, block in rendered_sections():
+        for start, end, _ in extractor._iter_top_level_templates(
+            block.content, extractor._ANY_TEMPLATE_RE
+        ):
+            span = block.content[start:end]
+            assert span in block.content_raw, f"{page}#{anchor}: altered {span[:60]!r}"
+
+
+def test_a_verbatim_template_is_not_lifted_onto_its_own_line():
+    """{{App|...}} sits inside a bullet; lifting it out would invent a line break."""
+    rendered = extractor.render_section_wikitext("* {{App|impala|A TUI.|https://x|{{Pkg|impala}}}}")
+    assert rendered == "- {{App|impala|A TUI.|https://x|{{Pkg|impala}}}}"
 
 
 def test_unknown_templates_are_left_verbatim_not_dropped():
@@ -236,3 +280,24 @@ def test_indented_code_inside_an_admonition_is_still_code():
     """Only the first line's leading space is insignificant; column 0 still rules."""
     rendered = extractor.render_section_wikitext("{{Note|\n mount ''device''\n}}")
     assert "<device>" in rendered
+
+
+def test_a_nested_first_item_keeps_the_indent_its_siblings_have():
+    """
+    render_section_wikitext(...).strip() ate the leading spaces of the first line.
+    A {{Tip}} whose body opens with '#**' then rendered its first item flush left
+    and its second indented, promoting item one above its own siblings.
+    """
+    assert extractor.render_section_wikitext("{{Tip|\n#** first\n#** second\n}}") == (
+        "**Tip:**\n    - first\n    - second"
+    )
+
+
+def test_no_list_in_the_corpus_skips_a_nesting_level():
+    """One level at a time. A jump means an item lost the indent its siblings kept."""
+    bullet = re.compile(r"^(\s*)(?:- |1\. )")
+    for page, anchor, block in rendered_sections():
+        indents = [m.group(1) for m in map(bullet.match, block.content.split("\n")) if m]
+        depths = [len(i) for i in indents]
+        for first, second in zip(depths, depths[1:]):
+            assert second - first <= 2, f"{page}#{anchor}: indent {first} -> {second}"

@@ -64,7 +64,7 @@ A reliable backend for IDEs, scripts, and agents.
 ✅ **Extractor**: Deterministic wikitext parser with hash stability  
 ✅ **MCP Server**: Thin wrapper exposing extractor as MCP tools  
 ✅ **Search**: MediaWiki search API integration complete  
-✅ **Tests**: 199 offline tests pinned to recorded wiki fixtures; 108/108 `{{bc}}`/`{{hc}}` blocks and 432/432 sections resolve correctly
+✅ **Tests**: 207 offline tests pinned to recorded wiki fixtures; 108/108 `{{bc}}`/`{{hc}}` blocks and 432/432 sections resolve correctly
 
 ## Quick Start
 
@@ -138,7 +138,7 @@ prose instead. So the same rendered/verbatim split applies:
   "content": "### Boot the live environment\n\n**Note:** Arch Linux installation images do not support Secure Bo ...",
   "content_raw": "=== Boot the live environment ===\n\n{{Note|Arch Linux installation images do not support Secure B ...",
   "content_hash": "b2ec52eef0b639a0fb2a761bdaf3eab9ae6de8ae08091025ad9cf51d022892b7",
-  "content_hash_cleaned": "f9493a970063c9ef4d495249b26510b1e79cc6d9d5db659a1033fb5c2cb9bf23",
+  "content_hash_cleaned": "ef24f23bfc84c850417a1cbf5da6270d62f8d78985321dd3995f147685c485d5",
   "url": "https://wiki.archlinux.org/title/Installation_guide#Boot_the_live_environment",
   "revid": 858613
 }

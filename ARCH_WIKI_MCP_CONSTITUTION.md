@@ -1,8 +1,40 @@
 # Arch Wiki MCP: Technical Constitution
 
-**Version:** 1.8  
+**Version:** 1.9  
 **Status:** Canonical  
 **Last Updated:** 2026-07-09
+
+---
+
+## Amendment 1.9 — Migration Notes
+
+Per §12 (API Governance): no field changes. `content_hash_cleaned` moves for any
+section containing an unrendered template or a nested list. `content_hash` and
+every verbatim field are unchanged.
+
+### Changed in 1.9
+
+- **"Verbatim" now means verbatim.** 1.6 promised that a template the renderer
+  does not know is emitted as the wiki wrote it. Its braces survived; its
+  *contents* did not. `{{Accuracy|Use {{ic|sleep 5}} and ''foo''.}}` came out as
+  `{{Accuracy|Use sleep 5 and foo.}}` — text that looks raw, is not, and which
+  `content_hash_cleaned` attested all the same. An agent instructed to "report it
+  as-is" would have relayed an altered caveat.
+
+  Unknown templates are now masked before prose rendering and restored
+  byte-for-byte, insides included. The nested `{{ic}}` and `{{Pkg}}` inside an
+  `{{App|...}}` are the wiki's bytes, not markup we declined to resolve.
+
+- **A nested list keeps the indent of its first item.** `render_section_wikitext`
+  ended in `.strip()`, which ate the leading spaces of the fragment's first line.
+  A `{{Tip}}` whose body opens with `#**` rendered item one flush left and item
+  two indented, promoting the first above its own siblings.
+
+- **`make audit`.** Three of the defects fixed in 1.6–1.8, and both fixed here,
+  were invisible to a green fixture suite and evident on first contact with live
+  content. `scripts/live_audit.py` checks the contract's invariants against 36
+  live pages and 1834 sections. It is not part of pytest, which blocks sockets on
+  purpose. A suite that pins seven pages cannot tell you what the wiki does.
 
 ---
 

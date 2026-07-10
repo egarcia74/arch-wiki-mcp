@@ -776,13 +776,28 @@ def parse_code_blocks(wikitext: str, revid: Optional[int] = None) -> List[CodeBl
 # ---------------------------------------------------------------------------
 
 _ADMONITIONS = {"note": "Note", "warning": "Warning", "tip": "Tip", "caution": "Caution"}
-# The optional " (Lang)" suffix lets a translated page's {{Note (Español)}} render.
-# A redirect alias ({{Astuce}}) is not matched here and survives verbatim, which is
-# the honest failure; warnings() resolves those against the wiki, where it matters.
-_RENDERABLE_RE = re.compile(
-    r"\{\{(" + "|".join([*CODE_TEMPLATES, *_ADMONITIONS]) + r")(?:\s*\([^()]*\))?\s*(?=[|}])",
-    re.IGNORECASE,
-)
+
+# Templates that resolve to a literal inside prose, plus the wikitext escapes.
+# They are left in place for _strip_inline_markup rather than masked.
+_RESOLVED_INLINE = frozenset(INLINE_TEMPLATES) | {"=", "!"}
+
+
+def _classify_template(name: str) -> str:
+    """
+    What the renderer may do with a top-level template: render it, resolve it
+    inline, or nothing at all.
+
+    "Nothing at all" is a commitment, not a gap. An unknown template is emitted
+    byte-for-byte as the wiki wrote it, insides included -- see _mask_templates.
+    """
+    lowered = name.strip().lower()
+    if lowered in CODE_TEMPLATES:
+        return "code"
+    if canonical_admonition(name):  # {{Note}}, and {{Note (Español)}}
+        return "admonition"
+    if lowered in _RESOLVED_INLINE:
+        return "inline"
+    return "verbatim"
 _HEADING = re.compile(r"^(={2,6})[ \t]*(.+?)[ \t]*\1[ \t]*$")
 _SENTINEL = re.compile("\x00(\\d+)\x00")
 _MAX_RENDER_DEPTH = 4
@@ -824,12 +839,14 @@ def _render_admonition(name: str, interior: str, depth: int) -> str:
     # whole note renders as code -- links unresolved, and ''bar'' turned into the
     # placeholder <bar>, inventing a value the reader is told to substitute.
     # A body that opens with a newline keeps it; only the first line is affected.
-    body = render_section_wikitext(raw.lstrip(" \t"), depth + 1).strip()
+    # strip("\n") not strip(): a nested first item ("#** foo") renders indented,
+    # and eating that indent silently promotes it a level above its own siblings.
+    body = render_section_wikitext(raw.lstrip(" \t"), depth + 1).strip("\n")
 
-    label = f"**{_ADMONITIONS[name]}:**"
-    # A bullet or a fence glued to the label reads as part of the first item.
-    separator = "\n" if "\n" in body or body.startswith(("- ", "1. ", "```")) else " "
-    return f"{label}{separator}{body}"
+    label = f"**{_ADMONITIONS[canonical_admonition(name).lower()]}:**"
+    # A bullet, a fence, or an indented line glued to the label reads as part of it.
+    inline = not ("\n" in body or body[:1].isspace() or body.startswith(("- ", "1. ", "```")))
+    return f"{label}{' ' if inline else chr(10)}{body}"
 
 
 def _render_prose_line(line: str) -> str:
@@ -858,27 +875,40 @@ def _render_prose(text: str) -> str:
     return "\n".join(_render_prose_line(line) for line in text.split("\n"))
 
 
-def _splice_line(line: str, blocks: List[str]) -> str:
+def _splice_line(line: str, blocks: List[Tuple[str, bool]]) -> str:
     """
-    Expand block sentinels, lifting each onto its own line.
+    Expand sentinels. A block-level one is lifted onto its own line.
 
     {{bc}} occurs mid-sentence -- "remount {{ic|...}}. {{bc|# mount ...}} See the
     [[Gentoo:...]]" -- so a fence spliced in place would glue its ``` markers to
-    the prose on either side.
+    the prose on either side. A verbatim template is not block-level: {{App|...}}
+    sits inside a bullet, and lifting it out would invent a line break.
     """
-    segments: List[str] = []
-    position = 0
-    for match in _SENTINEL.finditer(line):
-        prefix = line[position:match.start()].rstrip()
-        if prefix:
-            segments.append(prefix)
-        segments.append(blocks[int(match.group(1))])
-        position = match.end()
-
-    if not segments:
+    if not _SENTINEL.search(line):
         return line
 
-    tail = line[position:].lstrip()
+    segments: List[str] = []
+    current = ""
+    position = 0
+    for match in _SENTINEL.finditer(line):
+        text, is_block = blocks[int(match.group(1))]
+        current += line[position:match.start()]
+        position = match.end()
+
+        if not is_block:
+            current += text
+            continue
+
+        if current.rstrip():
+            segments.append(current.rstrip())
+        segments.append(text)
+        current = ""
+
+    current += line[position:]
+    if not segments:
+        return current
+
+    tail = current.lstrip()
     if tail:
         segments.append(tail)
     return "\n".join(segments)
@@ -888,28 +918,40 @@ def render_section_wikitext(wikitext: str, _depth: int = 0) -> str:
     """
     Render a section's wikitext down to text an agent can quote to a user.
 
-    Renderable templates are masked to newline-free sentinels first, so whether a
-    line is preformatted is decided by its position in the *original* wikitext.
-    Splitting the text on template spans instead would leave the prose trailing a
-    mid-line template starting with a space; it would then render as indented
-    code, links unresolved, inside no fence.
+    Every template this renderer touches is masked to a newline-free sentinel
+    first, so whether a line is preformatted is decided by its position in the
+    *original* wikitext. Splitting the text on template spans instead would leave
+    the prose trailing a mid-line template starting with a space; it would then
+    render as indented code, links unresolved, inside no fence.
 
-    Unknown templates survive verbatim -- see the module comment above.
+    An unknown template is masked too, and restored byte-for-byte. Left in the
+    text it would be swept by _strip_inline_markup, which resolves the {{ic|...}}
+    and ''italics'' *inside* it -- so {{Accuracy|Use {{ic|sleep 5}}}} came out as
+    {{Accuracy|Use sleep 5}}: text that looks raw, is not, and is attested by
+    content_hash_cleaned all the same. Masking is what makes "verbatim" true.
     """
     if _depth > _MAX_RENDER_DEPTH:
         return wikitext
 
-    blocks: List[str] = []
+    blocks: List[Tuple[str, bool]] = []
     masked: List[str] = []
     position = 0
-    for start, end, name in _iter_top_level_templates(wikitext, _RENDERABLE_RE):
+    for start, end, name in _iter_top_level_templates(wikitext, _ANY_TEMPLATE_RE):
+        kind = _classify_template(name)
+        if kind == "inline":
+            continue  # {{ic|...}}, {{=}}: resolved later, in place
+
         interior = wikitext[start + 2:end - 2]
+        if kind == "code":
+            rendered, is_block = _render_code_template(name.strip().lower(), interior), True
+        elif kind == "admonition":
+            rendered, is_block = _render_admonition(name, interior, _depth), True
+        else:
+            rendered, is_block = wikitext[start:end], False
+
         masked.append(wikitext[position:start])
         masked.append(f"\x00{len(blocks)}\x00")
-        blocks.append(
-            _render_code_template(name, interior) if name in CODE_TEMPLATES
-            else _render_admonition(name, interior, _depth)
-        )
+        blocks.append((rendered, is_block))
         position = end
 
     masked.append(wikitext[position:])
@@ -917,7 +959,8 @@ def render_section_wikitext(wikitext: str, _depth: int = 0) -> str:
     rendered = _render_prose("".join(masked))
     if blocks:
         rendered = "\n".join(_splice_line(line, blocks) for line in rendered.split("\n"))
-    return rendered.strip()
+    # Newlines only: leading spaces are a nested list item's depth, not padding.
+    return rendered.strip("\n")
 
 
 # Non-content namespaces. [[Category:X]] and [[File:X]] are page metadata, not

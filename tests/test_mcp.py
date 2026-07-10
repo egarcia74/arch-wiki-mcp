@@ -4,13 +4,19 @@ MCP tool-surface tests: schema shape, title/URL handling, and error mapping.
 
 import io
 import json
-import tomllib
+import re
 from pathlib import Path
 
 import pytest
 
 from conftest import GRUB_REVID
 from src import mcp_server
+
+# tomllib is 3.11+, and pyproject declares requires-python = ">=3.10". Reading
+# the one line we need keeps the floor honest without a tomli dependency in a
+# project whose selling point is having none.
+_PROJECT_TABLE = re.compile(r"^\[project\]$(.*?)^\[", re.M | re.S)
+_VERSION_LINE = re.compile(r'^version\s*=\s*"([^"]+)"', re.M)
 
 CONTENT_TOOLS = {"search", "page", "sections", "section", "commands", "warnings", "links"}
 
@@ -176,7 +182,11 @@ def test_server_info_version_matches_the_package_version(monkeypatch, capsys):
     lag a release and quietly answer for the previous build.
     """
     pyproject = Path(__file__).parent.parent / "pyproject.toml"
-    declared = tomllib.loads(pyproject.read_text())["project"]["version"]
+    table = _PROJECT_TABLE.search(pyproject.read_text())
+    assert table, "no [project] table in pyproject.toml"
+    versions = _VERSION_LINE.findall(table.group(1))
+    assert len(versions) == 1, f"expected one version in [project], found {versions}"
+    declared = versions[0]
 
     responses = _drive_server(
         '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}\n', monkeypatch, capsys

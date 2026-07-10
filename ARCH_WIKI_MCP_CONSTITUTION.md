@@ -1,8 +1,50 @@
 # Arch Wiki MCP: Technical Constitution
 
-**Version:** 1.11  
+**Version:** 1.12  
 **Status:** Canonical  
 **Last Updated:** 2026-07-10
+
+---
+
+## Amendment 1.12 — Migration Notes
+
+Per §12 (API Governance): no field changes. `content_hash_cleaned` and
+`message_hash_cleaned` move for any block whose source uses `<nowiki>` or an HTML
+comment — two blocks across the seven recorded pages. **No verbatim hash moves:**
+`content_hash`, `content_raw` and `message_raw` are unchanged everywhere, because
+the raw payload was always correct. Only the rendered text was wrong.
+
+### Changed in 1.12
+
+- **`<nowiki>` now protects what it wraps.** MediaWiki treats it as a strip
+  marker: nothing inside is expanded, and an HTML comment inside it is displayed.
+  We deleted the comments, dropped the tags, and then expanded the very templates
+  the tags were protecting. `Help:Style` rendered
+  `{{ic|<nowiki>{{ic|text}}</nowiki>}}` as `text` where the wiki shows the literal
+  `{{ic|text}}`.
+
+- **An HTML comment inside `<nowiki>` is content, not markup.** `commands("Iwd")`
+  returned the dbus config `/etc/dbus-1/system.d/iwd-allow-read.conf` with its two
+  comment lines deleted — while `content_hash` went on faithfully attesting
+  `content_raw`, which still contained them. The hash was honest and the text the
+  user pastes was not: synthesis by omission in the one field this MCP promises is
+  runnable. Comments *outside* `<nowiki>` are still removed, as MediaWiki's own
+  preprocessor removes them.
+
+  The evidence sat in the committed fixtures the whole time. The guard that should
+  have caught it, `test_marking_only_affects_blocks_that_have_placeholders`,
+  compared `commands().content` against a reference that deleted the comments too.
+  Both sides were wrong in the same direction, so the assertion held.
+
+- **A bodiless `{{bc}}` is no longer a command.** It produced `content: ""` with
+  `content_hash` set to the SHA-256 of the empty string — evidence for nothing,
+  carrying a hash that verifies against nothing, which §6 obliges an agent to
+  present. The wiki specifies no command there, and `[]` is how this MCP says so.
+  No page in the audited corpus contains one; the defect was latent.
+
+- **`make audit` gained `nowiki_payload_altered`.** Every `<nowiki>` payload in the
+  source must appear verbatim in the rendered output. The audit could not have
+  found the above: it had no notion that some text is literal by decree.
 
 ---
 

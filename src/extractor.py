@@ -414,6 +414,42 @@ def _strip_param_name(text: str, allowed: AbstractSet[str]) -> str:
 
 _NOWIKI_TAG = re.compile(r"</?nowiki>")
 _HTML_COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
+
+# MediaWiki treats <nowiki> as a strip marker: nothing inside it is expanded, and
+# an HTML comment inside it is displayed rather than removed. We used to delete
+# comments, drop the tags, and then expand the templates the tags were protecting
+# -- so {{ic|<nowiki>{{ic|text}}</nowiki>}} rendered as "text" where the wiki shows
+# the literal "{{ic|text}}", and the Iwd dbus config lost the comment lines the
+# wiki displays. The payload is lifted out before any of that runs and put back
+# after, byte for byte.
+_NOWIKI_SPAN = re.compile(r"<nowiki>(.*?)</nowiki>", re.DOTALL | re.IGNORECASE)
+# 'nowiki' keeps this distinct from render_section_wikitext's \x00<digits>\x00
+# template sentinels, which share the delimiter but never the payload.
+_NOWIKI_SENTINEL = re.compile("\x00nowiki(\\d+)\x00")
+
+
+def _hide_nowiki(text: str) -> Tuple[str, List[str]]:
+    """Lift <nowiki> payloads out of `text`, leaving inert sentinels behind."""
+    protected: List[str] = []
+
+    def _stash(match: "re.Match") -> str:
+        protected.append(match.group(1))
+        return f"\x00nowiki{len(protected) - 1}\x00"
+
+    return _NOWIKI_SPAN.sub(_stash, text), protected
+
+
+def _restore_nowiki(text: str, protected: List[str]) -> str:
+    """
+    Put each payload back exactly as the wiki wrote it.
+
+    Must run after link resolution and list rendering, not just after markup
+    stripping: a sentinel carries no [[ or ]], so those passes leave it alone,
+    and restoring early would expose the payload to them.
+    """
+    if not protected:
+        return text
+    return _NOWIKI_SENTINEL.sub(lambda m: protected[int(m.group(1))], text)
 _BOLD = re.compile(r"'''(.*?)'''", re.DOTALL)
 _ITALIC = re.compile(r"''(.*?)''", re.DOTALL)
 # [[Target|display]] / [[Target]] / [[Target#Anchor]]
@@ -493,9 +529,13 @@ def _strip_inline_markup(text: str, mark_placeholders: bool = False) -> Tuple[st
     (''esp'', ''device''); `mark_placeholders` keeps that signal visible as
     <esp>. Inside prose, italics are ordinary emphasis and are simply removed.
     Either way this reads the author's own markup and infers nothing.
+
+    Expects <nowiki> payloads to have been lifted out by _hide_nowiki already:
+    a comment or a template inside one is the wiki's own literal text, and
+    nothing here may touch it. The caller restores them once every pass has run.
     """
     text = _HTML_COMMENT.sub("", text)
-    text = _NOWIKI_TAG.sub("", text)
+    text = _NOWIKI_TAG.sub("", text)  # a stray, unpaired tag; the spans are gone
     text = _resolve_inline_templates(text)
 
     # After template resolution: an escape inside a body would otherwise have
@@ -520,8 +560,17 @@ def _clean_payload(raw: str) -> Tuple[str, List[str]]:
     and silently is not. `<esp>` fails at the shell instead, so a literal paste is
     resisted by structure rather than forbidden by a prompt.
     """
-    text, placeholders = _strip_inline_markup(raw, mark_placeholders=True)
-    return text.strip("\n"), placeholders
+    hidden, protected = _hide_nowiki(raw)
+    text, placeholders = _strip_inline_markup(hidden, mark_placeholders=True)
+
+    # Pacman writes ''<nowiki>http://...</nowiki>'': the italics wrap the span, so
+    # the placeholder token IS the sentinel. Restore it, or the declared
+    # placeholder is an internal marker the reader cannot find in the command.
+    placeholders = [_restore_nowiki(token, protected) for token in placeholders]
+
+    # Restore before trimming: "{{bc|<nowiki>\ncode\n</nowiki>}}" wraps its payload
+    # in newlines that the fence supplies, and they are not part of the code.
+    return _restore_nowiki(text, protected).strip("\n"), placeholders
 
 
 def _resolve_links(text: str) -> str:
@@ -597,10 +646,11 @@ def _clean_message(raw: str) -> str:
     are a nested item's depth. Stripping both promoted a nested first item a level
     above its own siblings.
     """
-    text, _ = _strip_inline_markup(raw.lstrip(" \t"))
+    hidden, protected = _hide_nowiki(raw.lstrip(" \t"))
+    text, _ = _strip_inline_markup(hidden)
     text = _resolve_links(text)
     text = "\n".join(_render_list_markers(line) for line in text.split("\n"))
-    return text.strip("\n").rstrip()
+    return _restore_nowiki(text.strip("\n").rstrip(), protected)
 
 
 def _parse_single_template(
@@ -762,7 +812,15 @@ def _extract_code_templates(
 
         raw = _strip_param_name(params[index], spec.body_names) if len(params) > index else ""
 
-        blocks.append(_make_block(raw, spec.block_type, spec.source_pattern, revid, header=header))
+        block = _make_block(raw, spec.block_type, spec.source_pattern, revid, header=header)
+
+        # A bodiless {{bc}} yields content "" attested by the SHA-256 of the empty
+        # string -- an empty command block an agent would present as evidence, and
+        # a hash that verifies against nothing. The wiki specifies no command here,
+        # and [] is how this MCP says that. The span is still consumed so the
+        # indented scanner does not rescan it.
+        if block.content.strip():
+            blocks.append(block)
         spans.append((start, end))
 
     return blocks, spans
@@ -909,17 +967,19 @@ def _render_prose_line(line: str) -> str:
     Everything else is prose, where ''italics'' are emphasis rather than
     substitution slots.
     """
-    if line[:1] in (" ", "\t") and line.strip():
-        text, _ = _strip_inline_markup(line, mark_placeholders=True)
-        return text
+    hidden, protected = _hide_nowiki(line)
 
-    text, _ = _strip_inline_markup(line)
+    if line[:1] in (" ", "\t") and line.strip():
+        text, _ = _strip_inline_markup(hidden, mark_placeholders=True)
+        return _restore_nowiki(text, protected)
+
+    text, _ = _strip_inline_markup(hidden)
 
     heading = _HEADING.match(text)
     if heading:
-        return f"{'#' * len(heading.group(1))} {heading.group(2)}"
+        return _restore_nowiki(f"{'#' * len(heading.group(1))} {heading.group(2)}", protected)
 
-    return _render_list_markers(_resolve_links(text))
+    return _restore_nowiki(_render_list_markers(_resolve_links(text)), protected)
 
 
 def _render_prose(text: str) -> str:

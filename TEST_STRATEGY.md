@@ -190,8 +190,10 @@ had to _consume_ the output.
 `make audit` renders every section of 36 live pages (1834 sections) and checks the
 contract's invariants against them: no root-prompt lookalike outside a fence, no
 list marker leaking past its bullet, no list skipping a nesting level, balanced
-fences, `content_hash` attesting `content_raw`, and every unrendered template
-appearing byte-for-byte as the wiki wrote it.
+fences, `content_hash` attesting `content_raw`, every unrendered template appearing
+byte-for-byte as the wiki wrote it, every `<nowiki>` payload surviving verbatim into
+the rendered output, and every redirect-derived warning carrying complete alias
+provenance.
 
 It asserts nothing about _what_ a page says — only that whatever it says comes out
 obeying the contract. It is deliberately outside pytest, which blocks sockets.
@@ -204,19 +206,29 @@ is this repo's own failure mode, aimed at itself. Clearing the variable silently
 would be worse than refusing: a run must never _look_ like it audited the wiki when
 it did not.
 
-This is not redundant with the fixture suite. Five defects reached `master` past a
+This is not redundant with the fixture suite. Seven defects reached `master` past a
 green suite and were caught on first contact with live content:
 
-| defect                                        | fixture corpus said                             |
-| :-------------------------------------------- | :---------------------------------------------- | ------------------------------------------ | ----- |
-| `##` → `1. # body` (bare `#` back in prose)   | green; 40 affected lines were _in_ the fixtures |
-| `{{Note                                       | body}}` rendered as code                        | green; no fixture has a leading-space body |
-| `warnings()` dropped every Spanish admonition | green; corpus is English                        |
-| `{{Accuracy                                   | {{ic                                            | x}}}}` altered inside "verbatim"           | green |
-| nested list lost its first indent             | green                                           |
+| defect                                                  | the fixture corpus said                         |
+| :------------------------------------------------------ | :---------------------------------------------- |
+| `##` → `1. # body` (a bare `#` back in prose)           | green; 40 affected lines were _in_ the fixtures |
+| `{{Note\| body}}` rendered as code                      | green; no fixture has a leading-space body      |
+| `warnings()` dropped every Spanish admonition           | green; the corpus is English                    |
+| `{{Accuracy\|{{ic\|x}}}}` altered inside "verbatim"     | green                                           |
+| a nested list lost its first indent                     | green                                           |
+| `<nowiki>` expanded what it was protecting              | green; the guard deleted the comments too       |
+| a bodiless `{{bc}}` was a command hashed as `e3b0c442…` | green; no fixture contains one                  |
 
-The first two were _present in the recorded fixtures_ and invisible because the
+Three of these were _present in the recorded fixtures_ and invisible because the
 assertions looked one character to the left. Re-recording would not have helped.
+
+The `<nowiki>` case is the sharpest. `commands("Iwd")` returned a dbus config with
+its comment lines deleted, and `test_marking_only_affects_blocks_that_have_placeholders`
+compared that output against a reference computed the same broken way. Both sides
+agreed, so the assertion passed. **A test that recomputes the behaviour it is
+checking cannot find a bug in it.** The fixture held the evidence the whole time;
+the invariant that eventually caught it — every `<nowiki>` payload appears verbatim
+in the rendered output — was stated against the wiki, not against our own code.
 
 ### Remaining gaps
 

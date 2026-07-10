@@ -153,6 +153,13 @@ could not render it, and it is reproduced byte-for-byte — insides included, so
 nested `{{ic|...}}` inside it stays raw too. Report it as-is. Never paraphrase it,
 and never drop it — omitting the wiki's own caveat is a fabrication of silence.
 
+Text the wiki wrapped in `<nowiki>` is literal, and reaches you unchanged: braces,
+`[[brackets]]`, `''apostrophes''` and HTML comments alike. So a `{{ic|text}}` you
+see in `content` may be a template this MCP could not render, **or** the exact
+characters the wiki displays. You cannot tell them apart, and you do not need to —
+the rule is the same for both. Report it as-is. In particular, an `<!-- comment -->`
+inside a code block is part of the file the wiki is showing; keep it.
+
 ### Where a warning's type came from
 
 A translated page rarely writes `{{Warning}}`. The French Installation guide

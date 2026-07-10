@@ -120,6 +120,53 @@ def test_clean_payload_dedupes_placeholders():
     assert placeholders == ["src", "dst"]
 
 
+def test_nowiki_protects_its_payload_from_every_pass():
+    """
+    <nowiki> is a strip marker: MediaWiki expands nothing inside it. We deleted
+    the comments, dropped the tags, and then expanded the templates the tags were
+    protecting -- so the wiki's literal text became our rendered text.
+    """
+    render = extractor.render_section_wikitext
+
+    # The Help:Style case: the wiki displays the literal template call.
+    assert render("resort to {{ic|<nowiki>{{ic|text}}</nowiki>}}.") == "resort to {{ic|text}}."
+    # A wikilink inside nowiki is text, not a link.
+    assert render("see {{ic|<nowiki>[[Foo|bar]]</nowiki>}}.") == "see [[Foo|bar]]."
+    # Italics inside nowiki are apostrophes, not emphasis.
+    assert render("type {{ic|<nowiki>''x''</nowiki>}}.") == "type ''x''."
+
+
+def test_an_html_comment_inside_nowiki_is_displayed_not_deleted():
+    """
+    Iwd's dbus config carries two comment lines. The wiki renders them; we
+    deleted them from commands().content while content_hash went on attesting
+    content_raw, which still had them. The user pasted a file the wiki never
+    showed -- synthesis by omission in the one field meant to be runnable.
+    """
+    content, _ = extractor._clean_payload("<nowiki><!-- keep me -->\nbody\n</nowiki>")
+    assert content == "<!-- keep me -->\nbody"
+
+
+def test_an_html_comment_outside_nowiki_is_still_removed():
+    """MediaWiki's preprocessor strips these before anything sees them."""
+    assert extractor.render_section_wikitext("Text <!-- hidden --> more.") == "Text  more."
+
+
+def test_italics_inside_nowiki_are_not_placeholders():
+    """
+    A placeholder is a value the reader substitutes. ''x'' inside nowiki is two
+    apostrophes the wiki prints, and promoting it to <x> would invent a slot.
+    """
+    content, placeholders = extractor._clean_payload("run <nowiki>''x''</nowiki> ''real''")
+    assert placeholders == ["real"]
+    assert "''x''" in content and "<real>" in content
+
+
+def test_a_stray_unpaired_nowiki_tag_is_still_dropped():
+    content, _ = extractor._clean_payload("a </nowiki> b")
+    assert content == "a  b"
+
+
 @pytest.mark.parametrize(
     "wikitext,expected_type,expected_header",
     [

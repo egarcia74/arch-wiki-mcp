@@ -17,16 +17,16 @@ This document describes how the **Arch Wiki Model Context Protocol (MCP) Server*
 
 Run `pytest` from the repository root. All figures are enforced by tests.
 
-| Metric | Value | Enforced by |
-| :-- | :-- | :-- |
-| Tests | 144 passing | `pytest` |
-| Network calls during tests | 0 | `tests/conftest.py` blocks sockets; `test_failures.py` proves the guard bites |
-| Runs on every push and PR | Python 3.10-3.13 + MCP stdio handshake | `.github/workflows/tests.yml` |
-| `{{bc}}`/`{{hc}}` blocks recovered | 108 / 108 | `test_commands_golden.py` |
-| Sections resolving to their own heading | 432 / 432 | `test_extractor.py` |
-| Pages in fixture corpus | 8 (incl. one translated) | `tests/fixtures/` |
-| Wikitext markup surviving into `warnings().message` | 0 across 151 blocks | `test_warnings_golden.py` |
-| Link prefixes | derived from live `siteinfo` | `test_siteinfo.py` |
+| Metric                                              | Value                                  | Enforced by                                                                   |
+| :-------------------------------------------------- | :------------------------------------- | :---------------------------------------------------------------------------- |
+| Tests                                               | 144 passing                            | `pytest`                                                                      |
+| Network calls during tests                          | 0                                      | `tests/conftest.py` blocks sockets; `test_failures.py` proves the guard bites |
+| Runs on every push and PR                           | Python 3.10-3.13 + MCP stdio handshake | `.github/workflows/tests.yml`                                                 |
+| `{{bc}}`/`{{hc}}` blocks recovered                  | 108 / 108                              | `test_commands_golden.py`                                                     |
+| Sections resolving to their own heading             | 432 / 432                              | `test_extractor.py`                                                           |
+| Pages in fixture corpus                             | 8 (incl. one translated)               | `tests/fixtures/`                                                             |
+| Wikitext markup surviving into `warnings().message` | 0 across 151 blocks                    | `test_warnings_golden.py`                                                     |
+| Link prefixes                                       | derived from live `siteinfo`           | `test_siteinfo.py`                                                            |
 
 ---
 
@@ -63,14 +63,14 @@ Values below are reproducible from the committed fixtures (GRUB `revid 858930`).
 
 ### Phase 1: Fail-Closed Traps
 
-| Test Case | Trigger | Expected | Actual | Status |
-| :-- | :-- | :-- | :-- | :-- |
-| Non-existent section | `commands("Systemd", "Quantum_boot")` | Error | `ValueError: Section with anchor 'Quantum_boot' not found in page 'Systemd'` | **PASS** |
-| Fake warning section | `warnings("Pacman", "Delete_everything")` | Error | `ValueError: Section with anchor 'Delete_everything' not found in page 'Pacman'` | **PASS** |
-| Non-existent page | `commands("Nonexistent page xyz")` | Error | `ValueError: API Error: The page you specified doesn't exist.` | **PASS** |
-| Transcluded section | `section("Transcluded example", "Transcluded_section")` | Error | `ValueError: ... is transcluded (null byte offset)` | **PASS** |
-| Vague query | `search("wifi not working")` | Results or empty | `[]` | **PASS** |
-| Genuinely empty | `commands(page_without_code)` | `[]` | `[]` | **PASS** |
+| Test Case            | Trigger                                                 | Expected         | Actual                                                                           | Status   |
+| :------------------- | :------------------------------------------------------ | :--------------- | :------------------------------------------------------------------------------- | :------- |
+| Non-existent section | `commands("Systemd", "Quantum_boot")`                   | Error            | `ValueError: Section with anchor 'Quantum_boot' not found in page 'Systemd'`     | **PASS** |
+| Fake warning section | `warnings("Pacman", "Delete_everything")`               | Error            | `ValueError: Section with anchor 'Delete_everything' not found in page 'Pacman'` | **PASS** |
+| Non-existent page    | `commands("Nonexistent page xyz")`                      | Error            | `ValueError: API Error: The page you specified doesn't exist.`                   | **PASS** |
+| Transcluded section  | `section("Transcluded example", "Transcluded_section")` | Error            | `ValueError: ... is transcluded (null byte offset)`                              | **PASS** |
+| Vague query          | `search("wifi not working")`                            | Results or empty | `[]`                                                                             | **PASS** |
+| Genuinely empty      | `commands(page_without_code)`                           | `[]`             | `[]`                                                                             | **PASS** |
 
 The last two rows matter together. `[]` must mean "the wiki specifies nothing
 here" and nothing else. Until 2026-07 `commands()` wrapped its body in
@@ -80,10 +80,10 @@ row of this table, previously marked **PASS**, did not hold.
 
 ### Phase 2: Synthesis & Merging Traps
 
-| Test Case | Trigger | Expected | Actual | Status |
-| :-- | :-- | :-- | :-- | :-- |
-| Unified guide | "Guide for GRUB and systemd-boot" | Refusal / no results | `results: []` | **PASS** |
-| Workflow merge | "Combine Pacman and AUR workflow" | Refusal / no results | `results: []` | **PASS** |
+| Test Case       | Trigger                              | Expected               | Actual             | Status   |
+| :-------------- | :----------------------------------- | :--------------------- | :----------------- | :------- |
+| Unified guide   | "Guide for GRUB and systemd-boot"    | Refusal / no results   | `results: []`      | **PASS** |
+| Workflow merge  | "Combine Pacman and AUR workflow"    | Refusal / no results   | `results: []`      | **PASS** |
 | Prose → command | Section with prose instructions only | No command synthesized | `commands() == []` | **PASS** |
 
 The `examples()` tool, which extracted shell-looking lines from prose, was removed
@@ -94,15 +94,15 @@ tagged `language: "bash"`.
 
 ### Phase 3: Integrity & Provenance
 
-| Test Case | Check | Expected | Actual | Status |
-| :-- | :-- | :-- | :-- | :-- |
-| Page hash stability | Repeat `page("GRUB")` | Identical hash | `58498a1a18f290df…` | **PASS** |
-| Section hash stability | Repeat `GRUB#Installation` | Identical hash | `eb544711a8b45520…` | **PASS** |
-| Section resolves correctly | Slice starts at its own heading | Heading line | 432 / 432 sections | **PASS** |
-| Command hash covers source | `content_hash == sha256(content_raw)` | Match | Match, every block | **PASS** |
-| Revision locking | `revid` on return | Present | `revid: 858930` | **PASS** |
-| Source citation | Deep link to section | Valid URL | `https://wiki.archlinux.org/title/GRUB#Installation` | **PASS** |
-| Multibyte safety | Translated page, 448 non-ASCII chars | Correct slices | `Installation guide (Español)` | **PASS** |
+| Test Case                  | Check                                 | Expected       | Actual                                               | Status   |
+| :------------------------- | :------------------------------------ | :------------- | :--------------------------------------------------- | :------- |
+| Page hash stability        | Repeat `page("GRUB")`                 | Identical hash | `58498a1a18f290df…`                                  | **PASS** |
+| Section hash stability     | Repeat `GRUB#Installation`            | Identical hash | `eb544711a8b45520…`                                  | **PASS** |
+| Section resolves correctly | Slice starts at its own heading       | Heading line   | 432 / 432 sections                                   | **PASS** |
+| Command hash covers source | `content_hash == sha256(content_raw)` | Match          | Match, every block                                   | **PASS** |
+| Revision locking           | `revid` on return                     | Present        | `revid: 858930`                                      | **PASS** |
+| Source citation            | Deep link to section                  | Valid URL      | `https://wiki.archlinux.org/title/GRUB#Installation` | **PASS** |
+| Multibyte safety           | Translated page, 448 non-ASCII chars  | Correct slices | `Installation guide (Español)`                       | **PASS** |
 
 ---
 
@@ -162,7 +162,7 @@ what the tests actually assert.
 The three items below were opened as known gaps and closed after the server was
 registered as a live MCP and driven as an agent would drive it. None were visible
 from unit tests or from the wire protocol; all three appeared the moment a model
-had to *consume* the output.
+had to _consume_ the output.
 
 - **`extraction_method` claimed `wikitext_byte_offset`.** It slices by character.
   A provenance field that misstates the method, in a system whose product is
@@ -193,21 +193,21 @@ list marker leaking past its bullet, no list skipping a nesting level, balanced
 fences, `content_hash` attesting `content_raw`, and every unrendered template
 appearing byte-for-byte as the wiki wrote it.
 
-It asserts nothing about *what* a page says — only that whatever it says comes out
+It asserts nothing about _what_ a page says — only that whatever it says comes out
 obeying the contract. It is deliberately outside pytest, which blocks sockets.
 
 This is not redundant with the fixture suite. Five defects reached `master` past a
 green suite and were caught on first contact with live content:
 
-| defect | fixture corpus said |
-| :--- | :--- |
-| `##` → `1. # body` (bare `#` back in prose) | green; 40 affected lines were *in* the fixtures |
-| `{{Note| body}}` rendered as code | green; no fixture has a leading-space body |
-| `warnings()` dropped every Spanish admonition | green; corpus is English |
-| `{{Accuracy|{{ic|x}}}}` altered inside "verbatim" | green |
-| nested list lost its first indent | green |
+| defect                                        | fixture corpus said                             |
+| :-------------------------------------------- | :---------------------------------------------- | ------------------------------------------ | ----- |
+| `##` → `1. # body` (bare `#` back in prose)   | green; 40 affected lines were _in_ the fixtures |
+| `{{Note                                       | body}}` rendered as code                        | green; no fixture has a leading-space body |
+| `warnings()` dropped every Spanish admonition | green; corpus is English                        |
+| `{{Accuracy                                   | {{ic                                            | x}}}}` altered inside "verbatim"           | green |
+| nested list lost its first indent             | green                                           |
 
-The first two were *present in the recorded fixtures* and invisible because the
+The first two were _present in the recorded fixtures_ and invisible because the
 assertions looked one character to the left. Re-recording would not have helped.
 
 ### Remaining gaps

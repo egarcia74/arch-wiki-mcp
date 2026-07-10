@@ -77,7 +77,7 @@ DEFAULT_PAGES = [
 ]
 
 MARKDOWN_HEADING = re.compile(r"^#{2,6} \S")
-LEAKED_MARKER = re.compile(r"^\s*(?:1\.|-) [*#:;](?=[\s*#:;])")
+LEAKED_MARKER = re.compile(r"^\s*(?:1\.|-) [*#:;](?=[\s*#:;])", re.MULTILINE)
 BULLET = re.compile(r"^(\s*)(?:- |1\. )")
 # A real unrendered italic is a PAIR. Bare '' is shell quoting: Docker's
 # `--format='{{range ...}}'` leaves it behind once the Go template span is cut.
@@ -109,6 +109,16 @@ def unfenced(content):
         if not in_fence:
             kept.append(line)
     return "\n".join(kept)
+
+
+def bullet_depths(text):
+    return [len(m.group(1)) for m in map(BULLET.match, text.split("\n")) if m]
+
+
+def skips_a_nesting_level(text):
+    """A list may nest one level at a time. A jump means an item lost its indent."""
+    depths = bullet_depths(text)
+    return any(second - first > 2 for first, second in zip(depths, depths[1:]))
 
 
 def strip_template_spans(content):
@@ -173,11 +183,8 @@ def audit_section(page, anchor, raw, page_wikitext, report):
 
     # A list may nest one level at a time. Skipping a level means an item lost the
     # indent its siblings kept -- a trailing .strip() on the fragment ate it.
-    indents = [len(m.group(1)) for m in map(BULLET.match, content.split("\n")) if m]
-    for first, second in zip(indents, indents[1:]):
-        if second - first > 2:
-            fail("nested_list_skipped_a_level", f"bullet indent {first} -> {second}")
-            break
+    if skips_a_nesting_level(content):
+        fail("nested_list_skipped_a_level", f"bullet indents {bullet_depths(content)[:6]}")
 
     return content
 
@@ -205,6 +212,16 @@ def audit_page(page, report, residual, stats):
         stats["warnings"] += len(found)
     except Exception as exc:  # noqa: BLE001
         report["warnings_raised"].append(f"{page}: {exc!r}")
+        found = []
+
+    # warnings().message is prose an agent is REQUIRED to quote. It renders lists
+    # through the same helper as section(), but strips whitespace separately -- so
+    # the nesting invariant has to be checked here too, not inferred from sections.
+    for warning in found:
+        if skips_a_nesting_level(warning["message"]):
+            report["warning_message_skipped_a_level"].append(f"{page}: {warning['type']}")
+        if LEAKED_MARKER.search(warning["message"]):
+            report["warning_message_leaked_a_marker"].append(f"{page}: {warning['type']}")
 
     audited_public_api = False
     for section in parse["sections"]:

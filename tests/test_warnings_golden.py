@@ -7,6 +7,8 @@ template body, and `content_hash` covers the raw text so it stays greppable in
 the wiki source.
 """
 
+import re
+
 import pytest
 
 from conftest import load_wikitext
@@ -142,3 +144,32 @@ def test_anchored_tools_parse_the_raw_slice_not_the_rendered_one():
     assert anchored[0]["type"] == "NOTE"
 
     assert extractor.links("GRUB", "Installation")
+
+
+def skips_a_nesting_level(text):
+    """A list may nest one level at a time; a jump means an item lost its indent."""
+    bullet = re.compile(r"^(\s*)(?:- |1\. )")
+    depths = [len(m.group(1)) for m in map(bullet.match, text.split("\n")) if m]
+    return any(second - first > 2 for first, second in zip(depths, depths[1:]))
+
+
+def test_a_nested_first_item_keeps_the_indent_its_siblings_have():
+    """
+    _clean_message ended in .strip(), eating the indent _render_list_markers had
+    just generated for the first line. section() was fixed in 1.9; warnings()
+    shares neither the code path nor, until now, the test. Found by driving the
+    live server: the French Installation guide's {{Astuce}} rendered its first
+    bullet flush left and its second four spaces in.
+    """
+    assert extractor._clean_message("#** a\n#** b") == "    - a\n    - b"
+
+
+def test_a_leading_space_in_the_body_is_still_insignificant():
+    """In {{Note| body}}, that leading space sits mid-line in the source and means nothing."""
+    assert extractor._clean_message(" The iwd backend refuses.") == "The iwd backend refuses."
+
+
+def test_no_warning_message_in_the_corpus_skips_a_nesting_level():
+    for page in CORPUS + ["Installation guide (Français)"]:
+        for warning in extractor.warnings(page):
+            assert not skips_a_nesting_level(warning["message"]), f"{page}: {warning['type']}"

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "arch-wiki-mcp"
-version = "1.5.1"
+version = "1.5.2"
 description = "Arch Wiki MCP Server - A Truth Perimeter for AI"
 authors = [
     { name = "egarcia74" }

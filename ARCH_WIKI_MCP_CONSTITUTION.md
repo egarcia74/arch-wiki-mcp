@@ -1,8 +1,55 @@
 # Arch Wiki MCP: Technical Constitution
 
-**Version:** 1.13  
+**Version:** 1.14  
 **Status:** Canonical  
 **Last Updated:** 2026-07-10
+
+---
+
+## Amendment 1.14 — Migration Notes
+
+Per §12 (API Governance): `search()` gains `match`, and `snippet` changes from
+MediaWiki's highlight HTML to plain text. `title`, `pageid` and `url` are
+unchanged. No hash moves anywhere — `search()` has never carried one.
+
+**Behavioural change:** `search()` now returns results for queries that
+previously returned `[]`. Any caller that treated an empty result as "the wiki
+has nothing" was being lied to; it will now receive pages.
+
+### Changed in 1.14
+
+- **`search()` no longer manufactures silence.** `srwhat` has no default on this
+  wiki, and the API then searches **titles only**. `search("wifi not working")`
+  returned `[]` while the wiki held 47 matching pages; `search("iwd wifi")`
+  returned `[]` against 33; `search("pacman keyring")` against 111. `[]` is this
+  MCP's way of saying the wiki specifies nothing — §5, Fail Closed — so the
+  discovery entry point was fabricating the wiki's silence, the same harm the
+  rest of this document exists to prevent, one layer earlier than anywhere it had
+  been looked for.
+
+  Full-text search alone is not the remedy: it buries exact titles, so
+  `search("GRUB")` stops finding `GRUB`. The wiki's own search box asks both
+  questions, and so do we — `srwhat=nearmatch` for the exact page, then
+  `srwhat=text`. **We do not re-rank.** Each list keeps the order the wiki
+  returned it in; the exact match simply precedes the rest, and says so via
+  `match`.
+
+- **A search result is a pointer, not evidence.** It is the only tool output with
+  no `revid` and no hash, and `snippet` — a truncated fragment of a revision
+  nobody named, re-indexed at the wiki's discretion — must never be quoted.
+  `SearchResult` is now a dataclass, so §12's contract tests force both AGENTS.md
+  and the injected prompt to say what `snippet`, `pageid` and `match` mean.
+
+- **`snippet` is plain text.** It shipped as MediaWiki's highlight HTML wrapped
+  around raw wikitext: `[[de:<span class="searchmatch">GRUB</span>]]`. Balanced
+  markup is now resolved. A token the wiki truncated (`a:C++|C++]]`) keeps its
+  brackets, because inventing the missing half would be interpretation.
+
+- **A test and a report both certified the bug.** `test_search_tool_zero_results`
+  asserted `search("wifi not working") == []`, and TEST_STRATEGY.md recorded
+  `Expected: Results or empty` → **PASS**. An expectation that accepts either
+  answer cannot fail. Both are corrected, and the zero-result case now uses a
+  query the wiki genuinely cannot answer.
 
 ---
 

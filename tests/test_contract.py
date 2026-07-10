@@ -24,7 +24,12 @@ REPO_ROOT = Path(__file__).parent.parent
 AGENTS_MD = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
 
 # Every dataclass an agent sees the fields of.
-OUTPUT_SCHEMAS = (extractor.CodeBlock, extractor.WarningBlock, extractor.ExtractedBlock)
+OUTPUT_SCHEMAS = (
+    extractor.CodeBlock,
+    extractor.WarningBlock,
+    extractor.ExtractedBlock,
+    extractor.SearchResult,
+)
 
 # Fields an agent can read without being told what they mean.
 SELF_EXPLANATORY = {
@@ -67,9 +72,12 @@ def test_the_derived_field_set_is_the_one_we_expect():
         "alias_target",
         "content_hash_cleaned",
         "content_raw",
+        "match",
         "message_hash_cleaned",
         "message_raw",
+        "pageid",
         "placeholders",
+        "snippet",
     ]
 
 

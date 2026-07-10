@@ -5,6 +5,7 @@ Deterministic, hash-stable extraction of wiki content with full provenance.
 """
 
 import hashlib
+import html
 import logging
 import re
 import unicodedata
@@ -128,6 +129,23 @@ class InternalLink:
     display_text: Optional[str]
     source_page: str
     anchor: Optional[str] = None
+
+
+@dataclass
+class SearchResult:
+    """
+    One page the wiki's own search returned. A pointer, never evidence.
+
+    `snippet` carries no revid and no hash, and the wiki may re-index it at any
+    time. It exists to help choose which page to open; nothing in it may be
+    quoted to a user. To cite anything, call section(), commands() or warnings()
+    on `title`.
+    """
+    title: str
+    pageid: int
+    snippet: str  # Plain text: the wiki's match context, markup resolved
+    url: str
+    match: str  # "title" (exact page) or "text" (full-text hit)
 
 
 def make_wiki_url(title: str, anchor: Optional[str] = None) -> str:
@@ -1562,52 +1580,97 @@ def parse_internal_links(
     return links
 
 
-def search(query: str, limit: int = 10, timeout: int = 30) -> List[Dict]:
-    """
-    MCP Tool: Search Arch Wiki using MediaWiki search API.
-    
-    Args:
-        query: Search query string
-        limit: Maximum number of results (default 10)
-        timeout: Request timeout in seconds
-        
-    Returns:
-        List of search results:
-        [{
-            "title": str,
-            "pageid": int,
-            "snippet": str,  # HTML snippet with highlights
-            "url": str
-        }]
-    
-    No ranking, no interpretation. Just wiki's search results as-is.
-    """
-    params = {
-        "action": "query",
-        "list": "search",
-        "srsearch": query,
-        "srlimit": limit,
-        "format": "json",
-    }
+# MediaWiki's own highlight markup, and the only unescaped HTML it injects into a
+# snippet. Everything else there arrives entity-escaped.
+_SEARCHMATCH_SPAN = re.compile(r"</?span[^>]*>")
 
-    data = _fetch(params, timeout)
+
+def clean_snippet(raw: str) -> str:
+    """
+    Render a search snippet down to plain text on one line.
+
+    It arrived as MediaWiki's highlight HTML wrapped around raw wikitext:
+    '[[de:<span class="searchmatch">GRUB</span>]]'. Handed to an agent, that is
+    markup to quote or a link to follow, and it is neither -- a snippet carries
+    no revid and no hash. Rendering it is not attesting it; see SearchResult.
+
+    A snippet is a TRUNCATED fragment, so its markup may be cut mid-token:
+    "a:C++|C++]]. Zosta" has no opening '[[' to match and keeps its brackets.
+    Balanced markup resolves; a severed token stays as the wiki sent it. That is
+    the honest outcome, and the reason a snippet may never be quoted.
+    """
+    text = _SEARCHMATCH_SPAN.sub("", raw)
+    text = html.unescape(text)
+
+    hidden, protected = _hide_nowiki(text)
+    text, _ = _strip_inline_markup(hidden)
+    text = _resolve_links(text)
+    text = _restore_nowiki(text, protected)
+
+    # One line: a snippet is a fragment, and its newlines were never structure.
+    return " ".join(text.split())
+
+
+def _search_hits(query: str, limit: int, what: str, timeout: int, key: Optional[str] = None) -> List[Dict]:
+    """One list=search request. Raises rather than reporting a partial answer."""
+    data = _fetch(
+        {
+            "action": "query",
+            "list": "search",
+            "srsearch": query,
+            "srlimit": limit,
+            "srwhat": what,
+            "format": "json",
+        },
+        timeout,
+        key=key,
+    )
 
     if "error" in data:
         raise ValueError(f"Search API Error: {data['error'].get('info', data['error'])}")
-    
     if "query" not in data or "search" not in data["query"]:
         raise ValueError(f"Unexpected search API response: {data}")
-    
-    results = []
-    for item in data["query"]["search"]:
-        results.append({
-            "title": item["title"],
-            "pageid": item["pageid"],
-            "snippet": item.get("snippet", ""),
-            "url": make_wiki_url(item["title"])
-        })
-    
-    return results
+
+    return data["query"]["search"]
+
+
+def search(query: str, limit: int = 10, timeout: int = 30) -> List[Dict]:
+    """
+    MCP Tool: Search Arch Wiki using MediaWiki search API.
+
+    Two requests, mirroring what the wiki's own search box does: the exact-title
+    match first if there is one, then the full-text hits in the wiki's order.
+
+    srwhat has no default on this wiki, and the API then searches TITLES ONLY.
+    search("wifi not working") returned [] while the wiki held 47 matching pages
+    -- and [] is this MCP's way of saying the wiki specifies nothing. The
+    discovery entry point was manufacturing silence, the same harm the rest of
+    the contract exists to prevent, one layer earlier.
+
+    Full text alone is not the fix either: it buries exact titles, so
+    search("GRUB") no longer finds GRUB. Asking both questions is what the wiki
+    does. We do not re-rank: each list keeps the order the wiki returned it in,
+    and the exact match simply precedes the rest.
+
+    Returns list of SearchResult dicts.
+    """
+    exact = _search_hits(query, 1, "nearmatch", timeout, key=f"nearmatch_{query}")
+    full_text = _search_hits(query, limit, "text", timeout)
+
+    seen = {hit["pageid"] for hit in exact}
+    ordered = [(hit, "title") for hit in exact]
+    ordered += [(hit, "text") for hit in full_text if hit["pageid"] not in seen]
+
+    return [
+        asdict(SearchResult(
+            title=hit["title"],
+            pageid=hit["pageid"],
+            snippet=clean_snippet(hit.get("snippet", "")),
+            url=make_wiki_url(hit["title"]),
+            match=match,
+        ))
+        for hit, match in ordered[:limit]
+    ]
 
 
 def page(title: str) -> Dict:

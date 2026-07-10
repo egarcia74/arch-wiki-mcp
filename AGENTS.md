@@ -36,7 +36,6 @@ The Arch Wiki MCP exposes the Arch Linux Wiki as **evidence objects**:
 - Warnings and Notes
 - Packages
 - Links
-- Search Results
 
 Each artifact is returned with:
 
@@ -48,6 +47,31 @@ Each artifact is returned with:
 
 These fields are not metadata.  
 They are **chain-of-custody**.
+
+### Search results are pointers, not evidence
+
+`search()` is the exception, and the only tool whose output carries no `revid` and
+no hash. It tells you which page to open. Nothing it returns may be quoted.
+
+| Field     | Meaning                                                       |
+| :-------- | :------------------------------------------------------------ |
+| `title`   | The page to pass to `section()`, `commands()` or `warnings()` |
+| `pageid`  | MediaWiki's numeric id for that page; use `title`, not this   |
+| `snippet` | The wiki's match context, as plain text. **Never quotable.**  |
+| `match`   | `"title"` for the exact page, `"text"` for a full-text hit    |
+
+A `snippet` is a truncated fragment of a revision nobody named, re-indexed
+whenever the wiki likes. Its markup is resolved where it can be, but a token cut
+in half (`a:C++|C++]]`) keeps its brackets. Use it to _choose_ a page. To say
+anything about that page, call `section()`, `commands()` or `warnings()` and cite
+what they return.
+
+The exact-title match, when there is one, comes first and is marked
+`match: "title"`. The rest follow in the order the wiki's full-text search
+returned them. This MCP does not re-rank them.
+
+An empty result means the wiki's search found nothing — not that the topic is
+undocumented under another name.
 
 ---
 

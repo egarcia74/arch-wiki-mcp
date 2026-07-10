@@ -55,8 +55,14 @@ def tool_search(query: str, limit: int = 10) -> dict:
         
     Returns:
         {
-            "results": List[Dict{title, pageid, snippet, url}]
+            "results": List[Dict{title, pageid, snippet, url, match}]
         }
+
+    A pointer, never evidence: no revid, no hash, nothing quotable. The exact-title
+    match leads when one exists (match: "title"); the rest are the wiki's full-text
+    hits in its own order (match: "text"), unranked by us. snippet is plain text and
+    may keep the brackets of a token the wiki truncated. [] means the wiki's search
+    found nothing -- not that the topic is undocumented under another name.
     """
     results = extractor.search(query, limit)
     return {"results": results}
@@ -278,7 +284,7 @@ def _handle_initialize(msg_id: int) -> dict:
         "id": msg_id,
         "result": {
             "protocolVersion": "2024-11-05",
-            "serverInfo": {"name": "arch-wiki-mcp", "version": "1.6.2"},
+            "serverInfo": {"name": "arch-wiki-mcp", "version": "1.7.0"},
             "capabilities": {"tools": {}, "prompts": {}}
         }
     }
@@ -326,6 +332,16 @@ NON-NEGOTIABLE RULES (Truth Perimeter)
    - do not suggest “closest match”
 6) You must surface warnings and notes returned by warnings() before presenting related commands.
 7) You must not merge multiple pages into a “unified guide” unless the user explicitly requests multi-page output AND you preserve page-level provenance per fragment.
+
+SEARCH RESULTS ARE POINTERS, NOT EVIDENCE
+search() is the one tool whose output carries no revid and no hash. It tells you which
+page to open, and nothing it returns may be quoted. `snippet` is the wiki's match
+context as plain text -- a truncated fragment of a revision nobody named, so a token cut
+in half (a:C++|C++]]) keeps its brackets. `match` is "title" for the exact page (which
+comes first when one exists) or "text" for a full-text hit, in the wiki's own order;
+this MCP does not re-rank them. `pageid` is MediaWiki's numeric id -- pass `title` to
+the other tools, not it. To say anything about a page, call section(), commands() or
+warnings() and cite what they return.
 
 WHICH FIELD IS VERBATIM
 Three tools return the same evidence twice. Neither field may be edited by you.
@@ -414,7 +430,12 @@ def _handle_tools_list(msg_id: int) -> dict:
             "tools": [
                 {
                     "name": "search",
-                    "description": "Search Arch Wiki pages",
+                    "description": (
+                        "Search Arch Wiki pages: the exact-title match first when one "
+                        "exists, then the wiki's full-text hits in its own order. A "
+                        "pointer, never evidence -- results carry no revid and no hash, "
+                        "and `snippet` is never quotable."
+                    ),
                     "inputSchema": {
                         "type": "object",
                         "properties": {

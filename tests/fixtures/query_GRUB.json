@@ -6,27 +6,9 @@
   },
   "query": {
     "searchinfo": {
-      "totalhits": 73
+      "totalhits": 437
     },
     "search": [
-      {
-        "ns": 0,
-        "title": "\u041f\u0435\u0440\u0435\u0432\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d\u043d\u044f GRUB",
-        "pageid": 8392,
-        "size": 51,
-        "wordcount": 5,
-        "snippet": "",
-        "timestamp": "2017-11-24T03:15:22Z"
-      },
-      {
-        "ns": 0,
-        "title": "GRUB",
-        "pageid": 5984,
-        "size": 61236,
-        "wordcount": 9372,
-        "snippet": "[[de:<span class=\"searchmatch\">GRUB</span>]]\n[[es:<span class=\"searchmatch\">GRUB</span>]]\n",
-        "timestamp": "2025-12-26T19:13:31Z"
-      },
       {
         "ns": 0,
         "title": "Grub",
@@ -38,21 +20,39 @@
       },
       {
         "ns": 0,
-        "title": "GRUB (\u05e2\u05d1\u05e8\u05d9\u05ea)",
-        "pageid": 2261,
+        "title": "GRand Unified Bootloader",
+        "pageid": 30980,
         "size": 18,
         "wordcount": 2,
         "snippet": "#redirect [[<span class=\"searchmatch\">GRUB</span>]]\n",
-        "timestamp": "2021-09-05T16:43:28Z"
+        "timestamp": "2020-06-03T12:35:54Z"
       },
       {
         "ns": 0,
-        "title": "GRUB (Espa\u00f1ol)",
-        "pageid": 4880,
-        "size": 51029,
-        "wordcount": 8064,
-        "snippet": "[[de:<span class=\"searchmatch\">GRUB</span>]]\n[[en:<span class=\"searchmatch\">GRUB</span>]]\n",
-        "timestamp": "2025-05-13T21:11:25Z"
+        "title": "Burg (\u6b63\u9ad4\u4e2d\u6587)",
+        "pageid": 20931,
+        "size": 18,
+        "wordcount": 2,
+        "snippet": "#REDIRECT [[<span class=\"searchmatch\">GRUB</span>]]\n",
+        "timestamp": "2021-06-11T05:34:52Z"
+      },
+      {
+        "ns": 0,
+        "title": "Grub2",
+        "pageid": 6382,
+        "size": 18,
+        "wordcount": 2,
+        "snippet": "#REDIRECT [[<span class=\"searchmatch\">GRUB</span>]]\n",
+        "timestamp": "2013-04-27T19:53:43Z"
+      },
+      {
+        "ns": 0,
+        "title": "GRUB 2",
+        "pageid": 13938,
+        "size": 18,
+        "wordcount": 2,
+        "snippet": "#REDIRECT [[<span class=\"searchmatch\">GRUB</span>]]\n",
+        "timestamp": "2013-04-27T07:55:08Z"
       }
     ]
   }

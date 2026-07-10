@@ -122,3 +122,38 @@ def test_examples_tool_is_gone():
     """The prose-to-shell heuristic violated Constitution sections 3 and 8."""
     assert not hasattr(extractor, "examples")
     assert not hasattr(extractor, "parse_shell_heuristics")
+
+
+# ---------------------------------------------------------------------------
+# search(): a discovery aid, never evidence.
+# ---------------------------------------------------------------------------
+
+def test_clean_snippet_resolves_balanced_markup():
+    assert extractor.clean_snippet(
+        '[[de:<span class="searchmatch">GRUB</span>]]'
+    ) == "de:GRUB"
+    assert extractor.clean_snippet("{{ic|pacman}} and ''iwd''") == "pacman and iwd"
+    assert extractor.clean_snippet("&lt;pre&gt;code&lt;/pre&gt;") == "<pre>code</pre>"
+    assert extractor.clean_snippet("one\ntwo\n") == "one two"
+
+
+def test_clean_snippet_leaves_a_severed_token_alone():
+    """
+    A snippet is a truncated fragment. "a:C++|C++]]" has no opening '[[' to
+    match, and inventing one would be interpretation. It stays as the wiki sent
+    it -- which is why a snippet may never be quoted.
+    """
+    assert extractor.clean_snippet("a:C++|C++]]. Zosta") == "a:C++|C++]]. Zosta"
+
+
+def test_no_snippet_in_the_corpus_carries_html():
+    for query in ["GRUB", "C++", "wifi not working", "Iwd (简体中文)"]:
+        for result in extractor.search(query):
+            assert "<span" not in result["snippet"]
+            assert "&lt;" not in result["snippet"] and "&amp;" not in result["snippet"]
+            assert "\n" not in result["snippet"]
+
+
+def test_a_search_result_declares_how_it_matched():
+    for result in extractor.search("GRUB"):
+        assert result["match"] in {"title", "text"}

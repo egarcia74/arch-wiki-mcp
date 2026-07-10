@@ -1,9 +1,59 @@
 {
   "batchcomplete": "",
+  "continue": {
+    "sroffset": 5,
+    "continue": "-||"
+  },
   "query": {
     "searchinfo": {
-      "totalhits": 0
+      "totalhits": 47
     },
-    "search": []
+    "search": [
+      {
+        "ns": 0,
+        "title": "Cairo-Dock",
+        "pageid": 11769,
+        "size": 4702,
+        "wordcount": 710,
+        "snippet": "...ore all of them have been made optional <span class=\"searchmatch\">not</span> to bloat your system if you do <span class=\"searchmatch\">not</span> use a particular applet. Please refer to the optdepends list and install th\n{{Note|If for some reason an applet is <span class=\"searchmatch\">not</span> <span class=\"searchmatch\">working</span>, make sure you have GVFS installed, it is required for several applets as w\n",
+        "timestamp": "2025-12-20T19:57:00Z"
+      },
+      {
+        "ns": 0,
+        "title": "TLP (Magyar)",
+        "pageid": 38045,
+        "size": 6368,
+        "wordcount": 966,
+        "snippet": "...owertop]]&#039;s recommendations out of the box, so additional configuration is <span class=\"searchmatch\">not</span> needed. Also, TLP is completely customizable, which means you can get even \n...o place files in {{ic|/etc/tlp.d/}}, for example {{ic|/etc/tlp.d/00-enable-<span class=\"searchmatch\">wifi</span>-at-startup.conf}} with the desired changes. If the same parameter is define\n",
+        "timestamp": "2025-12-06T14:41:18Z"
+      },
+      {
+        "ns": 0,
+        "title": "HP 255 G10",
+        "pageid": 36177,
+        "size": 4265,
+        "wordcount": 654,
+        "snippet": "! Hardware !! PCI/USB ID !! <span class=\"searchmatch\">Working</span>?\nThe appearance of the BIOS is simple but does <span class=\"searchmatch\">not</span> have much contrast. It can be navigated with just the keyboard.\n",
+        "timestamp": "2025-10-21T13:55:53Z"
+      },
+      {
+        "ns": 0,
+        "title": "Framework Laptop 13 (AMD Ryzen 7040 Series)",
+        "pageid": 36722,
+        "size": 6861,
+        "wordcount": 922,
+        "snippet": "! Hardware !! PCI/USB ID !! <span class=\"searchmatch\">Working</span>?\n...of {{Pkg|base}}. Without it, much of the hardware will be detected but may <span class=\"searchmatch\">not</span> be fully functional. You will see firmware loading issues in the [[journal]\n",
+        "timestamp": "2026-05-08T21:14:38Z"
+      },
+      {
+        "ns": 0,
+        "title": "GPD Pocket",
+        "pageid": 25329,
+        "size": 8263,
+        "wordcount": 1097,
+        "snippet": "* <span class=\"searchmatch\">WiFi</span>: Broadcom 4356 802.11ac\n...ally hint screen rotation for the GPD pocket. If it does <span class=\"searchmatch\">not</span>, or if you do <span class=\"searchmatch\">not</span> use a desktop manager, follow instructions below.\n",
+        "timestamp": "2025-12-01T20:42:47Z"
+      }
+    ]
   }
 }

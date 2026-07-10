@@ -6,53 +6,53 @@
   },
   "query": {
     "searchinfo": {
-      "totalhits": 14
+      "totalhits": 1651
     },
     "search": [
       {
         "ns": 0,
-        "title": "C",
-        "pageid": 26804,
-        "size": 3407,
-        "wordcount": 476,
-        "snippet": "[[es:<span class=\"searchmatch\">C</span>]]\n[[hu:<span class=\"searchmatch\">C</span>]]\n",
-        "timestamp": "2026-01-07T06:12:02Z"
+        "title": "Libcvec",
+        "pageid": 37283,
+        "size": 482,
+        "wordcount": 64,
+        "snippet": "...in [[Wikipedia:<span class=\"searchmatch\">C</span>++|<span class=\"searchmatch\">C</span>++]]. It created for making application programming in <span class=\"searchmatch\">C</span> easier.\n",
+        "timestamp": "2025-11-25T09:37:19Z"
       },
       {
         "ns": 0,
-        "title": "C++",
-        "pageid": 26819,
-        "size": 15,
-        "wordcount": 2,
-        "snippet": "#redirect [[<span class=\"searchmatch\">C</span>]]\n",
-        "timestamp": "2018-08-14T12:03:20Z"
+        "title": "Libcvec (\u0420\u0443\u0441\u0441\u043a\u0438\u0439)",
+        "pageid": 37284,
+        "size": 667,
+        "wordcount": 45,
+        "snippet": "...\u0434\u043b\u044f \u0443\u043f\u0440\u043e\u0449\u0435\u043d\u0438\u044f \u043d\u0430\u043f\u0438\u0441\u0430\u043d\u0438\u044f \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0439 \u043d\u0430 [[wikipedia:C_(programming_language)|<span class=\"searchmatch\">C</span>]].\n",
+        "timestamp": "2026-05-19T17:20:49Z"
       },
       {
         "ns": 0,
-        "title": "C (Espa\u00f1ol)",
-        "pageid": 27346,
-        "size": 3905,
-        "wordcount": 577,
-        "snippet": "[[en:<span class=\"searchmatch\">C</span>]]\n[[ja:<span class=\"searchmatch\">C</span>]]\n",
-        "timestamp": "2025-12-20T19:56:16Z"
+        "title": "Libcvec (Polski)",
+        "pageid": 37741,
+        "size": 536,
+        "wordcount": 74,
+        "snippet": "...a:<span class=\"searchmatch\">C</span>++|<span class=\"searchmatch\">C</span>++]]. Zosta\u0142a zaprojektowana, aby u\u0142atwi\u0107 programowanie aplikacji w <span class=\"searchmatch\">C</span>.\n",
+        "timestamp": "2026-05-19T17:19:54Z"
       },
       {
         "ns": 0,
-        "title": "C++ (Espa\u00f1ol)",
-        "pageid": 27347,
-        "size": 26,
-        "wordcount": 4,
-        "snippet": "#redirect [[<span class=\"searchmatch\">C</span> (Espa\u00f1ol)]]\n",
-        "timestamp": "2018-10-07T09:09:35Z"
+        "title": "LLVM (\u0420\u0443\u0441\u0441\u043a\u0438\u0439)",
+        "pageid": 34025,
+        "size": 2095,
+        "wordcount": 104,
+        "snippet": "{{Related|<span class=\"searchmatch\">C</span> (\u0420\u0443\u0441\u0441\u043a\u0438\u0439)}}\n* {{App|[[Clang (\u0420\u0443\u0441\u0441\u043a\u0438\u0439)|Clang]]|LLVM-\u0444\u0440\u043e\u043d\u0442\u0435\u043d\u0434 \u0434\u043b\u044f \u044f\u0437\u044b\u043a\u043e\u0432 \u0441\u0435\u043c\u0435\u0439\u0441\u0442\u0432\u0430 <span class=\"searchmatch\">C</span>.|https://clang.llvm.org/|{{Pkg|clang}}}}\n",
+        "timestamp": "2026-03-12T10:45:02Z"
       },
       {
         "ns": 0,
-        "title": "C++ (\u7b80\u4f53\u4e2d\u6587)",
-        "pageid": 30506,
-        "size": 23,
-        "wordcount": 3,
-        "snippet": "#redirect [[zh-hans:<span class=\"searchmatch\">C</span>]]\n",
-        "timestamp": "2022-12-06T05:06:01Z"
+        "title": "LLVM",
+        "pageid": 26816,
+        "size": 1317,
+        "wordcount": 177,
+        "snippet": "{{Related|<span class=\"searchmatch\">C</span>}}\n* {{App|[[Clang]]|<span class=\"searchmatch\">C</span> language family frontend for LLVM.|https://clang.llvm.org/|{{Pkg|clang}}}}\n",
+        "timestamp": "2026-01-07T07:21:54Z"
       }
     ]
   }

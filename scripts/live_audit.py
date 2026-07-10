@@ -267,6 +267,13 @@ def audit_page(page, report, residual, stats):
         if LEAKED_MARKER.search(warning["message"]):
             report["warning_message_leaked_a_marker"].append(f"{page}: {warning['type']}")
 
+        # Four leading spaces are a markdown code block. A {{Tip|#** ...}} takes its
+        # depth from a list outside the template, so the extracted tip opened as a
+        # shell transcript -- prose rendered as code, in the field an agent must quote.
+        first_line = warning["message"].split("\n")[0]
+        if first_line != first_line.lstrip(" "):
+            report["warning_message_opens_indented"].append(f"{page}: {warning['type']}")
+
         # A type learned from a redirect must say so, completely. Half-provenance
         # is worse than none: it looks attested and pins nothing.
         alias_fields = (warning["alias"], warning["alias_target"], warning["alias_revid"])

@@ -640,6 +640,31 @@ def _render_list_markers(line: str) -> str:
     return f"{'  ' * (depth - 1)}{bullet}{body}"
 
 
+def _dedent_orphan_indent(text: str) -> str:
+    """
+    Remove an indent every line shares, so a fragment does not open as code.
+
+    The Installation guide writes "{{Tip|#** The ISO uses ...}}": the marker's
+    depth is relative to a list that lives OUTSIDE the template. Extracted on its
+    own, the tip has no parent, and _render_list_markers faithfully emits its four
+    spaces -- which markdown reads as a code block, in the one field §6 requires
+    an agent to quote to a user. Prose rendered as a shell transcript is the
+    confusion that got examples() deleted.
+
+    Only a *common* indent goes. Any line that is genuinely shallower keeps every
+    sibling's relative depth, so real nesting inside a message survives untouched.
+    """
+    lines = [line for line in text.split("\n") if line.strip()]
+    if not lines:
+        return text
+
+    common = min(len(line) - len(line.lstrip(" ")) for line in lines)
+    if not common:
+        return text
+
+    return "\n".join(line[common:] if line.strip() else line for line in text.split("\n"))
+
+
 def _clean_message(raw: str) -> str:
     """
     Render a warning/note body down to prose a user can read.
@@ -659,6 +684,7 @@ def _clean_message(raw: str) -> str:
     text, _ = _strip_inline_markup(hidden)
     text = _resolve_links(text)
     text = "\n".join(_render_list_markers(line) for line in text.split("\n"))
+    text = _dedent_orphan_indent(text)
     return _restore_nowiki(text.strip("\n").rstrip(), protected)
 
 

@@ -6,7 +6,7 @@ were article links -- 76 of 161 results on Installation guide.
 """
 
 from conftest import load_wikitext
-from src import extractor
+from arch_wiki_mcp import extractor
 
 EXCLUDED_PREFIXES = ("Category:", "File:", "Image:", "Media:", "Template:", "Help:", "Special:")
 INTERWIKI_SAMPLE = ("ar:", "bg:", "ca:", "cs:", "de:", "el:", "es:", "ja:", "zh:")

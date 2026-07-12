@@ -25,7 +25,7 @@ criticism of it. It did not fit *this* project:
 - **The protocol surface we need is small.** Five methods, two capabilities, no
   resources, no sampling, no subscriptions. The transport is a few hundred lines
   and every one of them is testable from a string of stdin.
-- **The extractor stays independent either way.** `src/extractor.py` knows
+- **The extractor stays independent either way.** `src/arch_wiki_mcp/extractor.py` knows
   nothing about MCP and never will; that is the boundary worth defending, and
   neither choice threatens it.
 

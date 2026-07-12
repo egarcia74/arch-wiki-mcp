@@ -19,7 +19,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 import pytest
 
 from conftest import GRUB_REVID
-from src import extractor
+from arch_wiki_mcp import extractor
 
 ANCHOR = "Installation"
 

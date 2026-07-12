@@ -21,7 +21,7 @@ _PROJECT_TABLE = re.compile(r"^\[project\]$(.*?)^\[", re.M | re.S)
 _VERSION_LINE = re.compile(r'^version\s*=\s*"([^"]+)"', re.M)
 
 
-_PYPROJECT = Path(__file__).parent.parent / "pyproject.toml"
+_PYPROJECT = Path(__file__).parent.parent.parent / "pyproject.toml"
 
 
 def _version_from_source_tree() -> str:

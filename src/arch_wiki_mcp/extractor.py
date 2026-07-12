@@ -17,14 +17,7 @@ from urllib.request import urlopen, Request
 from urllib.parse import parse_qs, quote, unquote, urlencode, urlparse
 import json
 import os
-import sys
-
-# Allow `python3 src/extractor.py` to resolve the `src` package, exactly as
-# mcp_server.py does. Without it, importing the package from inside the package
-# fails when the file is run as a script -- and no test ran it as one, so the
-# suite stayed green while the entry point was dead.
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from src import REPOSITORY_URL, __version__
+from arch_wiki_mcp import REPOSITORY_URL, __version__
 
 # stderr by default, which keeps JSON-RPC on stdout clean.
 logger = logging.getLogger(__name__)
@@ -96,7 +89,7 @@ class MalformedWikiUrlError(ArchWikiError):
     """
     A well-formed string that is not a wiki URL we can resolve to a title.
 
-    Distinct from mcp_server.InvalidParamsError, which is a *schema* fault -- a
+    Distinct from server.InvalidParamsError, which is a *schema* fault -- a
     missing or wrong-typed argument, where nothing ran. This one ran: the value
     satisfied the schema, the tool tried it, and the URL would not parse. So the
     agent sees it and can self-correct by supplying a plain title.

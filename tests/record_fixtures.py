@@ -9,14 +9,15 @@ golden assertions must be updated in the same commit.
 import json
 import os
 import sys
+from pathlib import Path
 from urllib.request import urlopen, Request
 from urllib.parse import urlencode
 
 # Ensure we can run this from repo root
-sys.path.insert(0, os.path.abspath("."))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from src import extractor
-from src.extractor import SITEINFO_PROPS, fixture_filename
+from arch_wiki_mcp import extractor
+from arch_wiki_mcp.extractor import SITEINFO_PROPS, fixture_filename
 
 API_ENDPOINT = "https://wiki.archlinux.org/api.php"
 USER_AGENT = "ArchWikiMCP/1.0 (Fixture Generator)"

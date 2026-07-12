@@ -12,7 +12,7 @@ import re
 import pytest
 
 from conftest import load_wikitext
-from src import extractor
+from arch_wiki_mcp import extractor
 
 CORPUS = [
     "GRUB", "Installation_guide", "Iwd", "KDE",

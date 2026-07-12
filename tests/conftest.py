@@ -15,7 +15,6 @@ import json
 import os
 import re
 import socket
-import sys
 from functools import lru_cache
 from pathlib import Path
 
@@ -23,9 +22,8 @@ import pytest
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.extractor import fixture_filename
+from arch_wiki_mcp.extractor import fixture_filename
 
 # Offline mode must be active before any test imports trigger a fetch.
 os.environ["ARCHWIKI_OFFLINE"] = "1"
@@ -83,7 +81,7 @@ MISSING_PAGE = "Nonexistent page xyz"
 TRANSCLUDED_PAGE = "Transcluded example"
 
 
-# Read here, independently of src.__version__, on purpose. A test that asked the
+# Read here, independently of arch_wiki_mcp.__version__, on purpose. A test that asked the
 # code under test what version it thinks it is would agree with any bug in the
 # resolver. pyproject is the authority; this reads the authority.
 #

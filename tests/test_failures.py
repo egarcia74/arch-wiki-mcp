@@ -14,7 +14,7 @@ from urllib.request import urlopen
 import pytest
 
 from conftest import MISSING_PAGE, TRANSCLUDED_PAGE
-from src import extractor
+from arch_wiki_mcp import extractor
 
 
 def test_the_network_guard_actually_bites():

@@ -7,7 +7,7 @@ matcher's handling of them is exercised here rather than by a golden test.
 
 import pytest
 
-from src import extractor
+from arch_wiki_mcp import extractor
 
 
 def find_end(text):

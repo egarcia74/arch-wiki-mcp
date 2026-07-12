@@ -9,7 +9,7 @@ extractor path and must not leak into commands() or links().
 import pytest
 
 from conftest import load_parse, load_wikitext
-from src import extractor
+from arch_wiki_mcp import extractor
 
 SPANISH = "Installation guide (Español)"
 

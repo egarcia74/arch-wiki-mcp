@@ -11,6 +11,7 @@ which version of itself made a request is not a cosmetic fault. It is the same
 class of error as an unpinned citation: a claim about identity that nothing backs.
 """
 
+import importlib
 import os
 import subprocess
 import sys
@@ -20,11 +21,11 @@ import pytest
 
 from conftest import declared_version
 
-import src
-from src import extractor
+import arch_wiki_mcp
+from arch_wiki_mcp import extractor
 
 def test_the_package_version_is_the_declared_one():
-    assert src.__version__ == declared_version()
+    assert arch_wiki_mcp.__version__ == declared_version()
 
 
 def test_the_user_agent_names_the_version_we_are_actually_running():
@@ -34,7 +35,7 @@ def test_the_user_agent_names_the_version_we_are_actually_running():
     them the wrong thing -- and we could not have told them the right thing,
     because nothing connected the two.
     """
-    assert f"ArchWikiMCP/{src.__version__}" in extractor.USER_AGENT
+    assert f"ArchWikiMCP/{arch_wiki_mcp.__version__}" in extractor.USER_AGENT
 
 
 def test_the_user_agent_points_at_a_repository_that_exists():
@@ -43,33 +44,54 @@ def test_the_user_agent_points_at_a_repository_that_exists():
     assert "github.com/user/" not in extractor.USER_AGENT
 
 
-@pytest.mark.parametrize("script", ["src/mcp_server.py", "src/extractor.py"])
-def test_a_module_still_runs_as_a_script(script):
+@pytest.mark.parametrize("module", ["arch_wiki_mcp.server", "arch_wiki_mcp.extractor"])
+def test_a_module_still_runs_as_a_script(module):
     """
     Both files have a __main__ block, and nothing ever ran them as scripts -- so
-    when the version import broke `python3 src/extractor.py` outright, the whole
+    when the version import broke the extractor entry point outright, the whole
     suite stayed green over a dead entry point. An entry point nothing exercises is
     an entry point nobody knows is broken.
     """
     repo = Path(__file__).parent.parent
     result = subprocess.run(
-        [sys.executable, script],
+        [sys.executable, "-m", module],
         cwd=repo,
         capture_output=True,
         text=True,
         timeout=60,
-        env={**os.environ, "ARCHWIKI_OFFLINE": "1"},
+        env={**os.environ, "ARCHWIKI_OFFLINE": "1", "PYTHONPATH": "src"},
     )
 
     assert "ModuleNotFoundError" not in result.stderr, result.stderr
     assert "Traceback" not in result.stderr, result.stderr
 
 
-SOURCES = [
-    Path(__file__).parent.parent / "src" / "__init__.py",
-    Path(__file__).parent.parent / "src" / "extractor.py",
-    Path(__file__).parent.parent / "src" / "mcp_server.py",
-]
+PACKAGE = Path(__file__).parent.parent / "src" / "arch_wiki_mcp"
+SOURCES = sorted(PACKAGE.glob("*.py"))
+
+
+def test_no_module_sits_beside_the_package():
+    """
+    A stray *module* beside the package is a second import identity waiting to
+    happen -- the hazard the old layout carried, where `src` was both the layout
+    directory and the importable package, so two sys.path entries could load the
+    same file twice under different names.
+
+    Modules, not entries: this first asserted that src/ held nothing but the
+    package, and then `pip install -e .` -- which MCP_SETUP.md now tells every
+    contributor to run -- wrote src/arch_wiki_mcp.egg-info beside it and failed
+    the suite. An egg-info is not importable and was never the hazard; the test
+    was arguing about one thing and checking another.
+    """
+    strays = sorted(p.name for p in PACKAGE.parent.glob("*.py"))
+
+    assert not strays, f"a module beside the package can load twice: {strays}"
+
+
+def test_the_legacy_namespace_is_gone():
+    """`src` was the import package. It must not still resolve, or both can load."""
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module("src.extractor")
 
 
 @pytest.mark.parametrize("source", SOURCES, ids=lambda p: p.name)
@@ -83,5 +105,5 @@ def test_the_version_is_stated_once(source):
 
     assert version not in source.read_text(), (
         f"{source.name} spells out the version {version!r}; derive it from "
-        f"src.__version__, or it will silently lag the next release"
+        f"arch_wiki_mcp.__version__, or it will silently lag the next release"
     )

@@ -70,16 +70,16 @@ A reliable backend for IDEs, scripts, and agents.
 
 ```bash
 # Search wiki
-python3 src/mcp_server.py search pacman
+arch-wiki-mcp search pacman
 
 # Get full page with hash
-python3 src/mcp_server.py page GRUB
+arch-wiki-mcp page GRUB
 
 # Get commands with content hashes
-python3 src/mcp_server.py commands GRUB Installation
+arch-wiki-mcp commands GRUB Installation
 
 # Get warnings for safety
-python3 src/mcp_server.py warnings GRUB Installation
+arch-wiki-mcp warnings GRUB Installation
 ```
 
 ## MCP Tools

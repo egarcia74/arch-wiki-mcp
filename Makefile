@@ -22,4 +22,4 @@ fixtures:
 	python3 tests/record_fixtures.py
 
 serve:
-	python3 src/mcp_server.py
+	PYTHONPATH=src python3 -m arch_wiki_mcp.server

@@ -17,7 +17,7 @@ The mapping is derived from the wiki, not declared here.
 import pytest
 
 from conftest import TRANSCLUDED_PAGE
-from src import extractor
+from arch_wiki_mcp import extractor
 
 ENGLISH = "Installation guide"
 SPANISH = "Installation guide (Español)"

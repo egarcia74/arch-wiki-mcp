@@ -4,18 +4,13 @@ Thin wrapper around constitutional extractor - exposes wiki as MCP tools.
 """
 
 import sys
-import os
 import json
 import logging
 from dataclasses import asdict
 from typing import Any, Dict, Optional
 from urllib.parse import parse_qs, unquote, urlparse
 
-# Allow `python3 src/mcp_server.py` to resolve the `src` package. Importing via
-# the package (not a bare `import extractor`) keeps a single module identity --
-# a bare import loads a second copy under a different sys.modules key.
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from src import __version__, extractor
+from arch_wiki_mcp import __version__, extractor
 
 # stderr by default, which keeps JSON-RPC on stdout clean.
 logger = logging.getLogger(__name__)
@@ -799,7 +794,7 @@ def _cli_usage() -> str:
     fourth copy of the tool list after _TOOLS, _INPUT_SCHEMAS and _TOOL_DISPATCH,
     with the usage text a fifth. A tool added to the schema now appears here.
     """
-    lines = ["Usage: python mcp_server.py <tool> <args...>", "", "Available tools:"]
+    lines = ["Usage: arch-wiki-mcp <tool> <args...>", "", "Available tools:"]
     for tool in _TOOL_DISPATCH:
         required = set(_INPUT_SCHEMAS[tool]["required"])
         params = " ".join(
@@ -807,7 +802,7 @@ def _cli_usage() -> str:
             for name in _cli_parameters(tool)
         )
         lines.append(f"  {tool} {params}")
-    lines += ["", "Or run as MCP server:", "  python mcp_server.py --stdio"]
+    lines += ["", "Or run as MCP server:", "  arch-wiki-mcp --stdio"]
     return "\n".join(lines)
 
 

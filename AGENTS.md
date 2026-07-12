@@ -39,19 +39,47 @@ The Arch Wiki MCP exposes the Arch Linux Wiki as **evidence objects**:
 
 Each artifact is returned with:
 
-- Source URL
+- `revision_url` — the revision-addressed link (`?oldid=`). **Cite this one.** It
+  resolves to the exact revision the hash was computed over, so it still serves
+  the text you quoted after the page moves on.
+- `source_url` — the canonical page, with anchor. It follows the page: a reader
+  who opens it later sees what the wiki says *then*, not what you quoted.
 - Section anchor
-- MediaWiki revision or timestamp
+- MediaWiki revision (`revid`) or timestamp
 - Extraction method
 - Content hash
 
 These fields are not metadata.  
 They are **chain-of-custody**.
 
+| Field | What it is |
+| :---- | :--------- |
+| `revision_url` | The revision-pinned page (`?oldid=`). **Cite this.** Renders the revision for a human. |
+| `revision_raw_url` | That revision's **verbatim wikitext** — the exact bytes `content_hash` covers. This is what an auditor fetches to recheck a hash. |
+| `alias_revision_url` | `alias_revid` as a followable link: the **redirect page's** own revision. Null whenever `alias_revid` is. |
+| `wikitext_hash` | On `page()` only: SHA-256 of the **whole page's** wikitext, not of any one block. Do not confuse it with `content_hash`, which covers a single fragment. |
+
+What the hash proves, and what it does not: `content_hash` is an unkeyed SHA-256
+fingerprint over `content_raw` — the **verbatim wikitext** of the revision. A
+reader checks it by fetching `revision_raw_url` (the revision's raw wikitext),
+NFC-normalising the fragment, and hashing it. `content_hash_cleaned` covers
+`content`, the rendered text you quote; only this MCP can confirm that one,
+because the wiki never held that string — we produced it.
+
+It is **not** a signature. It does not prove the excerpt came from this MCP, and
+it cannot detect a response forged before it reached you, because anyone can
+compute a valid hash over text they invented. The guarantee is *integrity against
+a named revision*, which is what a citation needs. Do not describe it as more.
+
+A hash beside a URL whose content has since changed proves nothing at all. That
+is why the pair — `content_hash` and the revision URLs — travel together.
+
 ### Search results are pointers, not evidence
 
-`search()` is the exception, and the only tool whose output carries no `revid` and
-no hash. It tells you which page to open. Nothing it returns may be quoted.
+`search()` carries no `revid` and no hash. It tells you which page to open, and
+nothing it returns may be quoted. (`sections()` also carries neither: it is a map
+of anchors, not evidence. Everything else — `page()`, `section()`, `commands()`,
+`warnings()`, `links()` — carries a revision and can be cited.)
 
 | Field     | Meaning                                                       |
 | :-------- | :------------------------------------------------------------ |
@@ -83,8 +111,12 @@ When using this MCP, you **must**:
 
 Every command, statement, or configuration derived from this MCP **must** retain:
 
-- Wiki URL
+- `revision_url` — the revision-pinned link. **This is the citable one.** A
+  citation carrying only the canonical page URL is not preserved evidence: the
+  page moves, and the hash beside it then proves nothing.
+- Wiki URL (`source_url` / `url`) — the live page, alongside, never instead
 - Section
+- `revid`
 - Content hash
 
 Removing or omitting any of these is data tampering.
@@ -319,7 +351,7 @@ _This document is a binding operational contract. Violation of these rules const
 
 Agents must restrict their output to one of these three shapes:
 
-1. **Evidence Relay**: Extracted blocks (quotes or code) with mandatory provenance (URL, anchor, revid, hash). Show the rendered field (`content` / `message`); cite the verbatim one (`content_raw` / `message_raw`) and the hash that attests it. Declare any `placeholders`.
+1. **Evidence Relay**: Extracted blocks (quotes or code) with mandatory provenance (`revision_url`, anchor, `revid`, hash — the canonical URL alongside, never instead). Show the rendered field (`content` / `message`); cite the verbatim one (`content_raw` / `message_raw`) and the hash that attests it. Declare any `placeholders`.
 2. **Pointer**: Used when `commands()` is empty but prose exists. "The wiki does not provide executable commands for this step. See the quoted instructions from `section()` below." (Followed by `section().content` quoted with provenance.)
 3. **Failure**: Explicit `NotFound` or `EmptyResult` when no evidence exists. No "best guesses" allowed.
 

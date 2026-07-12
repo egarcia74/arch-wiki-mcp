@@ -97,6 +97,8 @@ def tool_page(title_or_url: str) -> dict:
             "pageid": int,
             "revid": int,
             "url": str,
+            "revision_url": str,
+            "revision_raw_url": str,
             "wikitext": str,
             "wikitext_hash": str,
             "sections": List[Dict]
@@ -137,6 +139,8 @@ def tool_section(title_or_url: str, anchor: str) -> dict:
         {
             "title": str,
             "url": str,
+            "revision_url": str,
+            "revision_raw_url": str,
             "revid": int,
             "timestamp": str or null,
             "section_anchor": str,
@@ -172,7 +176,8 @@ def tool_commands(title_or_url: str, anchor: Optional[str] = None) -> dict:
         {
             "commands": List[Dict{content, content_raw, content_hash,
                                   content_hash_cleaned, block_type, source_pattern,
-                                  language, header, placeholders, source_url, revid}]
+                                  language, header, placeholders, source_url,
+                                  revision_url, revision_raw_url, revid}]
         }
 
     content is runnable once its placeholders are substituted; those stay marked as
@@ -201,8 +206,9 @@ def tool_warnings(title_or_url: str, anchor: Optional[str] = None) -> dict:
     Returns:
         {
             "warnings": List[Dict{type, message, message_raw, content_hash,
-                                  message_hash_cleaned, source_url, revid,
-                                  alias, alias_target, alias_revid}]
+                                  message_hash_cleaned, source_url, revision_url,
+                                  revision_raw_url, revid, alias, alias_target,
+                                  alias_revid, alias_revision_url}]
         }
 
     message is readable prose, safe to quote to a user. message_raw is the verbatim
@@ -594,10 +600,25 @@ NON-NEGOTIABLE RULES (Truth Perimeter)
 1) You must use the MCP as your only source for Arch Linux instructions in this workflow.
 2) You must not synthesize commands, flags, paths, or steps that are not explicitly returned by the MCP.
 3) Every claim or command you present must include provenance:
-   - source_url (with anchor if applicable)
+   - revision_url -- cite THIS one. It is pinned to the revision below (?oldid=),
+     so it still serves the text you quoted after the page moves on. source_url
+     follows the page and will show a reader something else.
+   - source_url (with anchor if applicable) -- the live page, for a reader who
+     wants the current state rather than the quoted one
    - revid
    - content_hash
    - extraction_method (if provided)
+   revision_raw_url is that revision's verbatim wikitext -- the exact bytes
+   content_hash covers. A reader fetches it, NFC-normalizes, and re-hashes; that
+   is what makes the citation falsifiable, and it is why the hash and the revision
+   URLs must travel together. A hash beside a URL that has since changed proves
+   nothing. content_hash_cleaned covers `content`, the rendered text you show --
+   only this MCP can confirm that one, because the wiki never held that string.
+   The hash is a fingerprint, not a signature: it shows the text matches the named
+   revision, and says nothing about who produced the response. Do not claim more.
+
+   wikitext_hash (page() only) covers the WHOLE page's wikitext, not any one
+   block. Do not present it as attesting a fragment; content_hash does that.
 4) If commands() returns an empty list, you MUST NOT infer a pacman command from prose.
    - Instead: call section() and quote the exact sentence(s) that describe what to do.
 5) If a page/section is missing, you must fail closed:
@@ -607,7 +628,8 @@ NON-NEGOTIABLE RULES (Truth Perimeter)
 7) You must not merge multiple pages into a “unified guide” unless the user explicitly requests multi-page output AND you preserve page-level provenance per fragment.
 
 SEARCH RESULTS ARE POINTERS, NOT EVIDENCE
-search() is the one tool whose output carries no revid and no hash. It tells you which
+search() carries no revid and no hash (nor does sections(), which is a map of anchors,
+not evidence; everything else carries a revision and can be cited). It tells you which
 page to open, and nothing it returns may be quoted. `snippet` is the wiki's match
 context as plain text -- a truncated fragment of a revision nobody named, so a token cut
 in half (a:C++|C++]]) keeps its brackets. `match` is "title" for the exact page (which
@@ -655,11 +677,11 @@ learned that way the block carries `alias` (the redirect, "Attention"), `alias_t
 article, and not of the redirect's target). All three are null when the template spelled
 its own type ({{Warning}}, {{Note (Español)}}), which the article's revid already covers.
 If `alias` is set, the type rests on a page other than the one you are citing: cite
-"Template:<alias>" at alias_revid -- that pair names one page at one revision -- and say
-separately that it redirects to alias_target. Never cite alias_target at alias_revid:
-that revision belongs to the redirect, not to its destination, so the pair names no
-page that exists. Never present a redirect-derived WARNING as though the article itself
-declared it.
+"Template:<alias>" at alias_revid -- that pair names one page at one revision, and
+alias_revision_url is that pair as a link you can follow -- and say separately that
+it redirects to alias_target. Never cite alias_target at alias_revid: that revision
+belongs to the redirect, not to its destination, so the pair names no page that exists.
+Never present a redirect-derived WARNING as though the article itself declared it.
 
 PLACEHOLDERS
 If a command block has a non-empty `placeholders` list, those tokens are values the

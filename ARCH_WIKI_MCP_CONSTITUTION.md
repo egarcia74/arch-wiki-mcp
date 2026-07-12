@@ -642,7 +642,27 @@ If an agent cannot cite its source, it should not have used this server.
 
 ### Provenance Persistence
 
-Extracted blocks must include a **cryptographic hash** of the quoted wiki fragment.
+Extracted blocks must include a **cryptographic hash** of the quoted wiki fragment,
+paired with a **revision-addressed URL** that resolves to the exact revision the
+hash was computed over.
+
+The pairing is the point. A hash proves that a fragment matches some text; the
+revision URL says *which* text, immutably. A hash beside a canonical page URL —
+which follows the page — proves nothing once the page is edited, and the Arch
+Wiki is continuously edited.
+
+Be precise about what this buys. The hash is an **unkeyed SHA-256 fingerprint**:
+it provides *integrity against a named revision*, not authenticity. It does not
+prove an excerpt originated from this server, and it cannot detect a response
+forged before it reached the reader, since anyone can hash text they invented. It
+is not a signature, and this document does not claim it is one. Overstating the
+guarantee would undermine the very thing the guarantee exists to protect.
+
+Be precise about what is pinned, too. The hash covers the revision's **wikitext**,
+which is immutable; the *rendered* view of an old revision is not, because it still
+transcludes templates at their current versions. `revision_raw_url` therefore
+returns the wikitext, and that — not the rendered page — is what an auditor fetches
+to recheck a hash. "Pinned", not "frozen", is the honest word for the rest.
 
 The Arch Wiki is continuously edited. A timestamp alone cannot prove what version was served if a page has been modified multiple times in the same day.
 

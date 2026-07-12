@@ -248,9 +248,15 @@ python3 src/mcp_server.py commands GRUB Installation
 
 Every response includes:
 
-- **Source URL**: Direct link to wiki revision
+- **Revision URL** (`revision_url`): Link pinned to the exact revision (`?oldid=`).
+  Cite this one — it still serves the quoted text after the page moves on.
+- **Revision Raw URL** (`revision_raw_url`): That revision's verbatim wikitext —
+  the bytes `content_hash` is computed over, so a reader can recheck it.
+- **Source URL** (`source_url` / `url`): The canonical page. It *follows the page*
+  and shows the wiki's current state, not the quoted one.
 - **Revision ID**: MediaWiki revision number
-- **Content Hash**: SHA-256 fingerprint (NFC-normalized)
+- **Content Hash**: SHA-256 fingerprint (NFC-normalized) of the verbatim wikitext.
+  A fingerprint, not a signature — see `README.md` for exactly what it proves.
 - **Extraction Method**: How content was obtained
 
 This enables:

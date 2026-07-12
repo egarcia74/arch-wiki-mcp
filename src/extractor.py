@@ -17,6 +17,14 @@ from urllib.request import urlopen, Request
 from urllib.parse import parse_qs, quote, unquote, urlencode, urlparse
 import json
 import os
+import sys
+
+# Allow `python3 src/extractor.py` to resolve the `src` package, exactly as
+# mcp_server.py does. Without it, importing the package from inside the package
+# fails when the file is run as a script -- and no test ran it as one, so the
+# suite stayed green while the entry point was dead.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from src import REPOSITORY_URL, __version__
 
 # stderr by default, which keeps JSON-RPC on stdout clean.
 logger = logging.getLogger(__name__)
@@ -29,7 +37,10 @@ WIKI_BASE = f"https://{WIKI_HOST}"
 TITLE_PATH = "/title/"
 
 API_ENDPOINT = f"{WIKI_BASE}/api.php"
-USER_AGENT = "ArchWikiMCP/1.0 (Constitutional Extractor; +https://github.com/user/arch-wiki-mcp)"
+# The only thing the Arch Wiki's operators ever see of us. It named a version the
+# package had left behind releases ago, and pointed at github.com/user/arch-wiki-mcp
+# -- a repository that does not exist. Both are derived now, so neither can lag.
+USER_AGENT = f"ArchWikiMCP/{__version__} (Constitutional Extractor; +{REPOSITORY_URL})"
 
 # Shared with tests/record_fixtures.py: the recorder must request exactly what
 # fetch_siteinfo() requests, or the recorded fixture answers a different question.

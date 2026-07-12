@@ -15,7 +15,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 # the package (not a bare `import extractor`) keeps a single module identity --
 # a bare import loads a second copy under a different sys.modules key.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from src import extractor
+from src import __version__, extractor
 
 # stderr by default, which keeps JSON-RPC on stdout clean.
 logger = logging.getLogger(__name__)
@@ -542,7 +542,7 @@ def _handle_initialize(msg_id: int) -> dict:
         "id": msg_id,
         "result": {
             "protocolVersion": "2024-11-05",
-            "serverInfo": {"name": "arch-wiki-mcp", "version": "1.7.0"},
+            "serverInfo": {"name": "arch-wiki-mcp", "version": __version__},
             "capabilities": {"tools": {}, "prompts": {}}
         }
     }

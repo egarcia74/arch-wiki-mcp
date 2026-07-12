@@ -725,6 +725,19 @@ def _handle_tools_call(msg_id: int, params: dict) -> dict:
     return _tool_result(msg_id, result)
 
 
+# The supported MCP subset, declared rather than scattered through an if/elif
+# chain. MCP_PROTOCOL.md is checked against this table, so a method added here
+# and left undocumented fails the suite: the document is a contract, not a claim.
+# Handlers that take no params are called with the id alone.
+_METHOD_DISPATCH = {
+    "initialize": lambda msg_id, params: _handle_initialize(msg_id),
+    "prompts/list": lambda msg_id, params: _handle_prompts_list(msg_id),
+    "prompts/get": lambda msg_id, params: _handle_prompts_get(msg_id, params),
+    "tools/list": lambda msg_id, params: _handle_tools_list(msg_id),
+    "tools/call": lambda msg_id, params: _handle_tools_call(msg_id, params),
+}
+
+
 def run_mcp_server():
     """Run as MCP server - JSON-RPC over stdio."""
     for line in sys.stdin:
@@ -734,29 +747,37 @@ def run_mcp_server():
         # requires a null id when the request id cannot be determined.
         msg_id = None
         try:
-            message = json.loads(line)
+            try:
+                message = json.loads(line)
+            except json.JSONDecodeError as e:
+                # -32700, not -32603. The line is the client's, and the fault is
+                # in it; answering "Internal error" makes the server confess to a
+                # bug that belongs to the request -- the conflation isError and
+                # -32602 exist to end, one layer further down.
+                _send_response(_protocol_error(None, f"Parse error: {e}", code=-32700))
+                continue
+
             method = message.get("method")
             params = message.get("params", {})
             msg_id = message.get("id")
-            
+
+            # A JSON-RPC notification carries no id and expects no reply. The
+            # client sends notifications/initialized after the handshake; saying
+            # nothing is the correct answer, not a gap.
             if msg_id is None:
                 continue
-                
-            if method == "initialize":
-                _send_response(_handle_initialize(msg_id))
-            elif method == "prompts/list":
-                _send_response(_handle_prompts_list(msg_id))
-            elif method == "prompts/get":
-                _send_response(_handle_prompts_get(msg_id, params))
-            elif method == "tools/list":
-                _send_response(_handle_tools_list(msg_id))
-            elif method == "tools/call":
-                _send_response(_handle_tools_call(msg_id, params))
-            else:
+
+            handler = _METHOD_DISPATCH.get(method)
+            if handler is None:
                 _send_response(
                     _protocol_error(msg_id, f"Method not found: {method}", code=-32601)
                 )
+                continue
+
+            _send_response(handler(msg_id, params))
         except Exception as e:
+            # Genuinely ours: nothing above this point is the caller's fault.
+            logger.exception("Unhandled error handling request %r", msg_id)
             _send_response(
                 _protocol_error(msg_id, f"Internal error: {str(e)}", code=-32603)
             )

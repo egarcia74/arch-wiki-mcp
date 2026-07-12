@@ -31,15 +31,18 @@ SITEINFO_PROPS = "namespaces|namespacealiases|interwikimap"
 
 class ArchWikiError(ValueError):
     """
-    Base for every extraction failure.
+    Base for every extraction failure. Never raised directly -- raise a subclass,
+    so the failure reaches the agent with a category it can act on.
 
     ValueError, not Exception: callers (and tests) have caught ValueError since
     before these types existed, and a failure that stops being caught is a
     failure that stops fail-closing. The subclasses add a category the MCP layer
     can report; they do not change what is raised to anyone already catching it.
-    """
 
-    code = "extraction_failed"
+    No `code` of its own: an unclassified extraction failure is one we forgot to
+    classify, so it falls through to `internal_error` and is logged as ours,
+    rather than reaching an agent under a reassuring name that means nothing.
+    """
 
 
 class PageNotFoundError(ArchWikiError):

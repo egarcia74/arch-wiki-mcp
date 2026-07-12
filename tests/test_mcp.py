@@ -255,7 +255,85 @@ def test_a_parse_error_never_answers_with_a_previous_request_id(monkeypatch, cap
     assert len(responses) == 2
     assert responses[0]["id"] == 1 and "result" in responses[0]
     assert responses[1]["id"] is None, "parse error stole the id of request 1"
-    assert responses[1]["error"]["code"] == -32603
+
+
+def test_unparseable_input_is_a_parse_error_not_an_internal_one(monkeypatch, capsys):
+    """
+    JSON-RPC 2.0 reserves -32700 for input it cannot parse and -32603 for a fault
+    inside the server. The loop's catch-all answered a client's malformed line
+    with -32603, so the server confessed to a bug that belonged to the request --
+    the same conflation isError and -32602 were introduced to end, one layer down.
+    """
+    responses = _drive_server("NOT JSON\n", monkeypatch, capsys)
+
+    assert responses[0]["error"]["code"] == -32700
+
+
+def test_a_genuine_server_fault_is_still_an_internal_error(monkeypatch, capsys):
+    """The converse: -32700 must not swallow faults that really are ours."""
+    def _explode(msg_id):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(mcp_server, "_handle_tools_list", _explode)
+    responses = _drive_server('{"jsonrpc":"2.0","id":3,"method":"tools/list"}\n', monkeypatch, capsys)
+
+    assert responses[0]["error"]["code"] == -32603
+
+
+def _descendants(cls):
+    """Every subclass, however deep -- a new one must not slip past the pin."""
+    for sub in cls.__subclasses__():
+        yield sub
+        yield from _descendants(sub)
+
+
+def test_the_documented_subset_is_the_implemented_one(monkeypatch, capsys):
+    """
+    MCP_PROTOCOL.md states exactly which methods, capabilities and error codes
+    this server supports, so that a deviation is a decision rather than an
+    accident. A document nothing checks is a claim, not a contract: pin it to the
+    implementation, so a method added or dropped in code fails here until the
+    document says so too.
+    """
+    doc = (Path(__file__).parent.parent / "MCP_PROTOCOL.md").read_text()
+
+    for method in mcp_server._METHOD_DISPATCH:
+        assert f"`{method}`" in doc, f"{method} is routed but undocumented"
+
+    for code in ("-32700", "-32601", "-32602", "-32603"):
+        assert code in doc, f"error code {code} is emitted but undocumented"
+
+    # The isError codes are the table the document calls the one it cares about
+    # most, and they were the one thing nothing pinned: a new ArchWikiError
+    # subclass would have reached an agent under a category no document defined.
+    for failure in _descendants(extractor.ArchWikiError):
+        assert f"`{failure.code}`" in doc, f"{failure.code} can reach an agent but is undocumented"
+
+    responses = _drive_server(
+        '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}\n', monkeypatch, capsys
+    )
+    result = responses[0]["result"]
+
+    assert f"`{result['protocolVersion']}`" in doc, "the advertised protocol version is undocumented"
+    for capability in result["capabilities"]:
+        assert f"`{capability}`" in doc, f"capability {capability} is advertised but undocumented"
+
+
+def test_every_routed_method_is_declared(monkeypatch, capsys):
+    """The dispatch table is what the document is checked against; it must be true."""
+    for method in mcp_server._METHOD_DISPATCH:
+        responses = _drive_server(
+            json.dumps({"jsonrpc": "2.0", "id": 1, "method": method, "params": {}}) + "\n",
+            monkeypatch,
+            capsys,
+        )
+        error = responses[0].get("error", {})
+        assert error.get("code") != -32601, f"{method} is declared supported but not routed"
+
+    unrouted = _drive_server(
+        '{"jsonrpc":"2.0","id":1,"method":"resources/list"}\n', monkeypatch, capsys
+    )
+    assert unrouted[0]["error"]["code"] == -32601, "an unsupported method must say so"
 
 
 def test_server_info_version_matches_the_package_version(monkeypatch, capsys):

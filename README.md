@@ -246,6 +246,8 @@ python3 tests/record_fixtures.py "GRUB" --force   # then update the golden const
 
 * `ARCH_WIKI_MCP_CONSTITUTION.md`: Technical and ethical contract.
 * `AGENTS.md`: Mandatory behavioral contract for AI agents.
+* `MCP_PROTOCOL.md`: The supported MCP subset, the error contract, and why this
+  server implements the transport rather than depending on the SDK.
 * `TEST_STRATEGY.md`: Validation report and hallucination traps.
 
 ## License

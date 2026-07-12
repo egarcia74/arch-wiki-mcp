@@ -14,14 +14,21 @@ from functools import lru_cache
 from typing import AbstractSet, Dict, List, Optional, Tuple
 from urllib.error import URLError
 from urllib.request import urlopen, Request
-from urllib.parse import urlencode, quote
+from urllib.parse import parse_qs, quote, unquote, urlencode, urlparse
 import json
 import os
 
 # stderr by default, which keeps JSON-RPC on stdout clean.
 logger = logging.getLogger(__name__)
 
-API_ENDPOINT = "https://wiki.archlinux.org/api.php"
+# Stated once. The host was written out four times and then reverse-engineered a
+# fifth, out of API_ENDPOINT, under a comment claiming the two could not disagree --
+# which was true of exactly one of the four.
+WIKI_HOST = "wiki.archlinux.org"
+WIKI_BASE = f"https://{WIKI_HOST}"
+TITLE_PATH = "/title/"
+
+API_ENDPOINT = f"{WIKI_BASE}/api.php"
 USER_AGENT = "ArchWikiMCP/1.0 (Constitutional Extractor; +https://github.com/user/arch-wiki-mcp)"
 
 # Shared with tests/record_fixtures.py: the recorder must request exactly what
@@ -243,7 +250,7 @@ def make_wiki_url(title: str, anchor: Optional[str] = None) -> str:
     rely on. For the latter, see make_revision_url().
     """
     encoded_title = quote(title.replace(" ", "_"), safe=":/#")
-    url = f"https://wiki.archlinux.org/title/{encoded_title}"
+    url = f"{WIKI_BASE}{TITLE_PATH}{encoded_title}"
     if anchor:
         url += f"#{quote(anchor, safe=':/#')}"
     return url
@@ -269,10 +276,79 @@ def make_revision_url(revid: int, anchor: Optional[str] = None) -> str:
     wikitext (see make_revision_raw_url) rather than this page -- and say "pinned",
     not "immutable", because only one of the two is true.
     """
-    url = f"https://wiki.archlinux.org/index.php?oldid={revid}"
+    url = f"{WIKI_BASE}/index.php?oldid={revid}"
     if anchor:
         url += f"#{quote(anchor, safe=':/#')}"
     return url
+
+
+def extract_title_from_url(title_or_url: str) -> str:
+    """
+    Resolve a title from an Arch Wiki URL, or pass a plain title through.
+    The exact inverse of make_wiki_url(), and lives beside it for that reason.
+
+    Parsed structurally rather than sliced. The old version split on "/title/",
+    took what followed, and never decoded it -- so a translated page pasted from a
+    browser (.../title/Installation_guide_%28Fran%C3%A7ais%29) reached the wiki as
+    the literal title "Installation_guide_%28Fran%C3%A7ais%29", which does not
+    exist. The tool then fail-closed and reported the page as missing. It was not
+    missing: we asked the wrong question and relayed the wiki's silence as fact,
+    which is the one failure this project exists to prevent.
+
+    It also matched "title=" anywhere in the query and never checked the host, so
+    https://evil.example/title/GRUB passed as an Arch Wiki page.
+
+    Refusal, never a guess: a URL we cannot resolve must not become a title we
+    invented, or the wrong page gets quoted under a valid-looking hash.
+    """
+    # Stripped and scheme-parsed rather than startswith("http"): a pasted URL that
+    # arrived with a leading space, or spelled HTTPS://, failed that test, skipped
+    # the URL branch, and was handed to the wiki *as a title* -- reopening the very
+    # bug above through the whitespace door.
+    title_or_url = title_or_url.strip()
+    parsed = urlparse(title_or_url)
+
+    if parsed.scheme not in ("http", "https"):
+        # A plain title is whatever the caller typed. Decoding it would corrupt a
+        # page whose name genuinely contains a percent sign ("100%_CPU").
+        return title_or_url
+
+    # hostname, not netloc: lowercased, port stripped, and an exact match -- so
+    # "wiki.archlinux.org.evil.example" does not pass for the wiki.
+    if parsed.hostname != WIKI_HOST:
+        raise MalformedWikiUrlError(
+            f"Not an Arch Wiki URL (host {parsed.hostname!r}, expected {WIKI_HOST!r}): "
+            f"{title_or_url}"
+        )
+
+    if parsed.path.startswith(TITLE_PATH):
+        # A path: percent-decoded, but "+" is a literal plus, not a space.
+        title = unquote(parsed.path[len(TITLE_PATH):])
+    else:
+        # A query: parse_qs percent-decodes *and* reads "+" as a space, which is
+        # what a query string means by it. Splitting on "title=" by hand did
+        # neither, and matched "not_title=" too.
+        candidates = parse_qs(parsed.query, keep_blank_values=True).get("title", [])
+        if len(candidates) != 1:
+            # The URL most likely to be pasted back is one we handed out: a
+            # revision URL names a revid, not a title. Say so, rather than leaving
+            # an agent to wonder what it got wrong.
+            if "oldid" in parse_qs(parsed.query):
+                raise MalformedWikiUrlError(
+                    f"That is a revision URL, which names a revid and not a title. "
+                    f"Pass the page title instead: {title_or_url}"
+                )
+            raise MalformedWikiUrlError(
+                f"URL names {len(candidates)} titles, need exactly one: {title_or_url}"
+            )
+        title = candidates[0]
+
+    # MediaWiki treats an underscore and a space as the same character in a title.
+    title = title.replace("_", " ").strip()
+    if not title:
+        raise MalformedWikiUrlError(f"URL names no title: {title_or_url}")
+
+    return title
 
 
 def make_revision_raw_url(revid: int) -> str:
@@ -283,7 +359,7 @@ def make_revision_raw_url(revid: int) -> str:
     for a human to read; this is what an auditor fetches to recompute the hash. No
     anchor: raw wikitext has no fragments to jump to.
     """
-    return f"https://wiki.archlinux.org/index.php?oldid={revid}&action=raw"
+    return f"{WIKI_BASE}/index.php?oldid={revid}&action=raw"
 
 
 def hash_content(text: str) -> str:

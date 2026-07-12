@@ -9,7 +9,7 @@ import json
 import logging
 from dataclasses import asdict
 from typing import Any, Dict, Optional
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 # Allow `python3 src/mcp_server.py` to resolve the `src` package. Importing via
 # the package (not a bare `import extractor`) keeps a single module identity --
@@ -31,32 +31,11 @@ SEARCH_LIMIT_DEFAULT = 10
 SEARCH_LIMIT_MAX = 50
 
 
-def extract_title_from_url(title_or_url: str) -> str:
-    """
-    Extract page title from URL or return title as-is.
-    
-    Handles:
-    - Plain titles: "GRUB" -> "GRUB"
-    - URLs: "https://wiki.archlinux.org/title/GRUB" -> "GRUB"
-    - Anchor URLs: "https://wiki.archlinux.org/title/GRUB#Installation" -> "GRUB"
-    """
-    if title_or_url.startswith("http://") or title_or_url.startswith("https://"):
-        parsed = urlparse(title_or_url)
-        # Extract title from /title/PageName or /index.php?title=PageName
-        if "/title/" in parsed.path:
-            return parsed.path.split("/title/")[1].split("#")[0]
-        elif "title=" in parsed.query:
-            return parsed.query.split("title=")[1].split("&")[0]
-        else:
-            # A malformed argument, not a server fault: untyped, this reached the
-            # agent labelled `internal_error` -- telling it we broke when in fact
-            # its own URL did. (Issue #18 hardens the parsing itself.)
-            raise extractor.MalformedWikiUrlError(
-                f"Cannot extract title from URL: {title_or_url}"
-            )
-    else:
-        # Plain title
-        return title_or_url
+# The parse is a wiki concern, not a protocol one: it is the exact inverse of
+# extractor.make_wiki_url() and encodes MediaWiki title semantics. It lives
+# there, beside its inverse and the host it validates against. Re-exported
+# because every tool below calls it.
+extract_title_from_url = extractor.extract_title_from_url
 
 
 # MCP Tool: search

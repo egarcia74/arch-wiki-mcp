@@ -74,3 +74,9 @@ def load_wikitext(page: str) -> str:
 # Pinned from the committed fixture rather than transcribed by hand, so
 # re-recording GRUB moves this in one place.
 GRUB_REVID = load_parse("GRUB")["revid"]
+
+# Fixture keys, so a re-record moves one line rather than several. Spelled in
+# two test modules apiece, they could drift and quietly leave a test exercising
+# a fixture it no longer names.
+MISSING_PAGE = "Nonexistent page xyz"
+TRANSCLUDED_PAGE = "Transcluded example"

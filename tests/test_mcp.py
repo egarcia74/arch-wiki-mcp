@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from conftest import GRUB_REVID
+from conftest import GRUB_REVID, MISSING_PAGE
 from src import extractor, mcp_server
 
 # tomllib is 3.11+, and pyproject declares requires-python = ">=3.10". Reading
@@ -40,6 +40,11 @@ def test_tools_list_surface_is_exact():
     listed = {t["name"] for t in mcp_server._handle_tools_list(1)["result"]["tools"]}
     assert listed == CONTENT_TOOLS
     assert "examples" not in listed
+
+    # A tool advertised but not routable answers every call with "Unknown tool";
+    # one routable but unadvertised is reachable by a client that guesses. Only
+    # the schema was pinned, so nothing held the two in step.
+    assert set(mcp_server._TOOL_DISPATCH) == CONTENT_TOOLS
 
 
 def test_usage_prompt_does_not_bless_heuristic_inference():
@@ -123,20 +128,39 @@ def test_links_tool():
         assert not link["target_page"].startswith(("Category:", "File:"))
 
 
-def test_missing_anchor_maps_to_error_not_empty_list():
-    """The JSON-RPC layer must surface a failure, not a silent []."""
-    result = mcp_server.handle_tool_call("commands", {"title_or_url": "GRUB", "anchor": "Bogus"})
-    assert "error" in result
-    assert "commands" not in result
+def test_missing_anchor_raises_rather_than_returning_a_silent_empty_list():
+    """
+    The dispatch layer must surface a failure, not a silent [].
+
+    This asserted `"error" in result` when handle_tool_call() returned failures
+    as dicts. That shape is what let the transport ship them as successes, so
+    the failure is now raised and a caller has to handle it.
+    """
+    with pytest.raises(extractor.SectionNotFoundError):
+        mcp_server.handle_tool_call("commands", {"title_or_url": "GRUB", "anchor": "Bogus"})
 
 
-def test_missing_page_maps_to_error():
-    result = mcp_server.handle_tool_call("page", {"title_or_url": "Nonexistent page xyz"})
-    assert "error" in result
+def test_missing_page_raises():
+    with pytest.raises(extractor.PageNotFoundError):
+        mcp_server.handle_tool_call("page", {"title_or_url": MISSING_PAGE})
 
 
 def test_removed_examples_tool_is_rejected():
-    assert "error" in mcp_server.handle_tool_call("examples", {"title_or_url": "GRUB"})
+    """examples() violated the Exclusive Command Source rule and must stay gone."""
+    with pytest.raises(mcp_server.UnknownToolError):
+        mcp_server.handle_tool_call("examples", {"title_or_url": "GRUB"})
+
+
+def test_an_unknown_tool_is_a_protocol_error_not_a_tool_error(monkeypatch, capsys):
+    """
+    Nothing ran, so there is nothing for a model to see and self-correct from.
+    An unknown tool must not arrive as an isError result alongside tools that
+    did run -- MCP reserves protocol errors for a fault in the request itself.
+    """
+    response = _call_tool("examples", {"title_or_url": "GRUB"}, monkeypatch, capsys)
+
+    assert "result" not in response
+    assert response["error"]["code"] == -32602
 
 
 def test_search_tool():
@@ -205,6 +229,17 @@ def _drive_server(stdin_text, monkeypatch, capsys):
     return [json.loads(line) for line in capsys.readouterr().out.splitlines() if line.strip()]
 
 
+def _call_tool(name, arguments, monkeypatch, capsys):
+    """Drive one tools/call over the real stdio transport; return the response."""
+    request = {
+        "jsonrpc": "2.0",
+        "id": 9,
+        "method": "tools/call",
+        "params": {"name": name, "arguments": arguments},
+    }
+    return _drive_server(json.dumps(request) + "\n", monkeypatch, capsys)[0]
+
+
 def test_a_parse_error_never_answers_with_a_previous_request_id(monkeypatch, capsys):
     """
     A malformed line must not be blamed on the last request that parsed.
@@ -251,3 +286,43 @@ def test_tools_call_without_a_name_is_invalid_params(monkeypatch, capsys):
 
     assert responses[0]["id"] == 7
     assert responses[0]["error"]["code"] == -32602
+
+
+def test_a_failed_extraction_is_not_dressed_up_as_a_successful_call(monkeypatch, capsys):
+    """
+    test_failures.py makes the extractor fail closed on a missing page. The MCP
+    layer then re-opened it: handle_tool_call() turned the ValueError into a
+    plain {"error": ...} dict, and _handle_tools_call() shipped that dict inside
+    a *successful* result.content. An agent reading result.content sees text and
+    has no protocol-level signal it is holding an error, so the wiki's silence
+    becomes an answer. isError is that signal.
+    """
+    response = _call_tool("page", {"title_or_url": MISSING_PAGE}, monkeypatch, capsys)
+
+    assert "result" in response, "extraction failure is a tool error, not a protocol error"
+    assert response["result"]["isError"] is True, "a failed page lookup read as success"
+
+
+def test_a_failed_extraction_carries_a_machine_readable_category(monkeypatch, capsys):
+    """A caller must be able to tell a missing page from an upstream outage."""
+    response = _call_tool("page", {"title_or_url": MISSING_PAGE}, monkeypatch, capsys)
+
+    payload = json.loads(response["result"]["content"][0]["text"])
+    assert payload["code"] == "page_not_found"
+    assert payload["error"], "the human-readable message is still required"
+
+
+def test_a_missing_anchor_is_distinguishable_from_a_missing_page(monkeypatch, capsys):
+    response = _call_tool(
+        "section", {"title_or_url": "GRUB", "anchor": "Bogus_anchor"}, monkeypatch, capsys
+    )
+
+    payload = json.loads(response["result"]["content"][0]["text"])
+    assert payload["code"] == "section_not_found"
+
+
+def test_a_successful_call_is_not_flagged_as_an_error(monkeypatch, capsys):
+    """The converse guard: isError must not fire on the happy path."""
+    response = _call_tool("page", {"title_or_url": "GRUB"}, monkeypatch, capsys)
+
+    assert response["result"].get("isError", False) is False

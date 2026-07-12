@@ -6,6 +6,7 @@ Thin wrapper around constitutional extractor - exposes wiki as MCP tools.
 import sys
 import os
 import json
+import logging
 from dataclasses import asdict
 from typing import Any, Dict, Optional
 from urllib.parse import urlparse
@@ -15,6 +16,9 @@ from urllib.parse import urlparse
 # a bare import loads a second copy under a different sys.modules key.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src import extractor
+
+# stderr by default, which keeps JSON-RPC on stdout clean.
+logger = logging.getLogger(__name__)
 
 # Schema documentation constants
 TITLE_DESC = "Page title or URL"
@@ -38,7 +42,12 @@ def extract_title_from_url(title_or_url: str) -> str:
         elif "title=" in parsed.query:
             return parsed.query.split("title=")[1].split("&")[0]
         else:
-            raise ValueError(f"Cannot extract title from URL: {title_or_url}")
+            # A malformed argument, not a server fault: untyped, this reached the
+            # agent labelled `internal_error` -- telling it we broke when in fact
+            # its own URL did. (Issue #18 hardens the parsing itself.)
+            raise extractor.InvalidArgumentError(
+                f"Cannot extract title from URL: {title_or_url}"
+            )
     else:
         # Plain title
         return title_or_url
@@ -220,57 +229,91 @@ def tool_links(title_or_url: str, anchor: Optional[str] = None) -> dict:
 
 
 # MCP Server Implementation
+class UnknownToolError(LookupError):
+    """
+    The client named a tool that does not exist.
+
+    Not an extraction failure: nothing ran, and there is nothing for a model to
+    self-correct from. MCP reserves protocol errors for exactly this -- a fault
+    in the request rather than in the answer -- so it must not travel as an
+    isError result alongside the tools that did run.
+    """
+
+    code = "unknown_tool"
+
+
+_TOOL_DISPATCH = {
+    "search": lambda a: tool_search(a["query"], a.get("limit", 10)),
+    "page": lambda a: tool_page(a["title_or_url"]),
+    "sections": lambda a: tool_sections(a["title_or_url"]),
+    "section": lambda a: tool_section(a["title_or_url"], a["anchor"]),
+    "commands": lambda a: tool_commands(a["title_or_url"], a.get("anchor")),
+    "warnings": lambda a: tool_warnings(a["title_or_url"], a.get("anchor")),
+    "links": lambda a: tool_links(a["title_or_url"], a.get("anchor")),
+}
+
+
 def handle_tool_call(tool_name: str, arguments: dict) -> dict:
     """
-    Route tool call to appropriate handler.
-    
-    Returns result dict or error dict.
+    Route a tool call to its handler and return the tool's result.
+
+    Raises rather than returning an error dict. Returning one made a failure
+    indistinguishable from a result to every caller that did not inspect the
+    payload -- and the MCP transport did not, so it shipped failures inside
+    successful responses. Failure is now something a caller must handle.
     """
     try:
-        if tool_name == "search":
-            return tool_search(
-                arguments["query"],
-                arguments.get("limit", 10)
-            )
-        
-        elif tool_name == "page":
-            return tool_page(arguments["title_or_url"])
-        
-        elif tool_name == "sections":
-            return tool_sections(arguments["title_or_url"])
-        
-        elif tool_name == "section":
-            return tool_section(
-                arguments["title_or_url"],
-                arguments["anchor"]
-            )
-        
-        elif tool_name == "commands":
-            return tool_commands(
-                arguments["title_or_url"],
-                arguments.get("anchor")
-            )
-        
-        elif tool_name == "warnings":
-            return tool_warnings(
-                arguments["title_or_url"],
-                arguments.get("anchor")
-            )
-        
-        elif tool_name == "links":
-            return tool_links(
-                arguments["title_or_url"],
-                arguments.get("anchor")
-            )
-        
-        else:
-            return {"error": f"Unknown tool: {tool_name}"}
-    
-    except ValueError as e:
-        return {"error": str(e)}
-    
-    except Exception as e:
-        return {"error": f"{type(e).__name__}: {str(e)}"}
+        handler = _TOOL_DISPATCH[tool_name]
+    except KeyError:
+        raise UnknownToolError(f"Unknown tool: {tool_name}") from None
+
+    return handler(arguments)
+
+
+def _error_payload(exc: Exception) -> dict:
+    """
+    The one place a failure is given its wire identity.
+
+    Stated twice, the fallback drifted: the transport labelled an unclassified
+    exception `internal_error` while the CLI labelled the same one `unknown_tool`.
+    Typed errors carry their own code; only a genuinely untyped escape -- a bug
+    in this server rather than a fact about the wiki -- falls back.
+    """
+    return {"error": str(exc), "code": getattr(exc, "code", "internal_error")}
+
+
+def _tool_result(msg_id: int, payload: dict, is_error: bool = False) -> dict:
+    """
+    Wrap a tool's payload in the JSON-RPC envelope.
+
+    isError is the only signal that separates "the wiki says no" from "the wiki
+    says this". Without it the text of an error reads exactly like evidence.
+    """
+    return {
+        "jsonrpc": "2.0",
+        "id": msg_id,
+        "result": {
+            "content": [{
+                "type": "text",
+                "text": json.dumps(payload, indent=2, ensure_ascii=False)
+            }],
+            "isError": is_error,
+        }
+    }
+
+
+def _protocol_error(msg_id: Optional[int], message: str, code: int = -32602) -> dict:
+    """A fault in the request itself: nothing ran, so there is no tool result."""
+    return {
+        "jsonrpc": "2.0",
+        "id": msg_id,
+        "error": {"code": code, "message": message}
+    }
+
+
+def _tool_error_result(msg_id: int, exc: Exception) -> dict:
+    """A tool that ran and failed, reported so a caller cannot read it as evidence."""
+    return _tool_result(msg_id, _error_payload(exc), is_error=True)
 
 
 def _send_response(response: dict):
@@ -415,11 +458,7 @@ Now wait for the user’s task.
                 }]
             }
         }
-    return {
-        "jsonrpc": "2.0",
-        "id": msg_id,
-        "error": {"code": -32602, "message": f"Unknown prompt: {prompt_name}"}
-    }
+    return _protocol_error(msg_id, f"Unknown prompt: {prompt_name}")
 
 
 def _handle_tools_list(msg_id: int) -> dict:
@@ -534,23 +573,27 @@ def _handle_tools_list(msg_id: int) -> dict:
 def _handle_tools_call(msg_id: int, params: dict) -> dict:
     tool_name = params.get("name")
     if not isinstance(tool_name, str):
-        return {
-            "jsonrpc": "2.0",
-            "id": msg_id,
-            "error": {"code": -32602, "message": "Invalid params: 'name' must be a string"}
-        }
+        return _protocol_error(msg_id, "Invalid params: 'name' must be a string")
+
     arguments = params.get("arguments", {})
-    result = handle_tool_call(tool_name, arguments)
-    return {
-        "jsonrpc": "2.0",
-        "id": msg_id,
-        "result": {
-            "content": [{
-                "type": "text",
-                "text": json.dumps(result, indent=2, ensure_ascii=False)
-            }]
-        }
-    }
+
+    try:
+        result = handle_tool_call(tool_name, arguments)
+    except UnknownToolError as e:
+        # Nothing ran. A fault in the request, not in the answer.
+        return _protocol_error(msg_id, str(e))
+    except extractor.ArchWikiError as e:
+        # The tool ran and the wiki refused. The model can see this and adapt.
+        return _tool_error_result(msg_id, e)
+    except Exception as e:
+        # An untyped escape is a bug in this server, not a fact about the wiki.
+        # It still fails closed to the caller, but the traceback must not be the
+        # thing we throw away -- it is the only record that we, not the wiki,
+        # were wrong.
+        logger.exception("Unhandled error in tool %r", tool_name)
+        return _tool_error_result(msg_id, e)
+
+    return _tool_result(msg_id, result)
 
 
 def run_mcp_server():
@@ -581,17 +624,13 @@ def run_mcp_server():
             elif method == "tools/call":
                 _send_response(_handle_tools_call(msg_id, params))
             else:
-                _send_response({
-                    "jsonrpc": "2.0",
-                    "id": msg_id,
-                    "error": {"code": -32601, "message": f"Method not found: {method}"}
-                })
+                _send_response(
+                    _protocol_error(msg_id, f"Method not found: {method}", code=-32601)
+                )
         except Exception as e:
-            _send_response({
-                "jsonrpc": "2.0",
-                "id": msg_id,
-                "error": {"code": -32603, "message": f"Internal error: {str(e)}"}
-            })
+            _send_response(
+                _protocol_error(msg_id, f"Internal error: {str(e)}", code=-32603)
+            )
 
 
 def main():
@@ -641,10 +680,18 @@ def main():
         print(f"Unknown tool: {tool}")
         sys.exit(1)
     
-    # Call tool
-    result = handle_tool_call(tool, arguments)
-    
-    # Print result
+    # A failed extraction must not leave the shell believing it succeeded: the
+    # payload goes to stderr and the exit status is non-zero, so a caller that
+    # only checks $? still fails closed. Same breadth and same payload as the
+    # MCP transport -- both answer "the tool ran and failed"; only the envelope
+    # differs. Catching less here made a network outage a coded error over MCP
+    # and a raw traceback on the CLI.
+    try:
+        result = handle_tool_call(tool, arguments)
+    except Exception as e:
+        print(json.dumps(_error_payload(e), indent=2, ensure_ascii=False), file=sys.stderr)
+        sys.exit(1)
+
     print(json.dumps(result, indent=2, ensure_ascii=False))
 
 

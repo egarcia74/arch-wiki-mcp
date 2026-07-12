@@ -16,6 +16,7 @@ The mapping is derived from the wiki, not declared here.
 
 import pytest
 
+from conftest import TRANSCLUDED_PAGE
 from src import extractor
 
 ENGLISH = "Installation guide"
@@ -90,7 +91,7 @@ def test_alias_resolution_failure_raises_rather_than_returning_a_subset():
     fixture exists for this page, so the offline fetch fails.
     """
     with pytest.raises(ValueError, match="Cannot resolve template aliases"):
-        extractor.warnings("Transcluded example")
+        extractor.warnings(TRANSCLUDED_PAGE)
 
 
 def test_escapes_and_magic_words_are_never_sent_as_titles():

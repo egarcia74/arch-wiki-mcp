@@ -29,6 +29,82 @@ USER_AGENT = "ArchWikiMCP/1.0 (Constitutional Extractor; +https://github.com/use
 SITEINFO_PROPS = "namespaces|namespacealiases|interwikimap"
 
 
+class ArchWikiError(ValueError):
+    """
+    Base for every extraction failure.
+
+    ValueError, not Exception: callers (and tests) have caught ValueError since
+    before these types existed, and a failure that stops being caught is a
+    failure that stops fail-closing. The subclasses add a category the MCP layer
+    can report; they do not change what is raised to anyone already catching it.
+    """
+
+    code = "extraction_failed"
+
+
+class PageNotFoundError(ArchWikiError):
+    """The wiki has no such page. Distinct from an outage: the answer is 'no page'."""
+
+    code = "page_not_found"
+
+
+class SectionNotFoundError(ArchWikiError):
+    """The page exists; the requested anchor does not."""
+
+    code = "section_not_found"
+
+
+class EvidenceResolutionError(ArchWikiError):
+    """
+    The page and section exist, but their text cannot be quoted with provenance
+    intact -- a transcluded section whose wikitext lives elsewhere, or an offset
+    that did not land on its heading. Quoting anyway would cite the wrong text
+    under a valid-looking hash, so this is a refusal, not a miss.
+    """
+
+    code = "evidence_unresolvable"
+
+
+class UpstreamApiError(ArchWikiError):
+    """MediaWiki errored or answered in a shape we do not recognise."""
+
+    code = "upstream_api_error"
+
+
+class InvalidArgumentError(ArchWikiError):
+    """The caller's argument is malformed. Nothing was asked of the wiki."""
+
+    code = "invalid_argument"
+
+
+def _unwrap(data: Dict, root: str, context: str) -> Dict:
+    """
+    Classify a MediaWiki envelope, or return the payload under `root`.
+
+    Every fetch answers in the same envelope, so every fetch used to repeat this
+    check -- and they drifted: two classified their failures and four raised a
+    bare ValueError, which the MCP layer could only report as `internal_error`.
+    An outage on the admonition-alias path therefore told the agent the server
+    was broken rather than that the wiki was unreachable. Classifying here means
+    a new fetch cannot forget to, because it never sees an unclassified envelope.
+    """
+    if "error" in data:
+        error = data["error"]
+        detail = error.get("info", error)
+        # MediaWiki reports "this page does not exist" as an ordinary API error.
+        # Undistinguished, a missing page and an outage arrive as one exception,
+        # and a caller cannot tell "the wiki says no" from "the wiki did not
+        # answer" -- the two conclusions an agent must never conflate.
+        if error.get("code") == "missingtitle":
+            raise PageNotFoundError(f"{context} API Error: {detail}")
+        raise UpstreamApiError(f"{context} API Error: {detail}")
+
+    if root not in data:
+        raise UpstreamApiError(f"Unexpected {context} response format: {data}")
+
+    return data[root]
+
+
 @dataclass
 class WikiSection:
     """Section metadata from MediaWiki parse response."""
@@ -215,8 +291,19 @@ def _fetch(params: Dict, timeout: int = 30, key: Optional[str] = None) -> Dict:
 
     url = f"{API_ENDPOINT}?{urlencode(params)}"
     request = Request(url, headers={"User-Agent": USER_AGENT})
-    with urlopen(request, timeout=timeout) as response:
-        return json.loads(response.read().decode("utf-8"))
+    try:
+        with urlopen(request, timeout=timeout) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except (URLError, TimeoutError, json.JSONDecodeError) as exc:
+        # _unwrap classifies what the wiki *says*; this classifies its *silence*.
+        # Left raw, the paradigm "the wiki did not answer" -- an outage, a dead
+        # socket, a truncated body -- escaped untyped and the MCP layer could
+        # only call it `internal_error`: a bug in us. It is the opposite. The
+        # remediation differs too (retry the wiki vs. fix this server), which is
+        # the whole reason the two must not arrive as one exception.
+        raise UpstreamApiError(f"Arch Wiki did not answer: {exc}") from exc
+    # FileNotFoundError from _fetch_offline is deliberately not caught: a missing
+    # fixture is our bug, and must stay loud rather than pose as an outage.
 
 
 def fetch_wiki_parse(page_title: str, timeout: int = 30) -> Dict:
@@ -233,13 +320,7 @@ def fetch_wiki_parse(page_title: str, timeout: int = 30) -> Dict:
 
     data = _fetch(params, timeout)
 
-    if "error" in data:
-        raise ValueError(f"API Error: {data['error'].get('info', data['error'])}")
-    
-    if "parse" not in data:
-        raise ValueError(f"Unexpected API response format: {data}")
-    
-    parse_data = data["parse"]
+    parse_data = _unwrap(data, "parse", "parse")
     # Normalize keys for constitutional code style
     if "sections" in parse_data:
         for section in parse_data["sections"]:
@@ -270,7 +351,7 @@ def extract_section_wikitext(
     "to the end of the page" and is fine.
     """
     if section_start is None:
-        raise ValueError(
+        raise EvidenceResolutionError(
             "Section has no byte offset (transcluded); its wikitext is not on this page"
         )
 
@@ -293,7 +374,7 @@ def _resolve_section(parse_data: Dict, anchor: str) -> Tuple[Dict, str]:
             continue
 
         if sect["byteoffset"] is None:
-            raise ValueError(
+            raise EvidenceResolutionError(
                 f"Section '{anchor}' in page '{title}' is transcluded "
                 f"(null byte offset); its wikitext is not on this page"
             )
@@ -312,14 +393,14 @@ def _resolve_section(parse_data: Dict, anchor: str) -> Tuple[Dict, str]:
         # offset semantics moved under us, and quoting the result would cite the
         # wrong text under a valid-looking hash.
         if not content.startswith("="):
-            raise ValueError(
+            raise EvidenceResolutionError(
                 f"Section '{anchor}' in page '{title}' did not resolve to a heading "
                 f"(offset {sect['byteoffset']} landed on {content[:40]!r})"
             )
 
         return sect, content
 
-    raise ValueError(f"Section with anchor '{anchor}' not found in page '{title}'")
+    raise SectionNotFoundError(f"Section with anchor '{anchor}' not found in page '{title}'")
 
 
 def _find_template_end(wikitext: str, start_idx: int) -> int:
@@ -1254,12 +1335,7 @@ def fetch_siteinfo(timeout: int = 30) -> Dict:
 
     data = _fetch(params, timeout)
 
-    if "error" in data:
-        raise ValueError(f"Siteinfo API Error: {data['error'].get('info', data['error'])}")
-    if "query" not in data:
-        raise ValueError(f"Unexpected siteinfo response format: {data}")
-
-    return data["query"]
+    return _unwrap(data, "query", "siteinfo")
 
 
 # Errors that mean "the wiki did not answer", as opposed to a bug in this module.
@@ -1359,12 +1435,9 @@ def fetch_redirect_revids(titles: List[str], cache_key: str, timeout: int = 30) 
             key=f"aliasrevs_{cache_key}{suffix}",
         )
 
-        if "error" in data:
-            raise ValueError(f"Redirect revision API Error: {data['error'].get('info', data['error'])}")
-        if "query" not in data:
-            raise ValueError(f"Unexpected redirect revision response format: {data}")
+        query = _unwrap(data, "query", "redirect revision")
 
-        for page in data["query"].get("pages", {}).values():
+        for page in query.get("pages", {}).values():
             revisions = page.get("revisions")
             if revisions:
                 revids[page["title"]] = revisions[0]["revid"]
@@ -1406,12 +1479,9 @@ def fetch_template_aliases(names: List[str], cache_key: str, timeout: int = 30) 
             key=f"aliases_{cache_key}{suffix}",
         )
 
-        if "error" in data:
-            raise ValueError(f"Template alias API Error: {data['error'].get('info', data['error'])}")
-        if "query" not in data:
-            raise ValueError(f"Unexpected template alias response format: {data}")
+        query = _unwrap(data, "query", "template alias")
 
-        for redirect in data["query"].get("redirects", []):
+        for redirect in query.get("redirects", []):
             source = redirect["from"].split(":", 1)[-1].lower()
             target = redirect["to"].split(":", 1)[-1]
             admonition = canonical_admonition(target)
@@ -1425,7 +1495,9 @@ def fetch_template_aliases(names: List[str], cache_key: str, timeout: int = 30) 
             if revid is None:
                 # We know this page carries a WARNING and cannot say why. Silence
                 # would be worse: fail closed, exactly as an unanswered query does.
-                raise ValueError(
+                # The page and alias both exist -- what cannot be produced is the
+                # provenance -- so this is EvidenceResolutionError, not an outage.
+                raise EvidenceResolutionError(
                     f"No revision for redirect {source_title!r}: cannot attest that it "
                     f"denotes {admonition}."
                 )
@@ -1475,7 +1547,14 @@ def admonition_types(wikitext: str, cache_key: str) -> Dict[str, TemplateResolut
         try:
             resolved = fetch_template_aliases(unresolved, cache_key)
         except _ALIAS_FAILURES as exc:
-            raise ValueError(
+            # Re-raise as the *same* category, not a bare ValueError. ArchWikiError
+            # subclasses ValueError -- which _ALIAS_FAILURES lists -- so this arm
+            # caught the very types _unwrap had just raised and flattened them,
+            # losing the code and re-opening the conflation on precisely the path
+            # the classifier was written for. An outage here means "retry the
+            # wiki"; an unresolvable alias means "do not". They must stay apart.
+            category = type(exc) if isinstance(exc, ArchWikiError) else UpstreamApiError
+            raise category(
                 f"Cannot resolve template aliases for {cache_key!r}: {exc}. "
                 f"Refusing to report an English-only subset of the warnings as complete."
             ) from exc
@@ -1626,12 +1705,8 @@ def _search_hits(query: str, limit: int, what: str, timeout: int, key: Optional[
         key=key,
     )
 
-    if "error" in data:
-        raise ValueError(f"Search API Error: {data['error'].get('info', data['error'])}")
-    if "query" not in data or "search" not in data["query"]:
-        raise ValueError(f"Unexpected search API response: {data}")
-
-    return data["query"]["search"]
+    query = _unwrap(data, "query", "search")
+    return _unwrap(query, "search", "search results")
 
 
 def search(query: str, limit: int = 10, timeout: int = 30) -> List[Dict]:

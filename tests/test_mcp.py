@@ -326,3 +326,141 @@ def test_a_successful_call_is_not_flagged_as_an_error(monkeypatch, capsys):
     response = _call_tool("page", {"title_or_url": "GRUB"}, monkeypatch, capsys)
 
     assert response["result"].get("isError", False) is False
+
+
+# --- Argument validation (issue #20) ---------------------------------------
+#
+# The dispatch table indexed arguments["query"] and arguments["title_or_url"]
+# straight, so a client that omitted one got a KeyError -- reported to the agent
+# as `internal_error`, i.e. "this server has a bug", when in fact its own call
+# was malformed. Nothing ran, so it is a fault in the request: -32602, the same
+# class as an unknown tool.
+
+MALFORMED_CALLS = [
+    pytest.param("search", {}, id="search-without-query"),
+    pytest.param("page", {}, id="page-without-title"),
+    pytest.param("sections", {}, id="sections-without-title"),
+    pytest.param("section", {"title_or_url": "GRUB"}, id="section-without-anchor"),
+    pytest.param("commands", {}, id="commands-without-title"),
+    pytest.param("warnings", {}, id="warnings-without-title"),
+    pytest.param("links", {}, id="links-without-title"),
+    pytest.param("page", {"title_or_url": 7}, id="title-not-a-string"),
+    pytest.param("page", {"title_or_url": ""}, id="title-empty"),
+    pytest.param("page", {"title_or_url": "   "}, id="title-blank"),
+    pytest.param("search", {"query": ""}, id="query-empty"),
+    pytest.param("section", {"title_or_url": "GRUB", "anchor": ""}, id="anchor-empty"),
+    pytest.param("search", {"query": "grub", "limit": "10"}, id="limit-a-string"),
+    pytest.param("search", {"query": "grub", "limit": 1.5}, id="limit-fractional"),
+    pytest.param("search", {"query": "grub", "limit": 0}, id="limit-below-minimum"),
+    pytest.param("search", {"query": "grub", "limit": 51}, id="limit-above-maximum"),
+    # bool is an int subclass in Python, so True would otherwise sail through an
+    # isinstance(x, int) check and reach the wiki as srlimit=1.
+    pytest.param("search", {"query": "grub", "limit": True}, id="limit-a-bool"),
+]
+
+
+@pytest.mark.parametrize("tool,arguments", MALFORMED_CALLS)
+def test_a_malformed_call_is_invalid_params_over_the_wire(tool, arguments, monkeypatch, capsys):
+    """Nothing ran, so there is no tool result to carry an isError."""
+    response = _call_tool(tool, arguments, monkeypatch, capsys)
+
+    assert "result" not in response, f"{tool}{arguments} produced a tool result"
+    assert response["error"]["code"] == -32602
+
+
+@pytest.mark.parametrize("tool,arguments", MALFORMED_CALLS)
+def test_a_malformed_call_is_rejected_before_the_extractor_runs(tool, arguments, monkeypatch):
+    """The wiki must never be asked a question we already know is malformed."""
+    def _no_fetch(*args, **kwargs):
+        raise AssertionError("extractor reached with malformed arguments")
+
+    monkeypatch.setattr(extractor, "_fetch", _no_fetch)
+
+    with pytest.raises(mcp_server.InvalidParamsError):
+        mcp_server.handle_tool_call(tool, arguments)
+
+
+def test_the_declared_limit_schema_matches_what_is_enforced():
+    """
+    Declared `number` with no bounds, the schema promised a client that 1e9 --
+    or 2.5 -- was acceptable, and the code then passed it to the wiki. A schema
+    the runtime does not honour is a lie told to every client that reads it.
+    """
+    tools = {t["name"]: t for t in mcp_server._handle_tools_list(1)["result"]["tools"]}
+    limit = tools["search"]["inputSchema"]["properties"]["limit"]
+
+    assert limit["type"] == "integer"
+    assert limit["minimum"] == 1
+    assert limit["maximum"] == mcp_server.SEARCH_LIMIT_MAX
+    assert limit["default"] == mcp_server.SEARCH_LIMIT_DEFAULT
+
+
+@pytest.mark.parametrize("limit", [1, 10, 50])
+def test_a_limit_within_bounds_is_accepted(limit):
+    """The converse guard: validation must not reject what the schema allows."""
+    assert mcp_server.handle_tool_call("search", {"query": "GRUB", "limit": limit})["results"]
+
+
+def _run_cli(argv, monkeypatch, capsys):
+    """Drive main() as a shell would; return (exit_code, stdout, stderr)."""
+    monkeypatch.setattr(mcp_server.sys, "argv", ["mcp_server.py"] + argv)
+    with pytest.raises(SystemExit) as exit_info:
+        mcp_server.main()
+    captured = capsys.readouterr()
+    return exit_info.value.code, captured.out, captured.err
+
+
+@pytest.mark.parametrize("argv", [
+    pytest.param(["page"], id="page-without-title"),
+    pytest.param(["section", "GRUB"], id="section-without-anchor"),
+    pytest.param(["search", "grub", "notanint"], id="limit-not-an-int"),
+    pytest.param(["search", "grub", "999"], id="limit-above-maximum"),
+    pytest.param(["page", MISSING_PAGE], id="missing-page"),
+])
+def test_the_cli_fails_closed_with_a_coded_error(argv, monkeypatch, capsys):
+    """
+    The argv build sat outside main()'s try, so a missing argument answered the
+    shell with a raw traceback while the same mistake over MCP got a clean coded
+    error -- and nothing tested the CLI, which is how it survived. A caller that
+    checks only $? must still be able to tell the call failed.
+    """
+    code, stdout, stderr = _run_cli(argv, monkeypatch, capsys)
+
+    assert code == 1, "a failed call exited 0; the shell would believe it worked"
+    assert stdout == "", "a failure must not be written to stdout as if it were a result"
+    assert json.loads(stderr)["code"], "stderr must carry a machine-readable category"
+
+
+def test_the_cli_reports_an_unknown_tool_with_usage(monkeypatch, capsys):
+    code, _, stderr = _run_cli(["bogustool"], monkeypatch, capsys)
+
+    assert code == 1
+    assert "Unknown tool: bogustool" in stderr
+    # The usage text is generated from the schema, so every routable tool appears.
+    for tool in mcp_server._TOOL_DISPATCH:
+        assert tool in stderr
+
+
+def test_the_cli_prints_a_result_on_the_happy_path(monkeypatch, capsys):
+    """The converse guard: a good call must still exit 0 with JSON on stdout."""
+    monkeypatch.setattr(mcp_server.sys, "argv", ["mcp_server.py", "page", "GRUB"])
+    mcp_server.main()
+
+    assert json.loads(capsys.readouterr().out)["title"] == "GRUB"
+
+
+def test_an_omitted_limit_defaults_to_the_declared_value(monkeypatch):
+    """
+    Asserting only that results came back would pass whether the applied default
+    were 10, 50, or a stale fallback in the dispatch lambda. Assert the number
+    that actually reached the extractor.
+    """
+    seen = []
+    original = extractor.search
+    monkeypatch.setattr(
+        extractor, "search", lambda q, limit=None: seen.append(limit) or original(q, limit)
+    )
+
+    mcp_server.handle_tool_call("search", {"query": "GRUB"})
+
+    assert seen == [mcp_server.SEARCH_LIMIT_DEFAULT]

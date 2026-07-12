@@ -24,6 +24,12 @@ logger = logging.getLogger(__name__)
 TITLE_DESC = "Page title or URL"
 ANCHOR_DESC = "Optional section anchor"
 
+# Declared in the schema and enforced at the boundary from that same declaration,
+# so the two cannot drift. `limit` was advertised as an unbounded `number`, which
+# promised every client that 1e9 -- or 2.5 -- was a fair thing to ask for.
+SEARCH_LIMIT_DEFAULT = 10
+SEARCH_LIMIT_MAX = 50
+
 
 def extract_title_from_url(title_or_url: str) -> str:
     """
@@ -45,7 +51,7 @@ def extract_title_from_url(title_or_url: str) -> str:
             # A malformed argument, not a server fault: untyped, this reached the
             # agent labelled `internal_error` -- telling it we broke when in fact
             # its own URL did. (Issue #18 hardens the parsing itself.)
-            raise extractor.InvalidArgumentError(
+            raise extractor.MalformedWikiUrlError(
                 f"Cannot extract title from URL: {title_or_url}"
             )
     else:
@@ -54,7 +60,7 @@ def extract_title_from_url(title_or_url: str) -> str:
 
 
 # MCP Tool: search
-def tool_search(query: str, limit: int = 10) -> dict:
+def tool_search(query: str, limit: int = SEARCH_LIMIT_DEFAULT) -> dict:
     """
     Search Arch Wiki for pages matching query.
     
@@ -242,8 +248,227 @@ class UnknownToolError(LookupError):
     code = "unknown_tool"
 
 
+_TOOLS = [
+    {
+        "name": "search",
+        "description": (
+            "Search Arch Wiki pages: the exact-title match first when one "
+            "exists, then the wiki's full-text hits in its own order. A "
+            "pointer, never evidence -- results carry no revid and no hash, "
+            "and `snippet` is never quotable."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Search query", "minLength": 1},
+                "limit": {
+                    "type": "integer",
+                    "description": f"Max results (default {SEARCH_LIMIT_DEFAULT})",
+                    "minimum": 1,
+                    "maximum": SEARCH_LIMIT_MAX,
+                    "default": SEARCH_LIMIT_DEFAULT,
+                }
+            },
+            "required": ["query"],
+            "additionalProperties": False
+        }
+    },
+    {
+        "name": "page",
+        "description": "Get full page with metadata",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "title_or_url": {"type": "string", "description": TITLE_DESC, "minLength": 1}
+            },
+            "required": ["title_or_url"],
+            "additionalProperties": False
+        }
+    },
+    {
+        "name": "sections",
+        "description": "List all sections in page",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "title_or_url": {"type": "string", "description": TITLE_DESC, "minLength": 1}
+            },
+            "required": ["title_or_url"],
+            "additionalProperties": False
+        }
+    },
+    {
+        "name": "section",
+        "description": (
+            "Get single section with provenance. Returns `content` (rendered for "
+            "quoting: markdown headings, fenced code, resolved links) and "
+            "`content_raw` (verbatim wikitext). content_hash attests content_raw; "
+            "content_hash_cleaned attests content."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "title_or_url": {"type": "string", "description": TITLE_DESC, "minLength": 1},
+                "anchor": {"type": "string", "description": "Section anchor", "minLength": 1}
+            },
+            "required": ["title_or_url", "anchor"],
+            "additionalProperties": False
+        }
+    },
+    {
+        "name": "commands",
+        "description": "Extract code blocks from page or section",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "title_or_url": {"type": "string", "description": TITLE_DESC, "minLength": 1},
+                "anchor": {"type": "string", "description": ANCHOR_DESC, "minLength": 1}
+            },
+            "required": ["title_or_url"],
+            "additionalProperties": False
+        }
+    },
+    {
+        "name": "warnings",
+        "description": (
+            "Extract warning/note/tip templates from page or section, including "
+            "localized ones on translated pages ({{Note (Español)}}, {{Attention}}). "
+            "Raises rather than returning an incomplete list; [] means the wiki "
+            "specifies no warning here. A type derived from a template redirect "
+            "carries that redirect (alias, alias_target, alias_revid)."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "title_or_url": {"type": "string", "description": TITLE_DESC, "minLength": 1},
+                "anchor": {"type": "string", "description": ANCHOR_DESC, "minLength": 1}
+            },
+            "required": ["title_or_url"],
+            "additionalProperties": False
+        }
+    },
+    {
+        "name": "links",
+        "description": "Extract internal links from page or section",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "title_or_url": {"type": "string", "description": TITLE_DESC, "minLength": 1},
+                "anchor": {"type": "string", "description": ANCHOR_DESC, "minLength": 1}
+            },
+            "required": ["title_or_url"],
+            "additionalProperties": False
+        }
+    }
+]
+
+_INPUT_SCHEMAS = {tool["name"]: tool["inputSchema"] for tool in _TOOLS}
+
+
+class InvalidParamsError(ValueError):
+    """
+    The call itself is malformed: a missing argument, a wrong type, a value the
+    schema forbids.
+
+    Nothing ran, so this is a protocol error (-32602) and not an isError result
+    -- the same class as an unknown tool. Unvalidated, a missing `title_or_url`
+    surfaced as a KeyError and reached the agent as `internal_error`: this server
+    confessing to a bug that belonged to the caller's request.
+    """
+
+    code = "invalid_params"
+
+
+def _validate_value(tool: str, name: str, value: Any, spec: dict) -> Any:
+    """
+    Check one argument against the property the schema advertises for it.
+
+    Every rule is read from `spec`, never assumed. Enforcing a rule the schema
+    does not declare is the same lie as declaring one the code does not enforce,
+    only told in the strict direction: a client that obeyed the advertised schema
+    would still be refused, with no way to discover why.
+    """
+    declared = spec["type"]
+
+    if declared == "string":
+        if not isinstance(value, str):
+            raise InvalidParamsError(
+                f"{tool}.{name} must be a string, got {type(value).__name__}"
+            )
+        minimum_length = spec.get("minLength")
+        if minimum_length is not None and len(value.strip()) < minimum_length:
+            raise InvalidParamsError(
+                f"{tool}.{name} must be at least {minimum_length} character(s), got {value!r}"
+            )
+        return value
+
+    if declared == "integer":
+        # bool is an int subclass in Python, so `limit=true` would otherwise pass
+        # an isinstance check and reach the wiki as srlimit=1 -- a silently
+        # truncated search that looks like a complete one.
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise InvalidParamsError(
+                f"{tool}.{name} must be an integer, got {type(value).__name__}"
+            )
+        low, high = spec.get("minimum"), spec.get("maximum")
+        if low is not None and value < low:
+            raise InvalidParamsError(f"{tool}.{name} must be >= {low}, got {value}")
+        if high is not None and value > high:
+            raise InvalidParamsError(f"{tool}.{name} must be <= {high}, got {value}")
+        return value
+
+    # Our schema declares a type this validator cannot check -- our fault, not the
+    # caller's. Raised as InvalidParamsError it would refuse every well-formed call
+    # to that tool with -32602, blaming the client for obeying a schema we
+    # published: the exact confusion this validation exists to end. Let it escape
+    # untyped, so the transport logs it as the server bug it is.
+    raise NotImplementedError(
+        f"{tool}.{name} declares type {declared!r}, which _validate_value cannot check"
+    )
+
+
+def _validate_arguments(tool: str, arguments: dict) -> dict:
+    """
+    Check a call against the schema the server advertises for that tool.
+
+    Driven by the declaration rather than restating it, so `tools/list` and the
+    runtime cannot disagree -- a schema the code does not honour is a lie told to
+    every client that reads it. Defaults declared in the schema are applied here
+    too, so the advertised default is the one that actually takes effect.
+    """
+    if not isinstance(arguments, dict):
+        raise InvalidParamsError(f"{tool} arguments must be an object")
+
+    schema = _INPUT_SCHEMAS[tool]
+    properties = schema["properties"]
+
+    if not schema.get("additionalProperties", True):
+        unknown = sorted(set(arguments) - set(properties))
+        if unknown:
+            raise InvalidParamsError(
+                f"{tool} got unexpected parameter(s): {', '.join(unknown)}"
+            )
+
+    missing = sorted(set(schema["required"]) - set(arguments))
+    if missing:
+        raise InvalidParamsError(f"{tool} is missing required parameter(s): {', '.join(missing)}")
+
+    validated = {
+        name: _validate_value(tool, name, value, properties[name])
+        for name, value in arguments.items()
+    }
+
+    for name, spec in properties.items():
+        if name not in validated and "default" in spec:
+            validated[name] = spec["default"]
+
+    return validated
+
+
 _TOOL_DISPATCH = {
-    "search": lambda a: tool_search(a["query"], a.get("limit", 10)),
+    # No fallback: validation applies the schema's declared default, so the
+    # schema is the one place the default is stated.
+    "search": lambda a: tool_search(a["query"], a["limit"]),
     "page": lambda a: tool_page(a["title_or_url"]),
     "sections": lambda a: tool_sections(a["title_or_url"]),
     "section": lambda a: tool_section(a["title_or_url"], a["anchor"]),
@@ -255,19 +480,24 @@ _TOOL_DISPATCH = {
 
 def handle_tool_call(tool_name: str, arguments: dict) -> dict:
     """
-    Route a tool call to its handler and return the tool's result.
+    Validate a tool call against its declared schema, then route it.
 
     Raises rather than returning an error dict. Returning one made a failure
     indistinguishable from a result to every caller that did not inspect the
     payload -- and the MCP transport did not, so it shipped failures inside
     successful responses. Failure is now something a caller must handle.
+
+    Validation happens here rather than in each handler: the wiki must never be
+    asked a question we already know is malformed, and the lambdas below indexed
+    arguments straight, so an omitted one became a KeyError the agent was told
+    was our bug.
     """
     try:
         handler = _TOOL_DISPATCH[tool_name]
     except KeyError:
         raise UnknownToolError(f"Unknown tool: {tool_name}") from None
 
-    return handler(arguments)
+    return handler(_validate_arguments(tool_name, arguments))
 
 
 def _error_payload(exc: Exception) -> dict:
@@ -465,108 +695,7 @@ def _handle_tools_list(msg_id: int) -> dict:
     return {
         "jsonrpc": "2.0",
         "id": msg_id,
-        "result": {
-            "tools": [
-                {
-                    "name": "search",
-                    "description": (
-                        "Search Arch Wiki pages: the exact-title match first when one "
-                        "exists, then the wiki's full-text hits in its own order. A "
-                        "pointer, never evidence -- results carry no revid and no hash, "
-                        "and `snippet` is never quotable."
-                    ),
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": {
-                            "query": {"type": "string", "description": "Search query"},
-                            "limit": {"type": "number", "description": "Max results (default 10)"}
-                        },
-                        "required": ["query"]
-                    }
-                },
-                {
-                    "name": "page",
-                    "description": "Get full page with metadata",
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": {
-                            "title_or_url": {"type": "string", "description": TITLE_DESC}
-                        },
-                        "required": ["title_or_url"]
-                    }
-                },
-                {
-                    "name": "sections",
-                    "description": "List all sections in page",
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": {
-                            "title_or_url": {"type": "string", "description": TITLE_DESC}
-                        },
-                        "required": ["title_or_url"]
-                    }
-                },
-                {
-                    "name": "section",
-                    "description": (
-                        "Get single section with provenance. Returns `content` (rendered for "
-                        "quoting: markdown headings, fenced code, resolved links) and "
-                        "`content_raw` (verbatim wikitext). content_hash attests content_raw; "
-                        "content_hash_cleaned attests content."
-                    ),
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": {
-                            "title_or_url": {"type": "string", "description": TITLE_DESC},
-                            "anchor": {"type": "string", "description": "Section anchor"}
-                        },
-                        "required": ["title_or_url", "anchor"]
-                    }
-                },
-                {
-                    "name": "commands",
-                    "description": "Extract code blocks from page or section",
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": {
-                            "title_or_url": {"type": "string", "description": TITLE_DESC},
-                            "anchor": {"type": "string", "description": ANCHOR_DESC}
-                        },
-                        "required": ["title_or_url"]
-                    }
-                },
-                {
-                    "name": "warnings",
-                    "description": (
-                        "Extract warning/note/tip templates from page or section, including "
-                        "localized ones on translated pages ({{Note (Español)}}, {{Attention}}). "
-                        "Raises rather than returning an incomplete list; [] means the wiki "
-                        "specifies no warning here. A type derived from a template redirect "
-                        "carries that redirect (alias, alias_target, alias_revid)."
-                    ),
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": {
-                            "title_or_url": {"type": "string", "description": TITLE_DESC},
-                            "anchor": {"type": "string", "description": ANCHOR_DESC}
-                        },
-                        "required": ["title_or_url"]
-                    }
-                },
-                {
-                    "name": "links",
-                    "description": "Extract internal links from page or section",
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": {
-                            "title_or_url": {"type": "string", "description": TITLE_DESC},
-                            "anchor": {"type": "string", "description": ANCHOR_DESC}
-                        },
-                        "required": ["title_or_url"]
-                    }
-                }
-            ]
-        }
+        "result": {"tools": _TOOLS}
     }
 
 
@@ -579,7 +708,7 @@ def _handle_tools_call(msg_id: int, params: dict) -> dict:
 
     try:
         result = handle_tool_call(tool_name, arguments)
-    except UnknownToolError as e:
+    except (UnknownToolError, InvalidParamsError) as e:
         # Nothing ran. A fault in the request, not in the answer.
         return _protocol_error(msg_id, str(e))
     except extractor.ArchWikiError as e:
@@ -633,61 +762,88 @@ def run_mcp_server():
             )
 
 
+def _cli_parameters(tool: str) -> list:
+    """Positional CLI order for a tool: its required parameters, then the rest."""
+    properties = _INPUT_SCHEMAS[tool]["properties"]
+    required = _INPUT_SCHEMAS[tool]["required"]
+    return list(required) + [name for name in properties if name not in required]
+
+
+def _cli_usage() -> str:
+    """
+    Generated from the schema, not restated beside it.
+
+    The argv ladder used to spell out every tool and parameter by hand -- a
+    fourth copy of the tool list after _TOOLS, _INPUT_SCHEMAS and _TOOL_DISPATCH,
+    with the usage text a fifth. A tool added to the schema now appears here.
+    """
+    lines = ["Usage: python mcp_server.py <tool> <args...>", "", "Available tools:"]
+    for tool in _TOOL_DISPATCH:
+        required = set(_INPUT_SCHEMAS[tool]["required"])
+        params = " ".join(
+            f"<{name}>" if name in required else f"[{name}]"
+            for name in _cli_parameters(tool)
+        )
+        lines.append(f"  {tool} {params}")
+    lines += ["", "Or run as MCP server:", "  python mcp_server.py --stdio"]
+    return "\n".join(lines)
+
+
+def _cli_arguments(tool: str, argv: list) -> dict:
+    """
+    Build a tool call from positional CLI arguments, typed by the schema.
+
+    Raises InvalidParamsError rather than letting IndexError or int() escape: the
+    argv build sat outside the try below, so `page` with no argument answered a
+    shell with a raw traceback while the same mistake over MCP got a clean coded
+    error. Same fault, two shapes.
+    """
+    if tool not in _INPUT_SCHEMAS:
+        raise UnknownToolError(f"Unknown tool: {tool}")
+
+    properties = _INPUT_SCHEMAS[tool]["properties"]
+    arguments: Dict[str, Any] = {}
+
+    for name, raw in zip(_cli_parameters(tool), argv):
+        if properties[name]["type"] == "integer":
+            try:
+                arguments[name] = int(raw)
+            except ValueError:
+                raise InvalidParamsError(
+                    f"{tool}.{name} must be an integer, got {raw!r}"
+                ) from None
+        else:
+            arguments[name] = raw
+
+    # Anything still missing is caught by _validate_arguments against the schema,
+    # so the CLI and the MCP transport refuse the same calls for the same reason.
+    return arguments
+
+
 def main():
     """
     Entry point - detect MCP mode vs CLI mode.
-    
+
     MCP mode: Running via stdio (no args)
     CLI mode: Direct invocation with args
     """
-    # If no args, assume MCP stdio mode
     if len(sys.argv) == 1 or (len(sys.argv) == 2 and sys.argv[1] == "--stdio"):
         run_mcp_server()
         return
-    
-    # Otherwise, CLI mode for testing
-    if len(sys.argv) < 2:
-        print("Usage: python server.py <tool> <args...>")
-        print("\nAvailable tools:")
-        print("  search <query> [limit]")
-        print("  page <title_or_url>")
-        print("  sections <title_or_url>")
-        print("  section <title_or_url> <anchor>")
-        print("  commands <title_or_url> [anchor]")
-        print("  warnings <title_or_url> [anchor]")
-        print("  links <title_or_url> [anchor]")
-        print("\nOr run as MCP server:")
-        print("  python server.py --stdio")
-        sys.exit(1)
-    
+
     tool = sys.argv[1]
-    
-    # Build arguments dict
-    arguments: Dict[str, Any]
-    if tool == "search":
-        arguments = {"query": sys.argv[2]}
-        if len(sys.argv) > 3:
-            arguments["limit"] = int(sys.argv[3])
-    elif tool == "page" or tool == "sections":
-        arguments = {"title_or_url": sys.argv[2]}
-    elif tool == "section":
-        arguments = {"title_or_url": sys.argv[2], "anchor": sys.argv[3]}
-    elif tool in ["commands", "warnings", "links"]:
-        arguments = {"title_or_url": sys.argv[2]}
-        if len(sys.argv) > 3:
-            arguments["anchor"] = sys.argv[3]
-    else:
-        print(f"Unknown tool: {tool}")
-        sys.exit(1)
-    
-    # A failed extraction must not leave the shell believing it succeeded: the
-    # payload goes to stderr and the exit status is non-zero, so a caller that
-    # only checks $? still fails closed. Same breadth and same payload as the
-    # MCP transport -- both answer "the tool ran and failed"; only the envelope
-    # differs. Catching less here made a network outage a coded error over MCP
-    # and a raw traceback on the CLI.
+
+    # A failed call must not leave the shell believing it succeeded: the payload
+    # goes to stderr and the exit status is non-zero, so a caller that only
+    # checks $? still fails closed. Same breadth and same payload as the MCP
+    # transport -- both answer "this call failed"; only the envelope differs.
+    # The argv build is inside the try for exactly that reason: outside it, a
+    # missing argument was a traceback here and a coded error there.
     try:
-        result = handle_tool_call(tool, arguments)
+        result = handle_tool_call(tool, _cli_arguments(tool, sys.argv[2:]))
+    except UnknownToolError as e:
+        print(f"{e}\n\n{_cli_usage()}", file=sys.stderr)
+        sys.exit(1)
     except Exception as e:
         print(json.dumps(_error_payload(e), indent=2, ensure_ascii=False), file=sys.stderr)
         sys.exit(1)

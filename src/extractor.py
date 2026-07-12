@@ -71,10 +71,17 @@ class UpstreamApiError(ArchWikiError):
     code = "upstream_api_error"
 
 
-class InvalidArgumentError(ArchWikiError):
-    """The caller's argument is malformed. Nothing was asked of the wiki."""
+class MalformedWikiUrlError(ArchWikiError):
+    """
+    A well-formed string that is not a wiki URL we can resolve to a title.
 
-    code = "invalid_argument"
+    Distinct from mcp_server.InvalidParamsError, which is a *schema* fault -- a
+    missing or wrong-typed argument, where nothing ran. This one ran: the value
+    satisfied the schema, the tool tried it, and the URL would not parse. So the
+    agent sees it and can self-correct by supplying a plain title.
+    """
+
+    code = "malformed_wiki_url"
 
 
 def _unwrap(data: Dict, root: str, context: str) -> Dict:

@@ -40,3 +40,6 @@ __MACOSX/
 .agent/
 .gemini/
 mcp_config.json
+
+# Environment Variables
+**/.env

@@ -387,8 +387,16 @@ def test_the_setup_guide_asks_for_no_tool_it_did_not_tell_you_to_get():
     in a fence must be ours, or listed there, or not a tool at all.
     """
     text = (REPO / "MCP_SETUP.md").read_text(encoding="utf-8")
-    listed = _prerequisites(text)
     ours = declared_scripts()
+
+    # The names Prerequisites *lists*, not the characters it contains. `command not
+    # in listed` was a substring test against prose, and `pip` is a substring of
+    # `pipx`: with pip removed from the list, the guard went on passing while the
+    # fences went on saying `pip install -e .`. Blind, today, in the guard written
+    # this morning to stop a document asking for a tool it never announced.
+    #
+    # Matching text where the structure was meant -- for the fifth time this week.
+    listed = set(re.findall(r"[\w.-]+", _prerequisites(text)))
 
     unannounced = sorted({
         command

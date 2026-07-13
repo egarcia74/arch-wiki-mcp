@@ -559,6 +559,14 @@ def _send_response(response: dict):
 
 
 def _handle_initialize(msg_id: int) -> dict:
+    """
+    The one protocol version we implement, and the identity we answer with.
+
+    protocolVersion is a literal because MCP_PROTOCOL.md is pinned against it: the
+    document is the contract, and a version bumped here without updating there fails
+    the suite. name and version are derived, not restated -- the same fact the
+    User-Agent and pyproject carry, stated once so the three cannot drift.
+    """
     return {
         "jsonrpc": "2.0",
         "id": msg_id,

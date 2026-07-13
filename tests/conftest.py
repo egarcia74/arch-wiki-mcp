@@ -91,11 +91,24 @@ _PROJECT_TABLE = re.compile(r"^\[project\]$(.*?)^\[", re.M | re.S)
 _VERSION_LINE = re.compile(r'^version\s*=\s*"([^"]+)"', re.M)
 
 
+REPO = Path(__file__).parent.parent
+
+
 def declared_version() -> str:
     """The version in pyproject.toml, which every other statement of it derives from."""
-    pyproject = Path(__file__).parent.parent / "pyproject.toml"
-    table = _PROJECT_TABLE.search(pyproject.read_text(encoding="utf-8"))
+    table = _PROJECT_TABLE.search((REPO / "pyproject.toml").read_text(encoding="utf-8"))
     assert table, "no [project] table in pyproject.toml"
     versions = _VERSION_LINE.findall(table.group(1))
     assert len(versions) == 1, f"expected one version in [project], found {versions}"
     return versions[0]
+
+
+# Same reasoning, same authority: the scripts pip will actually create.
+_SCRIPTS_TABLE = re.compile(r"^\[project\.scripts\]$(.*?)(?:^\[|\Z)", re.M | re.S)
+_SCRIPT_LINE = re.compile(r"^([\w.-]+)\s*=", re.M)
+
+
+def declared_scripts() -> set:
+    """The console scripts pyproject declares -- the only commands an install provides."""
+    table = _SCRIPTS_TABLE.search((REPO / "pyproject.toml").read_text(encoding="utf-8"))
+    return set(_SCRIPT_LINE.findall(table.group(1))) if table else set()

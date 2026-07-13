@@ -16,11 +16,10 @@ import os
 import re
 import subprocess
 import sys
-from pathlib import Path
 
 import pytest
 
-from conftest import declared_version
+from conftest import REPO, declared_version
 
 import arch_wiki_mcp
 from arch_wiki_mcp import extractor
@@ -53,10 +52,9 @@ def test_a_module_still_runs_as_a_script(module):
     suite stayed green over a dead entry point. An entry point nothing exercises is
     an entry point nobody knows is broken.
     """
-    repo = Path(__file__).parent.parent
     result = subprocess.run(
         [sys.executable, "-m", module],
-        cwd=repo,
+        cwd=REPO,
         capture_output=True,
         text=True,
         timeout=60,
@@ -67,11 +65,8 @@ def test_a_module_still_runs_as_a_script(module):
     assert "Traceback" not in result.stderr, result.stderr
 
 
-PACKAGE = Path(__file__).parent.parent / "src" / "arch_wiki_mcp"
+PACKAGE = REPO / "src" / "arch_wiki_mcp"
 SOURCES = sorted(PACKAGE.glob("*.py"))
-
-
-REPO = Path(__file__).parent.parent
 
 # Everything outside the package that reaches the live wiki in earnest. Not every
 # file that mentions urlopen: test_failures.py opens a socket precisely to prove the

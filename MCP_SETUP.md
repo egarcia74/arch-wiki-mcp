@@ -23,51 +23,71 @@ in nothing.
 
 ## MCP Client Configuration
 
-### Claude Desktop
+Do not transcribe a path. Ask for one:
 
-Add to your Claude Desktop config file:
+```bash
+arch-wiki-mcp --check
+```
+
+It verifies the package is installed and prints the registration for *this* machine
+on stdout, ready to paste:
+
+```json
+{
+  "mcpServers": {
+    "arch-wiki": {
+      "command": "/absolute/path/to/arch-wiki-mcp",
+      "args": ["--stdio"]
+    }
+  }
+}
+```
+
+The path is absolute on purpose. A bare `arch-wiki-mcp` resolves only against the
+PATH the client happens to inherit — and a GUI client inherits the desktop
+session's, not your shell's. The config that works in a terminal is exactly the one
+that fails in the app, which is a bad way to spend an evening. If you use a
+virtualenv, run `--check` from inside it: the path it prints is the one that has the
+package.
+
+If it prints nothing and exits non-zero, it is telling you the package is not
+installed for that interpreter. That is the whole point of it — an MCP client
+reports a dead path, a missing package and an import error with the same three
+words, "Failed to connect".
+
+### Claude Code
+
+Take the `command` that `--check` printed and pass it:
+
+```bash
+claude mcp add arch-wiki -- /the/path/--check/printed --stdio
+```
+
+Not `$(command -v arch-wiki-mcp)`. That asks your shell's PATH — the mechanism this
+whole page exists to stop trusting — and if it finds nothing it expands to *nothing*,
+registering a server with no command at all. Which fails, of course, as
+"Failed to connect".
+
+### Claude Desktop
 
 **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`  
 **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 
-```json
-{
-  "mcpServers": {
-    "arch-wiki": {
-      "command": "arch-wiki-mcp",
-      "args": ["--stdio"]
-    }
-  }
-}
-```
+Paste the `--check` output into that file.
 
 ### Cline (VS Code Extension)
 
-Add to Cline's MCP settings:
-
-```json
-{
-  "mcpServers": {
-    "arch-wiki": {
-      "command": "arch-wiki-mcp",
-      "args": ["--stdio"]
-    }
-  }
-}
-```
+Paste the `--check` output into Cline's MCP settings.
 
 ### Generic MCP Client
 
-For any MCP-compatible client, use:
+Use the `command` and `args` from `--check`, with an empty `env`.
 
-```json
-{
-  "name": "arch-wiki",
-  "command": "arch-wiki-mcp",
-  "args": ["--stdio"],
-  "env": {}
-}
-```
+### After an upgrade, a rename, or a moved virtualenv
+
+Re-run `--check` and compare it to what your client has registered. A registration
+is a path written once into a file nobody looks at again; nothing in this repository
+can reach out and correct a stale one. This is the only step that catches it.
 
 ---
 
@@ -192,16 +212,27 @@ You should see responses with:
 
 ## Troubleshooting
 
-### "Command not found"
+### "Failed to connect" / "Command not found"
 
-The console script is installed by `pip install -e .`. Check it is on your PATH:
+Run the preflight first — it distinguishes the causes the client cannot:
 
 ```bash
-which arch-wiki-mcp
+arch-wiki-mcp --check
 ```
 
-If your MCP client does not inherit your shell's PATH (common for GUI apps), give
-the absolute path that command prints.
+- **Exits non-zero**: the package is not installed for that interpreter. `pip install -e .`
+- **Prints a registration**: the server is fine, and your client has a *different*
+  (stale or relative) command registered. Replace it with the one printed.
+- **Your shell cannot find `arch-wiki-mcp` either**: then asking it to check itself
+  is no help. Ask the interpreter instead — it does not need PATH:
+
+  ```bash
+  python3 -m arch_wiki_mcp.server --check
+  ```
+
+  The package can be installed while its script sits somewhere PATH never looks
+  (a `pip install --user`, with `~/.local/bin` unset). `--check` handles that: it
+  will hand you a registration built on the interpreter rather than the script.
 
 ### "Module not found"
 

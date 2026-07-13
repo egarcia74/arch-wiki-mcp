@@ -145,3 +145,51 @@ def test_the_version_is_stated_once(source):
         f"{source.name} spells out the version {version!r}; derive it from "
         f"arch_wiki_mcp.__version__, or it will silently lag the next release"
     )
+
+
+def test_the_changelog_describes_the_version_we_are_about_to_release():
+    """
+    A release is a version number plus a promise about what changed. The number is
+    already guarded (pyproject is the single authority, and everything derives from
+    it); this guards the promise.
+
+    The release workflow refuses a tag whose version has no CHANGELOG section -- but
+    that fires at tag time, when the version is already cut and the mistake is public.
+    Here it fires while you are still writing the commit.
+    """
+    changelog = (REPO / "CHANGELOG.md").read_text(encoding="utf-8")
+    version = declared_version()
+
+    assert re.search(rf"^## {re.escape(version)}\b", changelog, re.M), (
+        f"CHANGELOG.md has no '## {version}' section: a release nobody described"
+    )
+
+
+def test_the_typed_classifier_ships_the_marker_that_makes_it_true():
+    """
+    `Typing :: Typed` on the PyPI page is a promise about the artifact, not the repo.
+    PEP 561: without a py.typed marker *inside the installed package*, a consumer's
+    type checker ignores every annotation we ship -- so the classifier advertises a
+    capability the wheel does not have, to every stranger who reads that page.
+
+    A claim nothing backs, printed permanently, in the project whose product is
+    claims you can check. The classifier came first here; this is the check that
+    makes it honest.
+    """
+    pyproject = (REPO / "pyproject.toml").read_text(encoding="utf-8")
+
+    # The classifier as a *list entry*, not the string anywhere in the file. Matching
+    # the text caught the comment two tables below explaining why the marker is here,
+    # so this branch could never fire -- and dropping the claim would have failed with
+    # a message insisting the claim was still being made. Arguing about one thing and
+    # checking another, which is the fault this suite keeps catching in itself.
+    if not re.search(r'^\s*"Typing :: Typed",\s*$', pyproject, re.M):
+        pytest.skip("the package no longer claims to be typed")
+
+    assert (PACKAGE / "py.typed").is_file(), (
+        "pyproject claims 'Typing :: Typed' but the package ships no py.typed marker"
+    )
+    # And the marker must actually be packaged, not merely present in the source tree.
+    assert 'package-data' in pyproject and "py.typed" in pyproject.split("package-data")[1], (
+        "py.typed exists but no [tool.setuptools.package-data] entry puts it in the wheel"
+    )

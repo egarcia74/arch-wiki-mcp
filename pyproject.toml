@@ -14,6 +14,28 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = []
 
+keywords = ["mcp", "arch-linux", "arch-wiki", "provenance", "citation", "llm", "agent"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Documentation",
+    "Topic :: Text Processing :: Markup",
+    "Typing :: Typed",
+]
+
+# The PyPI page is the first thing a stranger reads. Every one of these must resolve.
+[project.urls]
+Homepage = "https://github.com/egarcia74/arch-wiki-mcp"
+Changelog = "https://github.com/egarcia74/arch-wiki-mcp/blob/master/CHANGELOG.md"
+Issues = "https://github.com/egarcia74/arch-wiki-mcp/issues"
+Setup = "https://github.com/egarcia74/arch-wiki-mcp/blob/master/MCP_SETUP.md"
+
 [project.optional-dependencies]
 test = ["pytest>=7.0", "pytest-cov>=4.0"]
 
@@ -22,6 +44,12 @@ arch-wiki-mcp = "arch_wiki_mcp.server:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+# PEP 561: without this marker a consumer's type checker ignores every annotation we
+# ship, so the "Typing :: Typed" classifier above would advertise a capability the
+# artifact does not have -- to every stranger who reads the PyPI page, permanently.
+[tool.setuptools.package-data]
+"arch_wiki_mcp" = ["py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,0 +1,165 @@
+# This workflow publishes to PyPI, which cannot be undone: a version number is
+# spent the moment it is accepted, and a name is claimed forever. Everything before
+# the publish step exists to earn it.
+#
+# Two settings live OUTSIDE this file and cannot be asserted from inside it. If they
+# are absent the gate is silently open:
+#
+#   1. PyPI -> trusted publisher for this repo, workflow `release.yml`,
+#      **environment `pypi`**. Without naming the environment, *any* workflow here
+#      that requests `id-token: write` can mint a publishing token.
+#   2. GitHub -> Settings -> Environments -> `pypi`: required reviewers, and a
+#      deployment branch/tag rule limited to `v*`.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  # A wheel that builds is not a wheel that runs. Three separate bugs in this
+  # repository hid in entry points nothing ever executed -- a dead CLI behind 397
+  # green tests, a CI job invoking a renamed file, a registration pointing at a path
+  # the rename had deleted. So the artifact is installed and driven here, from a
+  # clean interpreter, outside the source tree, with no PYTHONPATH: exactly as a
+  # stranger receives it.
+  verify:
+    runs-on: ubuntu-latest
+    # Every step here pipes into a subprocess and waits for it. The server exits on
+    # stdin EOF today (verified: 155ms), so nothing hangs -- but an unbounded wait is
+    # a bug this project has shipped twice, and here it would be a six-hour job
+    # sitting on a publish credential. Bound it.
+    timeout-minutes: 15
+    steps:
+      # Nothing in this job pushes, so the checkout token has no business staying on
+      # disk for the rest of it.
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"     # the floor, not the newest
+
+      # A tag can point at any commit -- a branch, or master before tests.yml
+      # finished. Nothing else in this irreversible path requires the tagged tree to
+      # be green, and the suite is offline and socket-blocked, so it costs seconds.
+      # It also subsumes the version/CHANGELOG checks: test_identity.py asserts that
+      # pyproject is the single authority and that the CHANGELOG describes it.
+      - name: The tagged tree must pass its own tests
+        run: |
+          python -m pip install --quiet -e ".[test]"
+          pytest -ra
+
+      - name: Build
+        run: |
+          python -m pip install --quiet build
+          python -m build
+
+      - name: Install the wheel into a clean interpreter
+        run: |
+          python -m venv /tmp/clean
+          /tmp/clean/bin/pip install --quiet dist/*.whl
+
+      # Ask the artifact, not the repo. Grepping pyproject re-implements
+      # conftest.declared_version() in shell and answers a question about the *source*;
+      # what ships is the wheel, and its recorded version is the one a user installs.
+      - name: The tag must be the version that was built
+        run: |
+          BUILT=$(/tmp/clean/bin/python -c "import importlib.metadata as m; print(m.version('arch-wiki-mcp'))")
+          echo "tag=${GITHUB_REF_NAME#v}  built=$BUILT"
+          [ "${GITHUB_REF_NAME#v}" = "$BUILT" ] || {
+            echo "::error::tag $GITHUB_REF_NAME does not name the version in the wheel ($BUILT)"
+            exit 1
+          }
+
+      # From /, with no PYTHONPATH: if the package secretly needs its source tree,
+      # this is where it says so, instead of a user's machine saying it for us.
+      - name: The installed wheel answers an MCP handshake
+        run: |
+          cd /
+          printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
+            | env -u PYTHONPATH /tmp/clean/bin/arch-wiki-mcp --stdio \
+            | python3 -c "
+          import json, os, sys
+          info = json.loads(sys.stdin.readline())['result']['serverInfo']
+          print('serverInfo:', info)
+          assert info['name'] == 'arch-wiki-mcp', info
+          assert info['version'] == os.environ['GITHUB_REF_NAME'].removeprefix('v'), info
+          "
+
+      # The registration as printed, executed as printed -- command AND args. The
+      # first draft read `command` and appended a hardcoded `--stdio`, which validates
+      # half of the object it exists to validate: `_registration()` also has a fallback
+      # branch whose args are ["-m", "arch_wiki_mcp.server", "--stdio"], and a change
+      # there would have shipped broken behind a green release.
+      - name: The registration the wheel prints actually starts a server
+        run: |
+          cd /
+          mapfile -t ARGV < <(env -u PYTHONPATH /tmp/clean/bin/arch-wiki-mcp --check 2>/dev/null \
+            | python3 -c "
+          import json, sys
+          reg = json.load(sys.stdin)['mcpServers']['arch-wiki']
+          print(reg['command'])
+          for arg in reg['args']:
+              print(arg)
+          ")
+          printf 'registration: %s\n' "${ARGV[*]}"
+          printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' \
+            | env -u PYTHONPATH "${ARGV[@]}" \
+            | python3 -c "
+          import json, sys
+          tools = [t['name'] for t in json.loads(sys.stdin.readline())['result']['tools']]
+          print('tools:', tools)
+          assert tools, 'the registration started a server with no tools'
+          "
+
+      - name: Metadata is well-formed for PyPI
+        run: |
+          python -m pip install --quiet twine
+          python -m twine check dist/*
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: pypi          # inert unless PyPI names it too -- see the header
+    permissions:
+      id-token: write          # Trusted Publishing: no long-lived token to leak
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  github-release:
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      # `gh` authenticates from GH_TOKEN below, so the persisted git credential is
+      # never used -- and this is the job whose token can write to the repository.
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Publish the GitHub release with the same artifacts PyPI got
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --title "$GITHUB_REF_NAME" \
+            --notes "See [CHANGELOG.md](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/CHANGELOG.md)."

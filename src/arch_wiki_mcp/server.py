@@ -6,17 +6,29 @@ Thin wrapper around constitutional extractor - exposes wiki as MCP tools.
 import sys
 import json
 import logging
+import os
 import re
 import shutil
+import subprocess
 from dataclasses import asdict
 from importlib import metadata
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 from arch_wiki_mcp import _DISTRIBUTION, __version__, extractor
 
 # This module, as an installed client must name it.
 MODULE = "arch_wiki_mcp.server"
+
+# The name this server answers an `initialize` with. It is the distribution's name
+# because they are the same thing -- and it was spelled out twice, so a rename would
+# have left the MCP identity behind, which is #19 in a different register.
+SERVER_NAME = _DISTRIBUTION
+
+# A registration that does not answer in this long is not one a client will wait for
+# either. Unbounded here would hang `--check` forever on a server that starts and
+# then says nothing -- the failure mode this command exists to diagnose.
+HANDSHAKE_TIMEOUT = 15
 
 # stderr by default, which keeps JSON-RPC on stdout clean.
 logger = logging.getLogger(__name__)
@@ -552,7 +564,7 @@ def _handle_initialize(msg_id: int) -> dict:
         "id": msg_id,
         "result": {
             "protocolVersion": "2024-11-05",
-            "serverInfo": {"name": "arch-wiki-mcp", "version": __version__},
+            "serverInfo": {"name": SERVER_NAME, "version": __version__},
             "capabilities": {"tools": {}, "prompts": {}}
         }
     }
@@ -846,8 +858,9 @@ def _cli_usage() -> str:
     lines += ["", "Or:"]
     lines += [
         f"  arch-wiki-mcp {flag}  ({description})"
-        for flag, (_, description) in _MODE_DISPATCH.items()
+        for flag, (_, _, description) in _MODE_DISPATCH.items()
     ]
+    lines += ["", "Check a registration you already have:", "  arch-wiki-mcp --check <config-file>"]
     return "\n".join(lines)
 
 
@@ -929,17 +942,10 @@ def _registration() -> dict:
     return {"mcpServers": {"arch-wiki": {"command": command, "args": args}}}
 
 
-def run_preflight():
-    """
-    Answer the one question a failed registration cannot: *why*.
-
-    An MCP client reports a dead path, an uninstalled package, an import error and
-    a blocked port identically -- "Failed to connect". This prints the registration
-    that works on *this* machine (stdout, so it can be redirected straight into a
-    config) and says what is wrong when none does (stderr, non-zero exit).
-    """
+def _installed_version() -> str:
+    """The installed distribution, or the reason no client can start one."""
     try:
-        installed = metadata.version(_DISTRIBUTION)
+        return metadata.version(_DISTRIBUTION)
     except metadata.PackageNotFoundError:
         print(
             f"{_DISTRIBUTION} is not installed, so no MCP client can start it.\n"
@@ -949,6 +955,261 @@ def run_preflight():
         )
         sys.exit(1)
 
+
+# A registration is an object with a command. That is the whole shape.
+#
+# NOT a table of where each client keeps its config. Claude Code nests servers under
+# a per-project key, Claude Desktop does not; Cline lives in VS Code's globalStorage,
+# which forks again for Cursor and Windsurf. Encoding those paths would be a registry
+# of other people's file layouts -- external paths that rot without notice, which is
+# precisely the bug this command exists to end, reproduced one layer out. The reader
+# names the file; we read whatever shape they hand us.
+def _registrations_in(config: Any, at: str = "", key: str = "") -> list:
+    """Returns (where it sits, the name it is filed under, the entry)."""
+    found = []
+
+    if isinstance(config, dict):
+        if isinstance(config.get("command"), str):
+            found.append((at or "<root>", key, config))
+        for name, value in config.items():
+            found += _registrations_in(value, f"{at}.{name}" if at else name, name)
+    elif isinstance(config, list):
+        for index, value in enumerate(config):
+            found += _registrations_in(value, f"{at}[{index}]", key)
+
+    return found
+
+
+# Ours, as opposed to every other server in the same file.
+_OURS = re.compile(r"arch[-_]wiki", re.I)
+
+
+# The programs for which a script path or a `-m` module is a thing to *run*. For
+# anything else -- touch, npx, a shell -- those same tokens are just data.
+_PYTHON = re.compile(r"python(\d+(\.\d+)?)?")
+
+
+def _executes(command: str, args: list) -> list:
+    """
+    The arguments naming something *this command* will run, not something it is told
+    about.
+
+    This is the whole safety of the feature, and it took two passes to get right.
+    First it matched every argument -- so a filesystem server granted access to this
+    repository (`npx @mcp/server-filesystem /home/you/code/arch-wiki-mcp`) was read as
+    ours and executed. Then it matched a `.py` or `-m` argument regardless of the
+    command -- so `touch /tmp/arch-wiki-mcp.py`, which runs nothing, was read as ours
+    and executed too. A path ending in .py is a script only to a program that runs
+    scripts; to `touch` it is a filename.
+
+    So the command decides. Only when it is a Python interpreter does a `.py`/`.pyz`
+    argument, or the module after `-m`, name something it will execute.
+    """
+    if not _PYTHON.fullmatch(Path(command).name):
+        return []
+
+    return [
+        arg
+        for index, arg in enumerate(args)
+        if str(arg).endswith((".py", ".pyz")) or (index and args[index - 1] == "-m")
+    ]
+
+
+def _is_ours(key: str, entry: dict) -> bool:
+    """
+    The name it is filed under, the command's own name, and what that command runs.
+
+    The key counts: an entry whose command is wrong in every part still says which
+    server it was *meant* to be (`"arch-wiki": {...}`), and reading only the command
+    called that "no Arch Wiki MCP server registered" -- not merely unhelpful but wrong,
+    and it sends the reader to add a second entry beside the broken one.
+
+    The key, though, and not the path to it: Claude Code files servers under the
+    project directory, which here is *called* arch-wiki-mcp, so matching the path made
+    every server in this repo's config look like ours.
+
+    And the command's basename, not the whole path, for the same reason -- a venv
+    inside this checkout puts `arch-wiki-mcp` in every absolute path it holds.
+    """
+    command = str(entry["command"])
+    args = [str(a) for a in entry.get("args") or []]
+    words = [key, Path(command).name, *_executes(command, args)]
+
+    return any(_OURS.search(word) for word in words)
+
+
+def _child_environment(entry: dict) -> dict:
+    """
+    The environment the *client* would spawn it in, not the one we happen to be in.
+
+    Inheriting ours quietly blesses the failure this command exists to catch: with a
+    venv activated, `python3 -m arch_wiki_mcp.server` answers healthy here and dies in
+    the GUI client, which has neither VIRTUAL_ENV nor PYTHONPATH. A registration that
+    only works because of the shell you checked it from is exactly the registration
+    that will not work.
+    """
+    environment = {
+        key: value
+        for key, value in os.environ.items()
+        if key not in ("PYTHONPATH", "VIRTUAL_ENV")
+    }
+    environment.update({str(k): str(v) for k, v in (entry.get("env") or {}).items()})
+    return environment
+
+
+def _answers(argv: list, environment: dict) -> Tuple[Optional[str], Optional[str], str]:
+    """
+    Run the registration and ask who answered. Returns (name, version, why-not).
+
+    The whole point. A registration is not a string to be compared with another string
+    -- it is a command a client executes, and the only honest question is whether
+    executing it produces this server. Everything else is a guess about a path, which
+    is how the dead one survived for months.
+    """
+    try:
+        answer = subprocess.run(
+            argv,                      # a list, never a shell string
+            input='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}\n',
+            capture_output=True,
+            text=True,
+            timeout=HANDSHAKE_TIMEOUT,
+            env=environment,
+        )
+    except subprocess.TimeoutExpired:
+        return None, None, f"it started and said nothing for {HANDSHAKE_TIMEOUT}s"
+    except OSError as exc:
+        return None, None, str(exc)
+
+    try:
+        served = json.loads(answer.stdout.splitlines()[0])["result"]["serverInfo"]
+        return served["name"], served.get("version"), ""
+    except (ValueError, IndexError, KeyError, TypeError):
+        # Its own last word on the matter beats any guess of ours: python says
+        # "No module named arch_wiki_mcp", or "can't open file ...: No such file".
+        spoke = [line for line in answer.stderr.splitlines() if line.strip()]
+        return None, None, spoke[-1] if spoke else "it answered no MCP initialize"
+
+
+def _diagnose(entry: dict) -> Tuple[str, str]:
+    """(verdict, explanation) for one registration a client would spawn."""
+    command = str(entry["command"])
+    args = [str(a) for a in entry.get("args") or []]
+    environment = _child_environment(entry)
+
+    # Resolved against the client's PATH, not ours. An entry may set env.PATH so a
+    # bare command is findable -- checking it against our PATH would call a working
+    # registration "no such command", or worse, run a different binary of the same
+    # name than the client would.
+    resolved = shutil.which(command, path=environment.get("PATH"))
+    if resolved is None:
+        if Path(command).exists():
+            return "dead", f"it is there but not executable: chmod +x {command}"
+        return "dead", f"no such command: {command}"
+
+    name, version, why_not = _answers([resolved, *args], environment)
+
+    if name is None:
+        return "dead", why_not
+    if not _OURS.search(name):
+        return "foreign", f"it answers as {name!r}, which is not this server"
+    if not Path(command).is_absolute():
+        return (
+            "fragile",
+            f"answers as {version}, but `{command}` is resolved from PATH -- and a GUI "
+            "client inherits the desktop session's PATH, not your shell's",
+        )
+
+    return "healthy", f"answers as {version}"
+
+
+# One taxonomy, stated once: how it prints, and whether a client can start it.
+_VERDICTS = {
+    "healthy": ("OK ", False),
+    "fragile": ("?? ", False),
+    "dead": ("XX ", True),
+    "foreign": ("XX ", True),
+}
+
+
+def check_registration(config_path: str):
+    """
+    Does the registration you already have actually work?
+
+    `--check` alone prints the registration that *would* work. It cannot tell you the
+    one in your config is dead, and that is the failure this project actually shipped:
+    a path written into a config months earlier, pointing at a file a rename deleted,
+    reported by the client as "Failed to connect" -- three words that name a dead path,
+    a missing package, an import error and a firewall identically.
+
+    This reads the file you name, finds every registration in it that mentions this
+    project, and *runs* them. Not compares -- runs. A registration is a command a
+    client executes; whether it works is a question with an answer, and asking a human
+    to eyeball two paths instead is the transcription this whole command exists to
+    abolish.
+    """
+    installed = _installed_version()
+    path = Path(config_path).expanduser()
+
+    try:
+        config = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        print(f"no such config file: {path}", file=sys.stderr)
+        sys.exit(1)
+    except (json.JSONDecodeError, OSError) as exc:
+        print(f"cannot read {path}: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    every = _registrations_in(config)
+    ours = [(where, entry) for where, key, entry in every if _is_ours(key, entry)]
+
+    if not ours:
+        print(
+            f"{path} registers no Arch Wiki MCP server.\n"
+            f"(It has {len(every)} MCP registration(s), none of them ours. They are not "
+            "read further, and never run.)\n"
+            "\nAdd this one:",
+            file=sys.stderr,
+        )
+        print(json.dumps(_registration(), indent=2))
+        sys.exit(1)
+
+    print(f"{path}", file=sys.stderr)
+    failing = 0
+    for where, entry in ours:
+        spawned = " ".join([str(entry["command"]), *(str(a) for a in entry.get("args") or [])])
+        # Said before it is run, not after: a registration that hangs, or that is not
+        # the server it claims to be, must be attributable to the line that spawned it.
+        print(f"      {spawned}", file=sys.stderr)
+
+        verdict, why = _diagnose(entry)
+        mark, fails = _VERDICTS[verdict]
+        print(f"  {mark} {where}\n      {why}\n", file=sys.stderr)
+        failing += fails
+
+    if not failing:
+        print(f"Registration is live. Installed: {_DISTRIBUTION} {installed}.", file=sys.stderr)
+        return
+
+    print(f"{failing} registration(s) a client cannot start. Replace with:", file=sys.stderr)
+    print(json.dumps(_registration(), indent=2))
+    sys.exit(1)
+
+
+def run_preflight(argv: list):
+    """
+    Answer the one question a failed registration cannot: *why*.
+
+    An MCP client reports a dead path, an uninstalled package, an import error and
+    a blocked port identically -- "Failed to connect". With no argument this prints
+    the registration that works on *this* machine (stdout, so it can be redirected
+    straight into a config). Given a config file, it checks the registration you
+    already have, by running it.
+    """
+    if argv:
+        check_registration(argv[0])
+        return
+
+    installed = _installed_version()
     registration = _registration()
 
     print(
@@ -956,7 +1217,8 @@ def run_preflight():
         f"  package: {Path(__file__).parent}\n\n"
         "The registration below (on stdout, so it can be redirected into a config)\n"
         "is absolute on purpose: a bare command name resolves only if the client\n"
-        "inherits a PATH that has it, and GUI clients often do not.",
+        "inherits a PATH that has it, and GUI clients often do not.\n"
+        "\nTo check a registration you already have:  arch-wiki-mcp --check <config>",
         file=sys.stderr,
     )
     print(json.dumps(registration, indent=2))
@@ -966,9 +1228,21 @@ def run_preflight():
 # _TOOL_DISPATCH and _METHOD_DISPATCH exist. Two `len(sys.argv) == 2 and ...`
 # clauses had already grown here, and _cli_usage() was restating them by hand: the
 # fourth-copy problem this file has now solved three times.
+#
+# Handlers take their own arguments. --check grew one -- a config file to check --
+# and a table whose entries could not accept arguments would have pushed that back
+# into the ladder it exists to prevent.
+# (handler, how many arguments it takes, what it does). The arity is declared, not
+# discovered: it was an exception raised from inside the handler, and the try that
+# caught it wrapped the whole lifetime of run_mcp_server() -- so an arity error
+# escaping the RPC loop would have printed CLI usage into a JSON-RPC session.
 _MODE_DISPATCH = {
-    "--stdio": (run_mcp_server, "run as an MCP server over stdio"),
-    "--check": (run_preflight, "check the install, print a registration a client can use"),
+    "--stdio": (run_mcp_server, 0, "run as an MCP server over stdio"),
+    "--check": (
+        run_preflight,
+        1,
+        "print a registration a client can use; with a config file, check the one it has",
+    ),
 }
 
 
@@ -984,14 +1258,18 @@ def main():
     argv = sys.argv[1:] or ["--stdio"]
 
     if argv[0] in _MODE_DISPATCH:
-        handler, _ = _MODE_DISPATCH[argv[0]]
-        if len(argv) > 1:
+        handler, takes, _ = _MODE_DISPATCH[argv[0]]
+        rest = argv[1:]
+
+        if len(rest) > takes:
             # The flag exists; the arity is wrong. Said plainly, because the ladder
-            # used to fall through and report "Unknown tool: --check", which sends
-            # the reader looking for a tool they never asked for.
-            print(f"{argv[0]} takes no arguments\n\n{_cli_usage()}", file=sys.stderr)
+            # used to fall through and report "Unknown tool: --check", which sends the
+            # reader looking for a tool they never asked for.
+            expected = "no arguments" if takes == 0 else f"at most {takes} argument"
+            print(f"{argv[0]} takes {expected}\n\n{_cli_usage()}", file=sys.stderr)
             sys.exit(1)
-        handler()
+
+        handler(*([rest] if takes else []))
         return
 
     tool = argv[0]

@@ -324,7 +324,7 @@ def test_an_uninstalled_package_is_named_as_the_problem(monkeypatch):
     monkeypatch.setattr(server.metadata, "version", _not_installed)
 
     with pytest.raises(SystemExit) as exit_code:
-        server.run_preflight()
+        server.run_preflight([])
 
     assert exit_code.value.code != 0, "an uninstalled package reported as healthy"
 
@@ -354,6 +354,20 @@ def test_the_setup_guide_points_at_the_preflight():
     guide = (REPO / "MCP_SETUP.md").read_text(encoding="utf-8")
 
     assert "--check" in guide, "the setup guide never mentions the preflight"
+
+
+def _commands_in(fence: str) -> list:
+    """
+    The lines a reader would type. A ```console fence is a *transcript* -- a prompted
+    command, then what the machine said back -- so reading every line as a command
+    made the guard demand that `XX` and `1` be listed as prerequisites. It could not
+    tell an instruction from its output.
+
+    A prompt is the structure that distinguishes them. Where there is one, only the
+    prompted lines are commands; where there is none, every line is.
+    """
+    prompted = [line.lstrip()[2:] for line in fence.splitlines() if line.lstrip().startswith("$ ")]
+    return prompted or fence.splitlines()
 
 
 # A shell reads `FOO=bar cmd` as running `cmd`. So must we, or the assignment gets
@@ -401,7 +415,7 @@ def test_the_setup_guide_asks_for_no_tool_it_did_not_tell_you_to_get():
     unannounced = sorted({
         command
         for fence in BASH_FENCE.findall(text)
-        for line in fence.splitlines()
+        for line in _commands_in(fence)
         for command in COMMAND_LINE.findall(ENV_PREFIX.sub("", line))[:1]
         if command not in BUILTIN
         and command not in ours

@@ -2,7 +2,7 @@
 
 > **"This is not 'AI that knows Linux.' This is Linux that won't let AI lie about it."**
 
-The Arch Wiki MCP is a **citability engine** that provides constitutional, deterministic extraction of the Arch Linux Wiki as machine-readable data. It acts as a **truth perimeter**, ensuring that AI agents can only provide technical advice that is **cryptographically fingerprinted and revision-attributed** to the wiki: every excerpt carries a SHA-256 of the exact text and a URL pinned to the exact revision it came from, so any claim can be re-fetched and checked byte for byte.
+The Arch Wiki MCP is a **citability engine** that provides constitutional, deterministic extraction of the Arch Linux Wiki as machine-readable data. It acts as a **truth perimeter**, ensuring that AI agents can only provide technical advice that is **cryptographically fingerprinted and revision-attributed** to the wiki: every excerpt carries a SHA-256 fingerprint and a URL pinned to the exact revision it came from, so any claim can be re-fetched from the wiki and independently verified.
 
 ## Why this is special: Real Workflows
 
@@ -110,7 +110,7 @@ There is deliberately no tool that infers commands from prose.
   "placeholders": ["esp"],
   "source_url": "https://wiki.archlinux.org/title/GRUB#Installation",
   "revision_url": "https://wiki.archlinux.org/index.php?oldid=858930#Installation",
-  "revision_raw_url": "https://wiki.archlinux.org/index.php?oldid=858930&action=raw",
+  "revision_wikitext_url": "https://wiki.archlinux.org/api.php?action=parse&oldid=858930&prop=wikitext&format=json",
   "revid": 858930
 }
 ```
@@ -143,7 +143,7 @@ prose instead. So the same rendered/verbatim split applies:
   "content_hash_cleaned": "ef24f23bfc84c850417a1cbf5da6270d62f8d78985321dd3995f147685c485d5",
   "url": "https://wiki.archlinux.org/title/Installation_guide#Boot_the_live_environment",
   "revision_url": "https://wiki.archlinux.org/index.php?oldid=858613#Boot_the_live_environment",
-  "revision_raw_url": "https://wiki.archlinux.org/index.php?oldid=858613&action=raw",
+  "revision_wikitext_url": "https://wiki.archlinux.org/api.php?action=parse&oldid=858613&prop=wikitext&format=json",
   "revid": 858613
 }
 ```
@@ -184,7 +184,7 @@ English-only subset would be an `[]` that an agent reads as "the wiki warns of n
   "message_hash_cleaned": "27693d93de0969fc34ac243581e2f66693c6ae2b0f8cabc3098b86b49a290223",
   "source_url": "https://wiki.archlinux.org/title/Iwd#Usage",
   "revision_url": "https://wiki.archlinux.org/index.php?oldid=847035#Usage",
-  "revision_raw_url": "https://wiki.archlinux.org/index.php?oldid=847035&action=raw",
+  "revision_wikitext_url": "https://wiki.archlinux.org/api.php?action=parse&oldid=847035&prop=wikitext&format=json",
   "revid": 847035,
   "alias": null,
   "alias_target": null,
@@ -209,7 +209,7 @@ redirect, including the revision of **the redirect page itself**:
   "content_hash": "f007b1d054b1b6d2bc8d53a692d8ae530d7824256af4aa5fc5043a8d9e1ddb91",
   "source_url": "https://wiki.archlinux.org/title/Installation_guide_%28Fran%C3%A7ais%29",
   "revision_url": "https://wiki.archlinux.org/index.php?oldid=875238",
-  "revision_raw_url": "https://wiki.archlinux.org/index.php?oldid=875238&action=raw",
+  "revision_wikitext_url": "https://wiki.archlinux.org/api.php?action=parse&oldid=875238&prop=wikitext&format=json",
   "revid": 875238,
   "alias": "Attention",
   "alias_target": "Template:Warning (Français)",
@@ -231,7 +231,7 @@ would know the page carries a `WARNING` and be unable to say why.
 
 Every response includes:
 
-* **Revision URL**: The revision-addressed link (`?oldid=`). This is the one to
+* **Revision URL** (`revision_url`): The revision-addressed link (`?oldid=`). This is the one to
   cite. It resolves to the exact revision the hash was computed over, so it still
   serves the quoted text after the page moves on.
 * **Source URL**: The canonical page, with anchor. This one *follows the page*: a
@@ -251,22 +251,23 @@ guarantees, so this section is exact about which bytes are covered by what.
 fragment, NFC-normalise it, SHA-256 it, and compare to `content_hash`:
 
 ```bash
-# The wiki's API serves the revision's wikitext and is not rate-gated:
+# revision_wikitext_url -- the wiki's API, which a script can actually fetch:
 curl -s 'https://wiki.archlinux.org/api.php?action=parse&oldid=<revid>&prop=wikitext&format=json' \
   | python3 -c 'import json,sys; print(json.load(sys.stdin)["parse"]["wikitext"]["*"])'
 ```
 
-`revision_raw_url` (`index.php?oldid=N&action=raw`) is the same wikitext and is the
-right URL to *open in a browser*. Do not script against it: `index.php` sits behind
-an anti-bot interstitial that answers `curl` with a challenge page, not wikitext.
-The `api.php` form above is the machine-checkable route, and it is the one this MCP
-itself uses.
+Every evidence block carries that URL as `revision_wikitext_url`. It is deliberately
+*not* `index.php?oldid=N&action=raw`: that is the correct MediaWiki idiom and it works
+in a browser, but `wiki.archlinux.org` answers a script there with an anti-bot
+interstitial — **HTTP 200, an HTML challenge page, no wikitext**. A checker that hashed
+that page would see a mismatch and conclude a good citation was forged. `api.php` is
+ungated, and is the route this MCP uses itself.
 
 **What each hash covers — and the one transformation you must apply:**
 
 | Field | Covers | Who can verify it |
 | --- | --- | --- |
-| `content_hash` | `content_raw` — the fragment's wikitext | **Anyone**, against the wiki. Contiguous slice of the revision for `section`, `warnings`, and `{{bc}}`/`{{hc}}` command blocks (for those, it is the template's *payload*, not the surrounding template call). |
+| `content_hash` | `content_raw` — the fragment's wikitext | **Anyone**, against the wiki, via `revision_wikitext_url`. Contiguous slice of the revision for `section`, `warnings`, and `{{bc}}`/`{{hc}}` command blocks (for those, it is the template's *payload*, not the surrounding template call). |
 | `content_hash_cleaned` | `content` — the rendered text an agent quotes | Only against *this MCP's* rendering. The wiki never held this string; we produced it. It attests that the shown text is the text we hashed — not that the wiki wrote it that way. |
 
 ⚠️ **`source_pattern: "indented_block"` is the exception, and it matters.** The wiki

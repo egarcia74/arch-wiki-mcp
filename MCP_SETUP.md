@@ -248,8 +248,9 @@ Every response includes:
 
 - **Revision URL** (`revision_url`): Link pinned to the exact revision (`?oldid=`).
   Cite this one — it still serves the quoted text after the page moves on.
-- **Revision Raw URL** (`revision_raw_url`): That revision's verbatim wikitext —
-  the bytes `content_hash` is computed over, so a reader can recheck it.
+- **Revision Wikitext URL** (`revision_wikitext_url`): That revision's wikitext, via
+  the wiki's API — the bytes `content_hash` is computed over, at a URL a script can
+  actually fetch. (The `index.php` raw view answers automation with an anti-bot page.)
 - **Source URL** (`source_url` / `url`): The canonical page. It *follows the page*
   and shows the wiki's current state, not the quoted one.
 - **Revision ID**: MediaWiki revision number

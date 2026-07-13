@@ -45,7 +45,7 @@ Each artifact is returned with:
 - `source_url` — the canonical page, with anchor. It follows the page: a reader
   who opens it later sees what the wiki says *then*, not what you quoted.
 - Section anchor
-- MediaWiki revision (`revid`) or timestamp
+- MediaWiki revision (`revid`)
 - Extraction method
 - Content hash
 
@@ -55,14 +55,15 @@ They are **chain-of-custody**.
 | Field | What it is |
 | :---- | :--------- |
 | `revision_url` | The revision-pinned page (`?oldid=`). **Cite this.** Renders the revision for a human. |
-| `revision_raw_url` | That revision's **verbatim wikitext** — the exact bytes `content_hash` covers. This is what an auditor fetches to recheck a hash. |
+| `revision_wikitext_url` | That revision's **wikitext** — the exact bytes `content_hash` covers — from the wiki's API, which a script can actually fetch. This is what an auditor fetches to recheck a hash. |
 | `alias_revision_url` | `alias_revid` as a followable link: the **redirect page's** own revision. Null whenever `alias_revid` is. |
 | `wikitext_hash` | On `page()` only: SHA-256 of the **whole page's** wikitext, not of any one block. Do not confuse it with `content_hash`, which covers a single fragment. |
 
 What the hash proves, and what it does not: `content_hash` is an unkeyed SHA-256
 fingerprint over `content_raw` — the **verbatim wikitext** of the revision. A
-reader checks it by fetching `revision_raw_url` (the revision's raw wikitext),
-NFC-normalising the fragment, and hashing it. `content_hash_cleaned` covers
+reader checks it by fetching `revision_wikitext_url` (the revision's wikitext, via
+the wiki's API — the `index.php` raw view answers a script with an anti-bot page,
+not wikitext), NFC-normalising the fragment, and hashing it. `content_hash_cleaned` covers
 `content`, the rendered text you quote; only this MCP can confirm that one,
 because the wiki never held that string — we produced it.
 

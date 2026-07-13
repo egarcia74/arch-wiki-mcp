@@ -118,8 +118,8 @@ def test_a_url_is_still_a_url_after_a_sloppy_paste(given):
 
 
 @pytest.mark.parametrize("given", [
-    pytest.param(f" https://evil.example/title/GRUB", id="leading-space-foreign-host"),
-    pytest.param(f"HTTPS://evil.example/title/GRUB", id="uppercase-scheme-foreign-host"),
+    pytest.param(" https://evil.example/title/GRUB", id="leading-space-foreign-host"),
+    pytest.param("HTTPS://evil.example/title/GRUB", id="uppercase-scheme-foreign-host"),
 ])
 def test_a_sloppy_paste_does_not_smuggle_a_foreign_host_past_the_check(given):
     with pytest.raises(extractor.MalformedWikiUrlError):

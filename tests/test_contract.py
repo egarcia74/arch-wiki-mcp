@@ -81,8 +81,8 @@ def test_the_derived_field_set_is_the_one_we_expect():
         "message_hash_cleaned",
         "message_raw",
         "placeholders",
-        "revision_raw_url",
         "revision_url",
+        "revision_wikitext_url",
         "snippet",
     ]
 

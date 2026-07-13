@@ -152,7 +152,7 @@ class ExtractedBlock:
     title: str
     url: str  # Canonical page URL: follows the page, shows what the wiki says now
     revision_url: str  # Pinned to `revid` -- the revision whose wikitext is hashed here
-    revision_raw_url: str  # That revision's verbatim wikitext: what content_hash covers
+    revision_wikitext_url: str  # That revision's wikitext: the bytes content_hash covers
     revid: int
     timestamp: Optional[str]  # Fallback if revid unavailable
     section_anchor: Optional[str]
@@ -277,7 +277,7 @@ def make_revision_url(revid: int, anchor: Optional[str] = None) -> str:
     Precisely what is pinned: the revision's *wikitext*, which is what our hashes
     cover. The page this renders still transcludes templates at their current
     versions, so the rendered view is not frozen. To check a hash, fetch the
-    wikitext (see make_revision_raw_url) rather than this page -- and say "pinned",
+    wikitext (see make_revision_wikitext_url) rather than this page -- and say "pinned",
     not "immutable", because only one of the two is true.
     """
     url = f"{WIKI_BASE}/index.php?oldid={revid}"
@@ -355,15 +355,25 @@ def extract_title_from_url(title_or_url: str) -> str:
     return title
 
 
-def make_revision_raw_url(revid: int) -> str:
+def make_revision_wikitext_url(revid: int) -> str:
     """
-    The revision's verbatim wikitext -- the bytes content_hash is computed over.
+    The revision's wikitext -- the bytes content_hash is computed over -- at a URL a
+    script can actually fetch.
 
-    This is the URL that makes a citation checkable. The rendered revision page is
-    for a human to read; this is what an auditor fetches to recompute the hash. No
-    anchor: raw wikitext has no fragments to jump to.
+    This is the URL that makes a citation checkable, so it has to work unattended.
+    It used to be index.php?action=raw, which is the correct MediaWiki idiom and
+    which a browser resolves fine -- but wiki.archlinux.org answers a script there
+    with an anti-bot interstitial: HTTP *200*, an HTML challenge page, no wikitext.
+    An auditor's script would have hashed the challenge, seen a mismatch, and
+    concluded a good citation was forged. That is the worst error this project can
+    make, and it was sitting in the one field whose entire job is to prevent it.
+
+    api.php is not gated, and is the route the extractor itself uses -- so the URL we
+    hand an auditor is the URL we trust ourselves. It answers JSON; the wikitext is
+    at .parse.wikitext["*"], which is why this is not called a "raw" URL. No anchor:
+    a source document has no fragments to jump to.
     """
-    return f"{WIKI_BASE}/index.php?oldid={revid}&action=raw"
+    return f"{API_ENDPOINT}?action=parse&oldid={revid}&prop=wikitext&format=json"
 
 
 def hash_content(text: str) -> str:
@@ -1908,7 +1918,7 @@ def page(title: str) -> Dict:
         # would unify nothing and back-compat nothing, so it does not.
         "url": make_wiki_url(parse_data["title"]),
         "revision_url": make_revision_url(parse_data["revid"]),
-        "revision_raw_url": make_revision_raw_url(parse_data["revid"]),
+        "revision_wikitext_url": make_revision_wikitext_url(parse_data["revid"]),
         "wikitext": wikitext,
         "wikitext_hash": hash_content(wikitext),
         "sections": [asdict(WikiSection.from_api(s)) for s in parse_data["sections"]]
@@ -1940,7 +1950,7 @@ def section(title: str, anchor: str) -> ExtractedBlock:
         title=parse_data["title"],
         url=make_wiki_url(parse_data["title"], anchor),
         revision_url=make_revision_url(parse_data["revid"], anchor),
-        revision_raw_url=make_revision_raw_url(parse_data["revid"]),
+        revision_wikitext_url=make_revision_wikitext_url(parse_data["revid"]),
         revid=parse_data["revid"],
         timestamp=None,
         section_anchor=anchor,
@@ -1970,9 +1980,14 @@ def commands(title: str, anchor: Optional[str] = None) -> List[Dict]:
 
     # Built once: the revision is a property of the page and anchor, not of each
     # block, and every block on the page shares it.
-    url_base = make_wiki_url(title, anchor)
+    #
+    # parse_data["title"], not the caller's `title`: MediaWiki normalises and follows
+    # redirects, so asking for "Grub" is answered about "GRUB". Built from the raw
+    # argument, source_url named the page the caller asked for while revid and
+    # revision_url named the page the wiki served -- one block citing two pages.
+    url_base = make_wiki_url(parse_data["title"], anchor)
     revision_url = make_revision_url(revid, anchor)
-    revision_raw_url = make_revision_raw_url(revid)
+    revision_wikitext_url = make_revision_wikitext_url(revid)
 
     if anchor:
         _, wikitext_to_parse = _resolve_section(parse_data, anchor)
@@ -1992,7 +2007,7 @@ def commands(title: str, anchor: Optional[str] = None) -> List[Dict]:
             "placeholders": block.placeholders,
             "source_url": url_base,
             "revision_url": revision_url,
-            "revision_raw_url": revision_raw_url,
+            "revision_wikitext_url": revision_wikitext_url,
             "revid": block.revid
         }
         for block in parse_code_blocks(wikitext_to_parse, revid)
@@ -2032,7 +2047,7 @@ def warnings(title: str, anchor: Optional[str] = None) -> List[Dict]:
     # case, which every one of these already handles.)
     url_base = make_wiki_url(parse_data["title"], anchor)
     revision_url = make_revision_url(revid, anchor)
-    revision_raw_url = make_revision_raw_url(revid)
+    revision_wikitext_url = make_revision_wikitext_url(revid)
 
     # asdict, not a hand-listed literal: the literal is how tool_section() came to
     # attest a hash over text it never returned. A new field must reach the agent
@@ -2042,7 +2057,7 @@ def warnings(title: str, anchor: Optional[str] = None) -> List[Dict]:
             **asdict(w),
             "source_url": url_base,
             "revision_url": revision_url,
-            "revision_raw_url": revision_raw_url,
+            "revision_wikitext_url": revision_wikitext_url,
             # alias_revid pins the redirect page, never its target. A type learned
             # from a redirect is not attested by the article's revision, so the
             # redirect gets a revision URL of its own -- otherwise the provenance
@@ -2074,14 +2089,14 @@ def links(title: str, anchor: Optional[str] = None) -> List[Dict]:
         url_base = extracted.url
         revid = extracted.revid
         revision_url = extracted.revision_url
-        revision_raw_url = extracted.revision_raw_url
+        revision_wikitext_url = extracted.revision_wikitext_url
     else:
         page_data = page(title)
         wikitext = page_data["wikitext"]
         url_base = page_data["url"]
         revid = page_data["revid"]
         revision_url = page_data["revision_url"]
-        revision_raw_url = page_data["revision_raw_url"]
+        revision_wikitext_url = page_data["revision_wikitext_url"]
 
     link_list = parse_internal_links(wikitext, title)
 
@@ -2093,7 +2108,7 @@ def links(title: str, anchor: Optional[str] = None) -> List[Dict]:
             "source_page": link.source_page,
             "source_url": url_base,
             "revision_url": revision_url,
-            "revision_raw_url": revision_raw_url,
+            "revision_wikitext_url": revision_wikitext_url,
             "revid": revid
         }
         for link in link_list

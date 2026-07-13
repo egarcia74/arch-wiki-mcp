@@ -446,6 +446,47 @@ def test_a_malformed_call_is_rejected_before_the_extractor_runs(tool, arguments,
         server.handle_tool_call(tool, arguments)
 
 
+def test_a_blank_string_is_refused_by_a_rule_the_schema_declares():
+    """
+    The validator rejected "   " by checking minLength against value.strip(). But a
+    one-space string *satisfies* minLength: 1, so this enforced a rule the schema
+    never stated -- the same lie #20 exists to end, told in the strict direction.
+    Refusing a blank title is right; the schema has to say so.
+    """
+    tools = {t["name"]: t for t in server._handle_tools_list(1)["result"]["tools"]}
+    title = tools["page"]["inputSchema"]["properties"]["title_or_url"]
+
+    assert title.get("pattern"), "blank-rejection is enforced but nowhere declared"
+
+    with pytest.raises(server.InvalidParamsError):
+        server.handle_tool_call("page", {"title_or_url": "   "})
+
+
+def test_a_non_object_request_is_an_invalid_request_not_our_bug(monkeypatch, capsys):
+    """
+    `42` and `[]` are valid JSON. message.get() then raised AttributeError and the
+    catch-all answered -32603 Internal error -- the server confessing to a bug that
+    belongs to the request. JSON-RPC 2.0 reserves -32600 for exactly this.
+    """
+    responses = _drive_server("42\n[1,2]\n", monkeypatch, capsys)
+
+    assert [r["error"]["code"] for r in responses] == [-32600, -32600]
+
+
+def test_too_many_cli_arguments_are_refused_rather_than_dropped(monkeypatch, capsys):
+    """
+    zip() stops at the shorter sequence, so `section GRUB Installation extra`
+    silently ignored `extra` and succeeded. A caller mistake that reports success is
+    the shape of every bug in this repository.
+    """
+    code, _, stderr = _run_cli(
+        ["section", "GRUB", "Installation", "extra"], monkeypatch, capsys
+    )
+
+    assert code == 1
+    assert json.loads(stderr)["code"] == "invalid_params"
+
+
 def test_the_declared_limit_schema_matches_what_is_enforced():
     """
     Declared `number` with no bounds, the schema promised a client that 1e9 --

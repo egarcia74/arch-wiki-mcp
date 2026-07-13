@@ -6,6 +6,7 @@ Thin wrapper around constitutional extractor - exposes wiki as MCP tools.
 import sys
 import json
 import logging
+import re
 from dataclasses import asdict
 from typing import Any, Dict, Optional
 from urllib.parse import parse_qs, unquote, urlparse
@@ -72,7 +73,7 @@ def tool_page(title_or_url: str) -> dict:
             "revid": int,
             "url": str,
             "revision_url": str,
-            "revision_raw_url": str,
+            "revision_wikitext_url": str,
             "wikitext": str,
             "wikitext_hash": str,
             "sections": List[Dict]
@@ -114,7 +115,7 @@ def tool_section(title_or_url: str, anchor: str) -> dict:
             "title": str,
             "url": str,
             "revision_url": str,
-            "revision_raw_url": str,
+            "revision_wikitext_url": str,
             "revid": int,
             "timestamp": str or null,
             "section_anchor": str,
@@ -151,7 +152,7 @@ def tool_commands(title_or_url: str, anchor: Optional[str] = None) -> dict:
             "commands": List[Dict{content, content_raw, content_hash,
                                   content_hash_cleaned, block_type, source_pattern,
                                   language, header, placeholders, source_url,
-                                  revision_url, revision_raw_url, revid}]
+                                  revision_url, revision_wikitext_url, revid}]
         }
 
     content is runnable once its placeholders are substituted; those stay marked as
@@ -181,7 +182,7 @@ def tool_warnings(title_or_url: str, anchor: Optional[str] = None) -> dict:
         {
             "warnings": List[Dict{type, message, message_raw, content_hash,
                                   message_hash_cleaned, source_url, revision_url,
-                                  revision_raw_url, revid, alias, alias_target,
+                                  revision_wikitext_url, revid, alias, alias_target,
                                   alias_revid, alias_revision_url}]
         }
 
@@ -240,7 +241,7 @@ _TOOLS = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "query": {"type": "string", "description": "Search query", "minLength": 1},
+                "query": {"type": "string", "description": "Search query", "minLength": 1, "pattern": "\\S"},
                 "limit": {
                     "type": "integer",
                     "description": f"Max results (default {SEARCH_LIMIT_DEFAULT})",
@@ -259,7 +260,7 @@ _TOOLS = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "title_or_url": {"type": "string", "description": TITLE_DESC, "minLength": 1}
+                "title_or_url": {"type": "string", "description": TITLE_DESC, "minLength": 1, "pattern": "\\S"}
             },
             "required": ["title_or_url"],
             "additionalProperties": False
@@ -271,7 +272,7 @@ _TOOLS = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "title_or_url": {"type": "string", "description": TITLE_DESC, "minLength": 1}
+                "title_or_url": {"type": "string", "description": TITLE_DESC, "minLength": 1, "pattern": "\\S"}
             },
             "required": ["title_or_url"],
             "additionalProperties": False
@@ -288,8 +289,8 @@ _TOOLS = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "title_or_url": {"type": "string", "description": TITLE_DESC, "minLength": 1},
-                "anchor": {"type": "string", "description": "Section anchor", "minLength": 1}
+                "title_or_url": {"type": "string", "description": TITLE_DESC, "minLength": 1, "pattern": "\\S"},
+                "anchor": {"type": "string", "description": "Section anchor", "minLength": 1, "pattern": "\\S"}
             },
             "required": ["title_or_url", "anchor"],
             "additionalProperties": False
@@ -301,8 +302,8 @@ _TOOLS = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "title_or_url": {"type": "string", "description": TITLE_DESC, "minLength": 1},
-                "anchor": {"type": "string", "description": ANCHOR_DESC, "minLength": 1}
+                "title_or_url": {"type": "string", "description": TITLE_DESC, "minLength": 1, "pattern": "\\S"},
+                "anchor": {"type": "string", "description": ANCHOR_DESC, "minLength": 1, "pattern": "\\S"}
             },
             "required": ["title_or_url"],
             "additionalProperties": False
@@ -320,8 +321,8 @@ _TOOLS = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "title_or_url": {"type": "string", "description": TITLE_DESC, "minLength": 1},
-                "anchor": {"type": "string", "description": ANCHOR_DESC, "minLength": 1}
+                "title_or_url": {"type": "string", "description": TITLE_DESC, "minLength": 1, "pattern": "\\S"},
+                "anchor": {"type": "string", "description": ANCHOR_DESC, "minLength": 1, "pattern": "\\S"}
             },
             "required": ["title_or_url"],
             "additionalProperties": False
@@ -333,8 +334,8 @@ _TOOLS = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "title_or_url": {"type": "string", "description": TITLE_DESC, "minLength": 1},
-                "anchor": {"type": "string", "description": ANCHOR_DESC, "minLength": 1}
+                "title_or_url": {"type": "string", "description": TITLE_DESC, "minLength": 1, "pattern": "\\S"},
+                "anchor": {"type": "string", "description": ANCHOR_DESC, "minLength": 1, "pattern": "\\S"}
             },
             "required": ["title_or_url"],
             "additionalProperties": False
@@ -376,9 +377,18 @@ def _validate_value(tool: str, name: str, value: Any, spec: dict) -> Any:
                 f"{tool}.{name} must be a string, got {type(value).__name__}"
             )
         minimum_length = spec.get("minLength")
-        if minimum_length is not None and len(value.strip()) < minimum_length:
+        if minimum_length is not None and len(value) < minimum_length:
             raise InvalidParamsError(
                 f"{tool}.{name} must be at least {minimum_length} character(s), got {value!r}"
+            )
+        # Declared, not assumed. This checked minLength against value.strip(), so a
+        # one-space string was refused although it satisfies the length the schema
+        # advertises -- a rule enforced and nowhere stated, which is the same lie as
+        # a rule stated and never enforced.
+        pattern = spec.get("pattern")
+        if pattern is not None and not re.search(pattern, value):
+            raise InvalidParamsError(
+                f"{tool}.{name} must contain a non-whitespace character, got {value!r}"
             )
         return value
 
@@ -582,11 +592,13 @@ NON-NEGOTIABLE RULES (Truth Perimeter)
    - revid
    - content_hash
    - extraction_method (if provided)
-   revision_raw_url is that revision's verbatim wikitext -- the exact bytes
-   content_hash covers. A reader fetches it, NFC-normalizes, and re-hashes; that
-   is what makes the citation falsifiable, and it is why the hash and the revision
-   URLs must travel together. A hash beside a URL that has since changed proves
-   nothing. content_hash_cleaned covers `content`, the rendered text you show --
+   revision_wikitext_url returns that revision's wikitext -- the exact bytes
+   content_hash covers -- from the wiki's API, which a script can actually fetch.
+   (Cite revision_url to a human; fetch revision_wikitext_url to check a hash.) A
+   reader fetches it, NFC-normalizes, and re-hashes; that is what makes the citation
+   falsifiable, and it is why the hash and the revision URLs must travel together. A
+   hash beside a URL that has since changed proves nothing. content_hash_cleaned
+   covers `content`, the rendered text you show --
    only this MCP can confirm that one, because the wiki never held that string.
    The hash is a fingerprint, not a signature: it shows the text matches the named
    revision, and says nothing about who produced the response. Do not claim more.
@@ -753,6 +765,15 @@ def run_mcp_server():
                 _send_response(_protocol_error(None, f"Parse error: {e}", code=-32700))
                 continue
 
+            if not isinstance(message, dict):
+                # Valid JSON, invalid request. `42` parses, and message.get() then
+                # raised AttributeError into the catch-all below, which answered
+                # -32603 Internal error -- us confessing to the caller's mistake.
+                _send_response(
+                    _protocol_error(None, "Invalid Request: not a JSON-RPC object", code=-32600)
+                )
+                continue
+
             method = message.get("method")
             params = message.get("params", {})
             msg_id = message.get("id")
@@ -819,9 +840,21 @@ def _cli_arguments(tool: str, argv: list) -> dict:
         raise UnknownToolError(f"Unknown tool: {tool}")
 
     properties = _INPUT_SCHEMAS[tool]["properties"]
+    parameters = _cli_parameters(tool)
+
+    # zip() stops at the shorter sequence, so `section GRUB Installation extra`
+    # silently ignored `extra` and reported success. Fewer arguments than parameters
+    # is legitimate (they may be optional) and the schema catches a missing required
+    # one; more than there are places to put is simply a mistake.
+    if len(argv) > len(parameters):
+        raise InvalidParamsError(
+            f"{tool} takes at most {len(parameters)} argument(s), got {len(argv)}: "
+            f"{' '.join(argv[len(parameters):])}"
+        )
+
     arguments: Dict[str, Any] = {}
 
-    for name, raw in zip(_cli_parameters(tool), argv):
+    for name, raw in zip(parameters, argv):
         if properties[name]["type"] == "integer":
             try:
                 arguments[name] = int(raw)

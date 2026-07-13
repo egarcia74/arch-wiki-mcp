@@ -93,6 +93,48 @@ def test_the_revision_url_is_pinned_to_the_recorded_revision():
     assert _query(block["revision_url"])["oldid"] == [str(GRUB_REVID)]
 
 
+@pytest.mark.parametrize("extract", EVIDENCE)
+def test_the_wikitext_url_is_one_a_script_can_actually_fetch(extract):
+    """
+    The field exists so an auditor can re-fetch the bytes content_hash covers. It
+    pointed at index.php?action=raw, which wiki.archlinux.org answers with an
+    anti-bot interstitial -- HTTP *200*, an HTML challenge page, no wikitext. A
+    script would have hashed the challenge, seen a mismatch, and concluded a good
+    citation was forged: the worst error this project can make, shipped in the one
+    field whose whole job is to prevent it. api.php is not gated, and is the route
+    the extractor itself uses.
+    """
+    url = extract()["revision_wikitext_url"]
+
+    assert "/api.php" in url, "the audit URL must be the machine-fetchable route"
+    assert "index.php" not in url, "index.php answers a script with a bot challenge"
+    assert "action=parse" in url and "prop=wikitext" in url
+
+
+def test_the_wikitext_url_names_the_revision_it_belongs_to():
+    block = asdict(extractor.section("GRUB", ANCHOR))
+
+    assert _query(block["revision_wikitext_url"])["oldid"] == [str(block["revid"])]
+
+
+def test_a_redirected_page_does_not_cite_two_different_pages_at_once(monkeypatch):
+    """
+    commands() built source_url from the title the *caller* passed, while revid and
+    revision_url came from the page MediaWiki actually served. Ask for a redirect
+    and one block claimed both pages at once -- a citation disagreeing with itself.
+    Every other tool resolved the title first.
+    """
+    served = dict(extractor.fetch_wiki_parse("GRUB"))
+    monkeypatch.setattr(extractor, "fetch_wiki_parse", lambda *a, **k: served)
+
+    # "Grub" would redirect; MediaWiki answers about "GRUB".
+    block = extractor.commands("Grub", ANCHOR)[0]
+
+    assert "/title/GRUB#" in block["source_url"], (
+        f"source_url cites the title asked for, not the page served: {block['source_url']}"
+    )
+
+
 def test_a_reader_following_the_readme_can_actually_reproduce_a_hash():
     """
     The claim, executed. `content_hash` covers `content_raw`, and the README tells a

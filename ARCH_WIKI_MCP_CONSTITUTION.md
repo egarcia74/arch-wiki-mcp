@@ -660,8 +660,8 @@ guarantee would undermine the very thing the guarantee exists to protect.
 
 Be precise about what is pinned, too. The hash covers the revision's **wikitext**,
 which is immutable; the *rendered* view of an old revision is not, because it still
-transcludes templates at their current versions. `revision_raw_url` therefore
-returns the wikitext, and that — not the rendered page — is what an auditor fetches
+transcludes templates at their current versions. `revision_wikitext_url` therefore
+returns the wikitext (via the API, so a script can fetch it), and that — not the rendered page — is what an auditor fetches
 to recheck a hash. "Pinned", not "frozen", is the honest word for the rest.
 
 The Arch Wiki is continuously edited. A timestamp alone cannot prove what version was served if a page has been modified multiple times in the same day.

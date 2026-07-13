@@ -12,6 +12,12 @@
 To *use* it, install it into its own environment with pipx:
 
 ```bash
+pipx install arch-wiki-mcp
+```
+
+Or from source, to get a commit that has not been released:
+
+```bash
 pipx install git+https://github.com/egarcia74/arch-wiki-mcp.git
 ```
 

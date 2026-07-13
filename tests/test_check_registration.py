@@ -352,3 +352,65 @@ def test_our_own_environment_never_makes_a_dead_registration_look_healthy(tmp_pa
         "called healthy, because our shell happened to be able to import it"
     )
     assert "No module named" in said, said
+
+
+def test_a_data_argument_that_looks_like_a_script_is_not_executed(tmp_path):
+    """
+    The second escape from the same trap. `_executes` learned to match a `.py` or `-m`
+    argument -- but a path ending in .py is a script only to a program that runs
+    scripts. `touch /tmp/arch-wiki-mcp.py` runs nothing; the .py is a filename. Matched
+    without the command, that filesystem-cleanup entry was read as ours and executed.
+
+    Proven the only honest way: the command is `touch`, and the test asserts the file
+    it would create never appears.
+    """
+    victim = tmp_path / "PWNED"
+    code, said = _check(tmp_path, {
+        "mcpServers": {
+            "cleanup": {
+                "command": "/usr/bin/touch",
+                "args": [str(victim), "/tmp/arch-wiki-mcp.py"],   # a .py it does NOT run
+            }
+        }
+    })
+
+    assert not victim.exists(), (
+        "--check ran a command that is not a Python interpreter because an argument "
+        "ended in .py; only the command decides what an argument means"
+    )
+    assert "none of them ours" in said, said
+
+
+def test_a_bare_command_resolvable_only_by_the_entrys_env_is_found(tmp_path):
+    """
+    A client sets `env.PATH` so a bare command resolves. Checking it against *our*
+    PATH -- which does not have that directory -- reports "no such command" for a
+    registration the client starts every day, and could run a different binary of the
+    same name than the client would. The command is resolved against the environment
+    the client would give it.
+    """
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    # A fake server on the entry's PATH but not ours: a python that answers as us.
+    fake = bindir / "my-arch-wiki"
+    payload = json.dumps({
+        "jsonrpc": "2.0", "id": 1,
+        "result": {"protocolVersion": "2024-11-05",
+                   "serverInfo": {"name": "arch-wiki-mcp", "version": "x"}},
+    })
+    # Absolute shebang: it answers without needing anything on the entry's own PATH,
+    # so what the test exercises is whether we *resolved* it there.
+    fake.write_text(f"#!/bin/sh\nhead -n1 >/dev/null\nprintf '%s\\n' '{payload}'\n")
+    fake.chmod(0o755)
+
+    code, said = _check(tmp_path, {
+        "mcpServers": {
+            "arch-wiki": {"command": "my-arch-wiki", "args": [], "env": {"PATH": str(bindir)}}
+        }
+    })
+
+    assert "no such command" not in said, (
+        "resolved against our PATH, not the entry's: a working registration was called dead"
+    )
+    # It is found and runs; bare, so it is flagged fragile, not failed.
+    assert "PATH" in said, said

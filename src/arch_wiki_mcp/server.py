@@ -984,26 +984,30 @@ def _registrations_in(config: Any, at: str = "", key: str = "") -> list:
 _OURS = re.compile(r"arch[-_]wiki", re.I)
 
 
-def _executes(args: list) -> list:
+# The programs for which a script path or a `-m` module is a thing to *run*. For
+# anything else -- touch, npx, a shell -- those same tokens are just data.
+_PYTHON = re.compile(r"python(\d+(\.\d+)?)?")
+
+
+def _executes(command: str, args: list) -> list:
     """
-    The arguments naming something the command will *run*, as opposed to something it
-    is merely told *about*.
+    The arguments naming something *this command* will run, not something it is told
+    about.
 
-    This is the whole safety of the feature. Matching every argument meant that an
-    entry like
+    This is the whole safety of the feature, and it took two passes to get right.
+    First it matched every argument -- so a filesystem server granted access to this
+    repository (`npx @mcp/server-filesystem /home/you/code/arch-wiki-mcp`) was read as
+    ours and executed. Then it matched a `.py` or `-m` argument regardless of the
+    command -- so `touch /tmp/arch-wiki-mcp.py`, which runs nothing, was read as ours
+    and executed too. A path ending in .py is a script only to a program that runs
+    scripts; to `touch` it is a filename.
 
-        "filesystem": {"command": "npx",
-                       "args": ["-y", "@modelcontextprotocol/server-filesystem",
-                                "/home/you/code/arch-wiki-mcp"]}
-
-    -- a filesystem server granted access to this repository, a completely ordinary
-    thing to have -- was read as *ours*, and executed. Which for that entry means
-    fetching a package from the network and running it, from a command whose
-    documentation promises to leave other servers alone.
-
-    A path handed to a program is not a claim about which program it is. Only the
-    script it is told to execute, or the module after -m, says that.
+    So the command decides. Only when it is a Python interpreter does a `.py`/`.pyz`
+    argument, or the module after `-m`, name something it will execute.
     """
+    if not _PYTHON.fullmatch(Path(command).name):
+        return []
+
     return [
         arg
         for index, arg in enumerate(args)
@@ -1027,8 +1031,9 @@ def _is_ours(key: str, entry: dict) -> bool:
     And the command's basename, not the whole path, for the same reason -- a venv
     inside this checkout puts `arch-wiki-mcp` in every absolute path it holds.
     """
+    command = str(entry["command"])
     args = [str(a) for a in entry.get("args") or []]
-    words = [key, Path(str(entry["command"])).name, *_executes(args)]
+    words = [key, Path(command).name, *_executes(command, args)]
 
     return any(_OURS.search(word) for word in words)
 
@@ -1089,14 +1094,19 @@ def _diagnose(entry: dict) -> Tuple[str, str]:
     """(verdict, explanation) for one registration a client would spawn."""
     command = str(entry["command"])
     args = [str(a) for a in entry.get("args") or []]
+    environment = _child_environment(entry)
 
-    resolved = shutil.which(command)
+    # Resolved against the client's PATH, not ours. An entry may set env.PATH so a
+    # bare command is findable -- checking it against our PATH would call a working
+    # registration "no such command", or worse, run a different binary of the same
+    # name than the client would.
+    resolved = shutil.which(command, path=environment.get("PATH"))
     if resolved is None:
         if Path(command).exists():
             return "dead", f"it is there but not executable: chmod +x {command}"
         return "dead", f"no such command: {command}"
 
-    name, version, why_not = _answers([resolved, *args], _child_environment(entry))
+    name, version, why_not = _answers([resolved, *args], environment)
 
     if name is None:
         return "dead", why_not

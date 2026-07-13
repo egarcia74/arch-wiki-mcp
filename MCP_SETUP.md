@@ -4,8 +4,16 @@
 
 ### Prerequisites
 
-- Python 3.10+
-- Internet access (for MediaWiki API calls)
+Everything this guide tells you to run, and nothing it does not. (A test enforces
+that: a setup document must not ask you for a tool it never told you to get.)
+
+- **Python 3.10+** — provides `python3` and `pip`
+- **[pipx](https://pipx.pypa.io)** — the recommended install path below. Arch:
+  `pacman -S python-pipx`; elsewhere: `python3 -m pip install --user pipx`
+- **git** — only to install an unreleased commit, or to work on the project
+- **Internet access** — for the MediaWiki API
+- **An MCP client** — the `claude` snippet below assumes Claude Code; other clients
+  take the same registration as JSON
 
 ### Install
 

@@ -7,10 +7,16 @@ import sys
 import json
 import logging
 import re
+import shutil
 from dataclasses import asdict
+from importlib import metadata
+from pathlib import Path
 from typing import Any, Dict, Optional
 
-from arch_wiki_mcp import __version__, extractor
+from arch_wiki_mcp import _DISTRIBUTION, __version__, extractor
+
+# This module, as an installed client must name it.
+MODULE = "arch_wiki_mcp.server"
 
 # stderr by default, which keeps JSON-RPC on stdout clean.
 logger = logging.getLogger(__name__)
@@ -837,7 +843,11 @@ def _cli_usage() -> str:
             for name in _cli_parameters(tool)
         )
         lines.append(f"  {tool} {params}")
-    lines += ["", "Or run as MCP server:", "  arch-wiki-mcp --stdio"]
+    lines += ["", "Or:"]
+    lines += [
+        f"  arch-wiki-mcp {flag}  ({description})"
+        for flag, (_, description) in _MODE_DISPATCH.items()
+    ]
     return "\n".join(lines)
 
 
@@ -884,6 +894,84 @@ def _cli_arguments(tool: str, argv: list) -> dict:
     return arguments
 
 
+def _installed_command() -> Optional[Path]:
+    """
+    The console script pip actually created for this module, asked of the installer.
+
+    Not `Path(sys.executable).parent / "arch-wiki-mcp"`: that transcribes the very
+    name this whole command exists to stop people transcribing. Rename the script in
+    pyproject and a hand-spelled copy silently stops matching -- and because the
+    fallback below still works, nothing would fail. The installer recorded the name;
+    ask it. (shutil.which also gets Windows' `Scripts/arch-wiki-mcp.exe` right, which
+    path arithmetic does not.)
+    """
+    for entry in metadata.distribution(_DISTRIBUTION).entry_points:
+        # `.module` is the parsed left half of "pkg.mod:func" -- matching on it means
+        # renaming main() does not silently drop us to the fallback below.
+        if entry.group == "console_scripts" and entry.module == MODULE:
+            found = shutil.which(entry.name, path=str(Path(sys.executable).parent))
+            if found:
+                return Path(found)
+    return None
+
+
+def _registration() -> dict:
+    """The command an MCP client should spawn, resolved rather than transcribed."""
+    console_script = _installed_command()
+
+    if console_script:
+        command, args = str(console_script), ["--stdio"]
+    else:
+        # A `pip install --user` puts the script somewhere this interpreter cannot
+        # see. The interpreter itself is still a path we know to be right.
+        command, args = sys.executable, ["-m", MODULE, "--stdio"]
+
+    return {"mcpServers": {"arch-wiki": {"command": command, "args": args}}}
+
+
+def run_preflight():
+    """
+    Answer the one question a failed registration cannot: *why*.
+
+    An MCP client reports a dead path, an uninstalled package, an import error and
+    a blocked port identically -- "Failed to connect". This prints the registration
+    that works on *this* machine (stdout, so it can be redirected straight into a
+    config) and says what is wrong when none does (stderr, non-zero exit).
+    """
+    try:
+        installed = metadata.version(_DISTRIBUTION)
+    except metadata.PackageNotFoundError:
+        print(
+            f"{_DISTRIBUTION} is not installed, so no MCP client can start it.\n"
+            "  Run: pip install -e .\n"
+            f"  (using the interpreter you intend the client to use: {sys.executable})",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    registration = _registration()
+
+    print(
+        f"{_DISTRIBUTION} {installed} is installed and ready.\n"
+        f"  package: {Path(__file__).parent}\n\n"
+        "The registration below (on stdout, so it can be redirected into a config)\n"
+        "is absolute on purpose: a bare command name resolves only if the client\n"
+        "inherits a PATH that has it, and GUI clients often do not.",
+        file=sys.stderr,
+    )
+    print(json.dumps(registration, indent=2))
+
+
+# The modes, declared rather than accumulated as an argv ladder -- the same reason
+# _TOOL_DISPATCH and _METHOD_DISPATCH exist. Two `len(sys.argv) == 2 and ...`
+# clauses had already grown here, and _cli_usage() was restating them by hand: the
+# fourth-copy problem this file has now solved three times.
+_MODE_DISPATCH = {
+    "--stdio": (run_mcp_server, "run as an MCP server over stdio"),
+    "--check": (run_preflight, "check the install, print a registration a client can use"),
+}
+
+
 def main():
     """
     Entry point - detect MCP mode vs CLI mode.
@@ -891,11 +979,22 @@ def main():
     MCP mode: Running via stdio (no args)
     CLI mode: Direct invocation with args
     """
-    if len(sys.argv) == 1 or (len(sys.argv) == 2 and sys.argv[1] == "--stdio"):
-        run_mcp_server()
+    # No arguments *is* --stdio: the default is an entry in the table, not a branch
+    # above it, or the table stops being the one statement of what modes exist.
+    argv = sys.argv[1:] or ["--stdio"]
+
+    if argv[0] in _MODE_DISPATCH:
+        handler, _ = _MODE_DISPATCH[argv[0]]
+        if len(argv) > 1:
+            # The flag exists; the arity is wrong. Said plainly, because the ladder
+            # used to fall through and report "Unknown tool: --check", which sends
+            # the reader looking for a tool they never asked for.
+            print(f"{argv[0]} takes no arguments\n\n{_cli_usage()}", file=sys.stderr)
+            sys.exit(1)
+        handler()
         return
 
-    tool = sys.argv[1]
+    tool = argv[0]
 
     # A failed call must not leave the shell believing it succeeded: the payload
     # goes to stderr and the exit status is non-zero, so a caller that only
@@ -904,7 +1003,7 @@ def main():
     # The argv build is inside the try for exactly that reason: outside it, a
     # missing argument was a traceback here and a coded error there.
     try:
-        result = handle_tool_call(tool, _cli_arguments(tool, sys.argv[2:]))
+        result = handle_tool_call(tool, _cli_arguments(tool, argv[1:]))
     except UnknownToolError as e:
         print(f"{e}\n\n{_cli_usage()}", file=sys.stderr)
         sys.exit(1)

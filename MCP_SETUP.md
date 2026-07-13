@@ -20,7 +20,7 @@ To *work on* it, clone and install in editable mode:
 ```bash
 git clone https://github.com/egarcia74/arch-wiki-mcp.git
 cd arch-wiki-mcp
-pip install -e .
+pip install -e ".[test]"
 ```
 
 Either way, run `arch-wiki-mcp --check` next: it prints the registration to give your

@@ -6,9 +6,16 @@ The Arch Wiki MCP is a **citability engine** that provides constitutional, deter
 
 ## Why this is special: Real Workflows
 
-This MCP turns documentation into a versioned, auditable evidence stream: every excerpt 
-an agent receives carries the revision it came from and a fingerprint of the exact bytes, 
-so a claim can be checked instead of trusted.
+This MCP turns documentation into a versioned, auditable evidence stream — and is exact about 
+how far that reaches:
+
+* **`page`, `section`, `commands`, `warnings`** hand an agent text to quote, and carry both the 
+  revision it came from and a fingerprint of the exact bytes. A claim can be checked, not trusted.
+* **`links`** is revision-attributed but unhashed. A link is a target, not a quotation.
+* **`search`, `sections`** are pointers, not evidence: no revid, no hash. A snippet quoted as fact 
+  is the failure this project exists to prevent, so they refuse to look like evidence.
+
+(These tiers are asserted by `test_contract.py`, not merely asserted here.)
 
 ### 1. "I need to run this command without bricking my system"
 
@@ -58,8 +65,8 @@ Suppresses the AI's tendency to sound confident by surfacing every warning templ
 
 A reliable backend for IDEs, scripts, and agents.
 
-* **Value**: Every answer is traceable to a revision, so unsupported instructions are 
-  harder to produce and easier to catch.
+* **Value**: Every quotable excerpt is traceable to a revision, so unsupported instructions 
+  are harder to produce and easier to catch.
 
 ---
 

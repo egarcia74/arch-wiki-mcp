@@ -231,3 +231,67 @@ def test_every_hash_in_the_readme_reproduces_from_the_fixtures():
     """
     unverified = documented_hashes() - reproducible_hashes()
     assert not unverified, f"README prints hashes nothing produces: {unverified}"
+
+
+# What the README promises about provenance, tool by tool. Three tiers, not two.
+#
+# The first draft of that paragraph said "every excerpt an agent receives carries the
+# revision it came from and a fingerprint of the exact bytes". search() carries neither
+# -- it is a pointer, and its own tool description says so -- and links() carries a
+# revid but no hash. So the sentence written to *replace* an overclaim was itself an
+# overclaim, in the change whose entire subject was claims outrunning what backs them.
+# CodeRabbit caught it. This is the guard that should have.
+HASHED_EVIDENCE = {
+    "page": "wikitext_hash",       # the page's own wikitext
+    "section": "content_hash",
+    "commands": "content_hash",
+    "warnings": "content_hash",
+}
+ATTRIBUTED_ONLY = ["links"]        # a link is a target, not a quotation
+POINTERS = ["search", "sections"]  # no revid, no hash, and they must not pretend
+
+
+def _first(tool: str) -> dict:
+    call = {
+        "page": lambda: extractor.page("GRUB"),
+        "section": lambda: asdict(extractor.section("GRUB", "Installation")),
+        "commands": lambda: extractor.commands("GRUB", "Installation")[0],
+        "warnings": lambda: extractor.warnings("Iwd", "Usage")[0],
+        "links": lambda: extractor.links("GRUB", "Installation")[0],
+        "search": lambda: extractor.search("GRUB")[0],
+        "sections": lambda: server.tool_sections("GRUB")["sections"][0],
+    }[tool]
+    return call()
+
+
+@pytest.mark.parametrize("tool,hash_field", sorted(HASHED_EVIDENCE.items()))
+def test_quotable_output_carries_a_revision_and_a_fingerprint(tool, hash_field):
+    payload = _first(tool)
+
+    assert payload.get("revid"), f"{tool}() hands over text with no revision"
+    assert payload.get(hash_field), f"{tool}() hands over text with no fingerprint"
+    assert payload.get("revision_url"), f"{tool}() cites no revision-addressed URL"
+
+
+@pytest.mark.parametrize("tool", ATTRIBUTED_ONLY)
+def test_a_link_is_attributed_but_not_fingerprinted(tool):
+    """Pinning the middle tier, so the README cannot quietly promote or demote it."""
+    payload = _first(tool)
+
+    assert payload.get("revid"), f"{tool}() is unattributed"
+    assert "content_hash" not in payload, (
+        f"{tool}() now carries a hash; the README says it does not"
+    )
+
+
+@pytest.mark.parametrize("tool", POINTERS)
+def test_a_pointer_never_looks_like_evidence(tool):
+    """
+    The dangerous direction. A pointer that grew a revid would invite an agent to
+    quote a `snippet` -- ellipsised, HTML-marked search-result text -- as if it were
+    attested wiki content. Absence here is the feature.
+    """
+    payload = _first(tool)
+
+    assert "revid" not in payload, f"{tool}() is a pointer but carries a revid"
+    assert "content_hash" not in payload, f"{tool}() is a pointer but carries a hash"

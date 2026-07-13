@@ -28,8 +28,17 @@ jobs:
   # stranger receives it.
   verify:
     runs-on: ubuntu-latest
+    # Every step here pipes into a subprocess and waits for it. The server exits on
+    # stdin EOF today (verified: 155ms), so nothing hangs -- but an unbounded wait is
+    # a bug this project has shipped twice, and here it would be a six-hour job
+    # sitting on a publish credential. Bound it.
+    timeout-minutes: 15
     steps:
+      # Nothing in this job pushes, so the checkout token has no business staying on
+      # disk for the rest of it.
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: "3.10"     # the floor, not the newest
@@ -120,6 +129,7 @@ jobs:
   publish:
     needs: verify
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     environment: pypi          # inert unless PyPI names it too -- see the header
     permissions:
       id-token: write          # Trusted Publishing: no long-lived token to leak
@@ -133,10 +143,15 @@ jobs:
   github-release:
     needs: publish
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
     steps:
+      # `gh` authenticates from GH_TOKEN below, so the persisted git credential is
+      # never used -- and this is the job whose token can write to the repository.
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/download-artifact@v4
         with:
           name: dist

@@ -84,12 +84,120 @@ PATH_LIKE = re.compile(r"(?<![\w./*-])((?:src|tests|scripts|\.github)/[\w./*-]*[
 BASH_FENCE = re.compile(r"```(?:bash|sh|console)\n(.*?)```", re.S)
 COMMAND_LINE = re.compile(r"^\s*([\w-]+)", re.M)
 
+# Everything a reader can execute: a shell command, or a config they paste into a
+# client. Read whole, never line by line -- see _runnable().
+RUNNABLE_FENCE = re.compile(r"```(?:bash|sh|console|json)\n(.*?)```", re.S)
+
 # Commands belonging to this project, as opposed to git, pip, make and python.
 OURS = re.compile(r"arch[-_]wiki")
 
+# The shapes that decay: a count of tests, and a ratio over the corpus.
+#
+# Not every number. A port, a timeout, a Python version, a JSON-RPC code and an exit
+# status are constants -- prose may name them and they will still be true tomorrow.
+# Nor a figure in a post-mortem: "a live audit of 1834 sections spent its budget
+# re-fetching the same 37 pages" is a record of something that happened, in the same
+# way a changelog records a path that is gone, and neither is a claim about now.
+#
+# What is forbidden is the *status* claim -- the number that purports to describe the
+# project as it stands, and silently stops doing so on the next commit.
+MEASURED_COUNT = re.compile(
+    r"\b\d+\s+(?:offline\s+)?tests\b"                     # "210 offline tests"
+    r"|\b\d+\s+passing\b"                                 # "144 passing"
+    r"|\b\d+\s*/\s*\d+\s+(?:sections|blocks|pages)\b"     # "432/432 sections"
+    r"|\b\d+\s+of\s+\d+\s+(?:sections|blocks|pages|tests)\b"  # "121 of 432 sections"
+    r"|\bacross\s+\d+\s+(?:sections|blocks|pages)\b",     # "0 across 151 blocks"
+    re.I,
+)
+# The ratio arm is anchored on the *unit*, not on punctuation. It first matched
+# `\d+ of \d+\s*\)` -- a closing bracket -- which caught "(121 of 432)" and waved
+# through "121 of 432 sections", the same sentence with the parenthesis removed. That
+# is this file's own complaint about the JSON blind spot, one register over: a guard
+# keyed on a favourite notation rather than on the shape it claims to forbid.
+#
+# Counting *admonitions*, *results* or *messages* stays legal, which is what keeps the
+# post-mortems above this line ("7 of 108 {{bc}} blocks were recovered") from tripping
+# it -- they are records of what happened, not claims about what is true now.
+
+# The rot lived worst where a document guard structurally cannot look: the docstring
+# of extract_section_wikitext(), the function the invariant is *about*, still said
+# "432 sections ... (121 of 432)" long after both were wrong.
+COUNTED = INSTRUCTIONS + sorted((REPO / "src" / "arch_wiki_mcp").glob("*.py"))
+
+
+@pytest.mark.parametrize("document", COUNTED, ids=lambda p: p.name if p else "no-git")
+def test_no_document_publishes_a_count_that_nothing_updates(document):
+    """
+    A number in prose goes stale exactly as silently as one in code.
+
+    This is #19 again -- the User-Agent that went on naming a version abandoned
+    releases earlier -- in the register where it is hardest to see, because no
+    import fails and no test turns red. The README advertised "210 offline tests"
+    while the suite had 458. Three documents justified how the parser slices every
+    section it returns by citing "432/432 sections; byte indexing 121/432", counted
+    once by hand; fixtures were added afterwards and the true figures had drifted to
+    461 and 124. The *claim* stayed true and its evidence quietly rotted.
+
+    So: counts belong in the tests, where changing one fails something.
+    CORPUS_SECTIONS and TOTAL_CODE_TEMPLATES are pinned there. Prose states the
+    invariant -- "every recorded section resolves onto its own heading" -- which is
+    both stronger and incapable of going out of date.
+    """
+    found = MEASURED_COUNT.findall(document.read_text(encoding="utf-8"))
+
+    assert not found, (
+        f"{document.name} publishes a count nothing keeps true; state the invariant "
+        f"and pin the number in a test instead"
+    )
+
+
+def _runnable(document) -> str:
+    """
+    The parts of a document a reader can execute.
+
+    Prose is not one of them. This guard first read every line of every document, and
+    the first thing it caught was CHANGELOG.md -- for the sentence recording that
+    `python3 src/mcp_server.py --stdio` is *gone*. Which is what a changelog is: the
+    one document whose job is to name what no longer exists.
+
+    The obvious patch is to exempt CHANGELOG.md, and a hand-picked exemption is the
+    mistake this file already carries a docstring apologising for. The honest fix is
+    to stop overclaiming: the promise is that a document must not tell you to *run*
+    something that is not there. Narrating a removal is not an instruction.
+
+    A workflow or a Makefile, though, is executable from top to bottom -- it has no
+    prose to protect. Reading only its `run:` lines missed a `run: |` block outright,
+    which is how CI would most naturally spell a multi-line step. So: config files
+    whole, markdown by its fences.
+
+    And the fences include ```json, read whole. Matching `"command":` line by line had
+    the identical blind spot one format over -- an MCP registration split across lines,
+
+        "args": [
+          "src/mcp_server.py",
+          "--stdio"
+        ]
+
+    is how a client config is most naturally written, and is exactly where #22 lived.
+    A guard that catches a bug in bash and misses it in JSON has picked a favourite
+    notation, not a rule.
+
+    What this does NOT guard, said plainly rather than left implied: a path named in
+    prose or inline backticks. Rename extractor.py and MCP_PROTOCOL.md's mention of it
+    goes stale, silently. That is doc-rot, and it is a real cost -- but the promise
+    here is narrower and keepable: nothing this repository tells you to *run* will be
+    missing when you run it.
+    """
+    text = document.read_text(encoding="utf-8")
+
+    if document.suffix in (".yml", ".yaml") or document.name == "Makefile":
+        return text
+
+    return "\n".join(RUNNABLE_FENCE.findall(text))
+
 
 @pytest.mark.parametrize("document", INSTRUCTIONS, ids=lambda p: p.name)
-def test_no_document_names_a_path_that_does_not_exist(document):
+def test_no_document_tells_a_reader_to_run_a_path_that_does_not_exist(document):
     """
     The tripwire for the whole class. `python3 src/mcp_server.py --stdio` sat in
     MCP_SETUP.md and in tests.yml after the file it names was deleted, and nothing
@@ -97,14 +205,18 @@ def test_no_document_names_a_path_that_does_not_exist(document):
     raises ModuleNotFoundError. It just goes on being wrong, quietly, to everyone
     who follows it.
     """
+    runnable = _runnable(document)
+
     missing = sorted(
         path
-        for path in PATH_LIKE.findall(document.read_text(encoding="utf-8"))
+        for path in PATH_LIKE.findall(runnable)
         # A glob is satisfied by anything it matches; a plain path by itself.
         if not (list(REPO.glob(path)) if "*" in path else (REPO / path).exists())
     )
 
-    assert not missing, f"{document.name} names paths that do not exist: {missing}"
+    assert not missing, (
+        f"{document.name} tells a reader to run paths that do not exist: {missing}"
+    )
 
 
 @pytest.mark.parametrize("document", INSTRUCTIONS, ids=lambda p: p.name)

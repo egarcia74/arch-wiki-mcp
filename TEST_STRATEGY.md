@@ -19,13 +19,12 @@ Run `pytest` from the repository root. All figures are enforced by tests.
 
 | Metric                                              | Value                                  | Enforced by                                                                   |
 | :-------------------------------------------------- | :------------------------------------- | :---------------------------------------------------------------------------- |
-| Tests                                               | 144 passing                            | `pytest`                                                                      |
 | Network calls during tests                          | 0                                      | `tests/conftest.py` blocks sockets; `test_failures.py` proves the guard bites |
 | Runs on every push and PR                           | Python 3.10-3.13 + MCP stdio handshake | `.github/workflows/tests.yml`                                                 |
 | `{{bc}}`/`{{hc}}` blocks recovered                  | 108 / 108                              | `test_commands_golden.py`                                                     |
-| Sections resolving to their own heading             | 432 / 432                              | `test_extractor.py`                                                           |
-| Pages in fixture corpus                             | 8 (incl. one translated)               | `tests/fixtures/`                                                             |
-| Wikitext markup surviving into `warnings().message` | 0 across 151 blocks                    | `test_warnings_golden.py`                                                     |
+| Sections resolving to their own heading             | every recorded section                 | `test_content_shapes.py`                                                      |
+| Pages in fixture corpus                             | every page under `tests/fixtures/`, translated pages included | `test_content_shapes.py` |
+| Wikitext markup surviving into `warnings().message` | 0, across every warning in the corpus  | `test_warnings_golden.py`                                                     |
 | Link prefixes                                       | derived from live `siteinfo`           | `test_siteinfo.py`                                                            |
 
 ---
@@ -107,7 +106,7 @@ tagged `language: "bash"`.
 | :------------------------- | :------------------------------------ | :------------- | :--------------------------------------------------- | :------- |
 | Page hash stability        | Repeat `page("GRUB")`                 | Identical hash | `58498a1a18f290df…`                                  | **PASS** |
 | Section hash stability     | Repeat `GRUB#Installation`            | Identical hash | `eb544711a8b45520…`                                  | **PASS** |
-| Section resolves correctly | Slice starts at its own heading       | Heading line   | 432 / 432 sections                                   | **PASS** |
+| Section resolves correctly | Slice starts at its own heading       | Heading line   | every recorded section (count pinned in the test)    | **PASS** |
 | Command hash covers source | `content_hash == sha256(content_raw)` | Match          | Match, every block                                   | **PASS** |
 | Revision locking           | `revid` on return                     | Present        | `revid: 858930`                                      | **PASS** |
 | Source citation            | Deep link to section                  | Valid URL      | `https://wiki.archlinux.org/title/GRUB#Installation` | **PASS** |
@@ -132,9 +131,12 @@ section("Installation_guide", "Pre-installation").content
 ```
 
 It carried a correct revid, a correct `source_url`, and a `content_hash` that
-faithfully hashed the wrong text. Verified across the corpus: character indexing
-resolves 432/432 sections onto their heading; byte indexing resolves 121/432.
-Seven of eight corpus pages were affected. The old suite missed it because it
+faithfully hashed the wrong text. Verified across the corpus, and now asserted over
+it by `test_every_section_in_the_corpus_resolves_as_a_character_offset`: character
+indexing resolves every recorded section onto its own heading, byte indexing barely a
+quarter of them. The counts live in that test, not here -- a ratio written into prose
+is measured once and then decays in silence, which is exactly what happened to the
+figures this sentence used to carry. The old suite missed it because it
 compared two fetches against each other and read the heading from API metadata
 rather than from the extracted text.
 

@@ -514,12 +514,20 @@ def extract_section_wikitext(
     Extract section content from wikitext using the API's section offsets.
 
     Despite its name, MediaWiki's `byteoffset` indexes the wikitext by CHARACTER,
-    not by UTF-8 byte. Verified across the recorded corpus: all 432 sections land
-    exactly on their heading when the offset is used as a character index, while
-    byte indexing only works for pages with no multibyte character before the
-    heading (121 of 432). Encoding first shifted every section on a page
-    containing so much as one accented letter, silently returning a neighbouring
-    section's text.
+    not by UTF-8 byte. Every section in the recorded corpus lands exactly on its own
+    heading under character indexing; byte indexing only works for pages with no
+    multibyte character before the heading, which is a minority of them. Encoding
+    first shifted every section on a page containing so much as one accented letter,
+    silently returning a neighbouring section's text.
+
+    The counts are pinned in test_content_shapes.CORPUS_SECTIONS and asserted by
+    test_every_section_in_the_corpus_resolves_as_a_character_offset, not written out
+    here. This docstring used to quote them -- counted once by hand, never checked
+    again -- and by the time anyone reread it the corpus had grown and both figures
+    were wrong. The claim held; its evidence rotted where nothing could see it.
+
+    They are not restated even as history, because a number in a post-mortem reads
+    exactly like a number being asserted, and the next reader cannot tell which.
 
     A null start means the section is transcluded and its text is not on this page
     at all; slicing would return the wrong content, so refuse. A null end means

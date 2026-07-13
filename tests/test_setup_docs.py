@@ -105,7 +105,12 @@ MEASURED_COUNT = re.compile(
     r"\b\d+\s+(?:offline\s+)?tests\b"                     # "210 offline tests"
     r"|\b\d+\s+passing\b"                                 # "144 passing"
     r"|\b\d+\s*/\s*\d+\s+(?:sections|blocks|pages)\b"     # "432/432 sections"
-    r"|\b\d+\s+of\s+\d+\s+(?:sections|blocks|pages|tests)\b"  # "121 of 432 sections"
+    # "121 of 432 sections", and "116 of the 327 code blocks" -- the filler words
+    # `the` and `code` between the count and its unit hid the second form from an
+    # earlier version of this arm, so a stale ratio sat on the README front page
+    # under the very guard that forbids it. The unit noun anchors it; a bounded run
+    # of non-digit words may sit between.
+    r"|\b\d+\s+of\s+(?:the\s+)?\d+(?:\s+[a-z]+){0,2}?\s+(?:sections|blocks|pages|tests)\b"
     r"|\bacross\s+\d+\s+(?:sections|blocks|pages)\b",     # "0 across 151 blocks"
     re.I,
 )

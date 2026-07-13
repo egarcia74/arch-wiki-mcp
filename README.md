@@ -132,11 +132,14 @@ There is deliberately no tool that infers commands from prose.
 * `content` is runnable **once you substitute the placeholders**. Templates and emphasis
   are resolved; italicised placeholders stay marked as `<esp>` so a thoughtless paste fails
   at the shell instead of acting on the wrong path.
-* `content_raw` is the verbatim payload, exactly as it appears in the wikitext.
-* `content_hash` covers **`content_raw`**, so a human can grep the wiki source to falsify it.
+* `content_raw` is the verbatim payload. For this block (`source_pattern: template_bc`)
+  it is a contiguous slice of the wikitext; for `indented_block` the wiki's leading-space
+  marker is stripped from each line, so it is not — see *What the hash proves* below.
+* `content_hash` covers **`content_raw`**, so a human can grep the wiki source to falsify
+  it — restoring that marker space first on an indented block.
 * `content_hash_cleaned` covers **`content`** — the text you actually execute. Both
   fingerprints travel together, so the cleaning step is attested rather than trusted.
-* `placeholders` names those tokens. 116 of the 327 code blocks in the fixture corpus have them.
+* `placeholders` names those tokens. Many code blocks have none; those that do name them all.
 * `header` carries the file path for `{{hc}}` blocks (`/etc/default/grub`).
 
 `commands` fails closed. A missing page or missing anchor raises an error; `[]`

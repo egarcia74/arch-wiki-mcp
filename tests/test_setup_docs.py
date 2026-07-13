@@ -186,6 +186,13 @@ def test_the_registration_the_preflight_prints_actually_starts_a_server(prefligh
         env=environment,
     )
 
+    # Answered before it is indexed. A server that dies on startup writes nothing to
+    # stdout, and `splitlines()[0]` on that is an IndexError -- a test that exists to
+    # say *why* a registration does not start a server, failing with a traceback that
+    # says nothing and throwing away the stderr that says everything. "Failed to
+    # connect", reinvented inside the test written to replace it.
+    assert result.stdout, f"the registered command produced no answer:\n{result.stderr}"
+
     response = json.loads(result.stdout.splitlines()[0])
     assert response["result"]["serverInfo"]["name"] == "arch-wiki-mcp", result.stderr
 

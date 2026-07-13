@@ -137,8 +137,10 @@ There is deliberately no tool that infers commands from prose.
   marker is stripped from each line, so it is not — see *What the hash proves* below.
 * `content_hash` covers **`content_raw`**, so a human can grep the wiki source to falsify
   it — restoring that marker space first on an indented block.
-* `content_hash_cleaned` covers **`content`** — the text you actually execute. Both
-  fingerprints travel together, so the cleaning step is attested rather than trusted.
+* `content_hash_cleaned` covers **`content`** as returned — still holding the `<esp>`
+  markers, before you substitute. So the cleaning step is attested rather than trusted;
+  the value you put in each placeholder is yours, and nothing here vouches for it. Both
+  fingerprints travel together.
 * `placeholders` names those tokens. Many code blocks have none; those that do name them all.
 * `header` carries the file path for `{{hc}}` blocks (`/etc/default/grub`).
 

@@ -12,9 +12,12 @@
 ```bash
 git clone https://github.com/egarcia74/arch-wiki-mcp.git
 cd arch-wiki-mcp
+pip install -e .
 ```
 
-No dependencies required - uses Python standard library only.
+No runtime dependencies — the standard library only. The install exists to put the
+package on the import path and provide the `arch-wiki-mcp` console script; it pulls
+in nothing.
 
 ---
 
@@ -31,16 +34,12 @@ Add to your Claude Desktop config file:
 {
   "mcpServers": {
     "arch-wiki": {
-      "command": "python3",
-      "args": [
-        "/absolute/path/to/arch-wiki-mcp/src/mcp_server.py"
-      ]
+      "command": "arch-wiki-mcp",
+      "args": ["--stdio"]
     }
   }
 }
 ```
-
-Replace `/absolute/path/to` with your actual installation path.
 
 ### Cline (VS Code Extension)
 
@@ -50,10 +49,8 @@ Add to Cline's MCP settings:
 {
   "mcpServers": {
     "arch-wiki": {
-      "command": "python3",
-      "args": [
-        "/absolute/path/to/arch-wiki-mcp/src/mcp_server.py"
-      ]
+      "command": "arch-wiki-mcp",
+      "args": ["--stdio"]
     }
   }
 }
@@ -66,8 +63,8 @@ For any MCP-compatible client, use:
 ```json
 {
   "name": "arch-wiki",
-  "command": "python3",
-  "args": ["/absolute/path/to/arch-wiki-mcp/src/mcp_server.py"],
+  "command": "arch-wiki-mcp",
+  "args": ["--stdio"],
   "env": {}
 }
 ```
@@ -195,24 +192,25 @@ You should see responses with:
 
 ## Troubleshooting
 
-### "Command not found" or "Permission denied"
+### "Command not found"
 
-Ensure `mcp_server.py` is executable:
-
-```bash
-chmod +x src/mcp_server.py
-```
-
-Verify Python path:
+The console script is installed by `pip install -e .`. Check it is on your PATH:
 
 ```bash
-which python3
-# Use this full path in config if needed
+which arch-wiki-mcp
 ```
+
+If your MCP client does not inherit your shell's PATH (common for GUI apps), give
+the absolute path that command prints.
 
 ### "Module not found"
 
-Ensure you're using absolute paths in the config, not relative paths.
+The package lives under `src/`, so it is importable only once installed. Run
+`pip install -e .` from the repository root. To run without installing:
+
+```bash
+PYTHONPATH=src python3 -m arch_wiki_mcp.server --stdio
+```
 
 ### "Connection timeout"
 
@@ -230,16 +228,16 @@ For testing without an MCP client:
 
 ```bash
 # Test search
-python3 src/mcp_server.py search pacman
+arch-wiki-mcp search pacman
 
 # Test page extraction
-python3 src/mcp_server.py page GRUB
+arch-wiki-mcp page GRUB
 
 # Test section extraction
-python3 src/mcp_server.py section GRUB Installation
+arch-wiki-mcp section GRUB Installation
 
 # Test commands
-python3 src/mcp_server.py commands GRUB Installation
+arch-wiki-mcp commands GRUB Installation
 ```
 
 ---
@@ -248,16 +246,25 @@ python3 src/mcp_server.py commands GRUB Installation
 
 Every response includes:
 
-- **Source URL**: Direct link to wiki revision
+- **Revision URL** (`revision_url`): Link pinned to the exact revision (`?oldid=`).
+  Cite this one — it still serves the quoted text after the page moves on.
+- **Revision Wikitext URL** (`revision_wikitext_url`): That revision's wikitext, via
+  the wiki's API — the bytes `content_hash` is computed over, at a URL a script can
+  actually fetch. (The `index.php` raw view answers automation with an anti-bot page.)
+- **Source URL** (`source_url` / `url`): The canonical page. It *follows the page*
+  and shows the wiki's current state, not the quoted one.
 - **Revision ID**: MediaWiki revision number
-- **Content Hash**: SHA-256 fingerprint (NFC-normalized)
+- **Content Hash**: SHA-256 fingerprint (NFC-normalized) of the verbatim wikitext.
+  A fingerprint, not a signature — see `README.md` for exactly what it proves.
 - **Extraction Method**: How content was obtained
 
 This enables:
 
 - **Reproducibility**: Same revid → same hash
-- **Auditability**: Verify AI didn't fabricate
-- **Traceability**: Follow citations to exact wiki version
+- **Integrity checking**: Detect an excerpt that does not match the revision it
+  names. This is *not* a signature: it cannot prove an excerpt came from this MCP,
+  nor detect one forged before it reached you — anyone can hash text they invented.
+- **Traceability**: Follow citations to the exact wiki revision
 
 ---
 

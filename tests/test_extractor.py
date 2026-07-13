@@ -7,7 +7,7 @@ Constitutional requirement: identical revid must yield identical hashes.
 import pytest
 
 from conftest import GRUB_REVID, load_parse
-from src import extractor
+from arch_wiki_mcp import extractor
 
 # (page, anchor, revid)
 REPRESENTATIVE = [

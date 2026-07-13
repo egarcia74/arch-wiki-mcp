@@ -14,19 +14,121 @@ from functools import lru_cache
 from typing import AbstractSet, Dict, List, Optional, Tuple
 from urllib.error import URLError
 from urllib.request import urlopen, Request
-from urllib.parse import urlencode, quote
+from urllib.parse import parse_qs, quote, unquote, urlencode, urlparse
 import json
 import os
+from arch_wiki_mcp import REPOSITORY_URL, __version__
 
 # stderr by default, which keeps JSON-RPC on stdout clean.
 logger = logging.getLogger(__name__)
 
-API_ENDPOINT = "https://wiki.archlinux.org/api.php"
-USER_AGENT = "ArchWikiMCP/1.0 (Constitutional Extractor; +https://github.com/user/arch-wiki-mcp)"
+# Stated once. The host was written out four times and then reverse-engineered a
+# fifth, out of API_ENDPOINT, under a comment claiming the two could not disagree --
+# which was true of exactly one of the four.
+WIKI_HOST = "wiki.archlinux.org"
+WIKI_BASE = f"https://{WIKI_HOST}"
+TITLE_PATH = "/title/"
+
+API_ENDPOINT = f"{WIKI_BASE}/api.php"
+# The only thing the Arch Wiki's operators ever see of us. It named a version the
+# package had left behind releases ago, and pointed at github.com/user/arch-wiki-mcp
+# -- a repository that does not exist. Both are derived now, so neither can lag.
+USER_AGENT = f"ArchWikiMCP/{__version__} (Constitutional Extractor; +{REPOSITORY_URL})"
 
 # Shared with tests/record_fixtures.py: the recorder must request exactly what
 # fetch_siteinfo() requests, or the recorded fixture answers a different question.
 SITEINFO_PROPS = "namespaces|namespacealiases|interwikimap"
+
+# Named once, so anything that talks to the wiki bounds itself the same way. An
+# untimed urlopen hangs forever on a stalled read -- no error, no answer, just a
+# process that never comes back, which is the least useful failure available.
+REQUEST_TIMEOUT = 30
+
+
+class ArchWikiError(ValueError):
+    """
+    Base for every extraction failure. Never raised directly -- raise a subclass,
+    so the failure reaches the agent with a category it can act on.
+
+    ValueError, not Exception: callers (and tests) have caught ValueError since
+    before these types existed, and a failure that stops being caught is a
+    failure that stops fail-closing. The subclasses add a category the MCP layer
+    can report; they do not change what is raised to anyone already catching it.
+
+    No `code` of its own: an unclassified extraction failure is one we forgot to
+    classify, so it falls through to `internal_error` and is logged as ours,
+    rather than reaching an agent under a reassuring name that means nothing.
+    """
+
+
+class PageNotFoundError(ArchWikiError):
+    """The wiki has no such page. Distinct from an outage: the answer is 'no page'."""
+
+    code = "page_not_found"
+
+
+class SectionNotFoundError(ArchWikiError):
+    """The page exists; the requested anchor does not."""
+
+    code = "section_not_found"
+
+
+class EvidenceResolutionError(ArchWikiError):
+    """
+    The page and section exist, but their text cannot be quoted with provenance
+    intact -- a transcluded section whose wikitext lives elsewhere, or an offset
+    that did not land on its heading. Quoting anyway would cite the wrong text
+    under a valid-looking hash, so this is a refusal, not a miss.
+    """
+
+    code = "evidence_unresolvable"
+
+
+class UpstreamApiError(ArchWikiError):
+    """MediaWiki errored or answered in a shape we do not recognise."""
+
+    code = "upstream_api_error"
+
+
+class MalformedWikiUrlError(ArchWikiError):
+    """
+    A well-formed string that is not a wiki URL we can resolve to a title.
+
+    Distinct from server.InvalidParamsError, which is a *schema* fault -- a
+    missing or wrong-typed argument, where nothing ran. This one ran: the value
+    satisfied the schema, the tool tried it, and the URL would not parse. So the
+    agent sees it and can self-correct by supplying a plain title.
+    """
+
+    code = "malformed_wiki_url"
+
+
+def _unwrap(data: Dict, root: str, context: str) -> Dict:
+    """
+    Classify a MediaWiki envelope, or return the payload under `root`.
+
+    Every fetch answers in the same envelope, so every fetch used to repeat this
+    check -- and they drifted: two classified their failures and four raised a
+    bare ValueError, which the MCP layer could only report as `internal_error`.
+    An outage on the admonition-alias path therefore told the agent the server
+    was broken rather than that the wiki was unreachable. Classifying here means
+    a new fetch cannot forget to, because it never sees an unclassified envelope.
+    """
+    if "error" in data:
+        error = data["error"]
+        detail = error.get("info", error)
+        # MediaWiki reports "this page does not exist" as an ordinary API error.
+        # Undistinguished, a missing page and an outage arrive as one exception,
+        # and a caller cannot tell "the wiki says no" from "the wiki did not
+        # answer" -- the two conclusions an agent must never conflate.
+        if error.get("code") == "missingtitle":
+            raise PageNotFoundError(f"{context} API Error: {detail}")
+        raise UpstreamApiError(f"{context} API Error: {detail}")
+
+    if root not in data:
+        raise UpstreamApiError(f"Unexpected {context} response format: {data}")
+
+    return data[root]
 
 
 @dataclass
@@ -53,9 +155,11 @@ class WikiSection:
 class ExtractedBlock:
     """Constitutional artifact: extracted content with full provenance."""
     title: str
-    url: str
+    url: str  # Canonical page URL: follows the page, shows what the wiki says now
+    revision_url: str  # Pinned to `revid` -- the revision whose wikitext is hashed here
+    revision_wikitext_url: str  # That revision's wikitext: the bytes content_hash covers
     revid: int
-    timestamp: Optional[str]  # Fallback if revid unavailable
+    timestamp: Optional[str]  # Always None today: revid is the only revision we cite
     section_anchor: Optional[str]
     section_heading: Optional[str]
     extraction_method: str
@@ -149,12 +253,159 @@ class SearchResult:
 
 
 def make_wiki_url(title: str, anchor: Optional[str] = None) -> str:
-    """Safely construct an Arch Wiki URL."""
+    """
+    The canonical page URL. Follows the page: what it serves is whatever the wiki
+    says *now*, which is what a reader usually wants and what an auditor must not
+    rely on. For the latter, see make_revision_url().
+    """
     encoded_title = quote(title.replace(" ", "_"), safe=":/#")
-    url = f"https://wiki.archlinux.org/title/{encoded_title}"
+    url = f"{WIKI_BASE}{TITLE_PATH}{encoded_title}"
     if anchor:
         url += f"#{quote(anchor, safe=':/#')}"
     return url
+
+
+def make_revision_url(revid: int, anchor: Optional[str] = None) -> str:
+    """
+    The URL for one revision, via MediaWiki's oldid.
+
+    Evidence used to carry the canonical URL and the revid side by side, and the
+    README called that "a direct link to the specific revision". It was not: the
+    URL followed the page. Quote a warning today, follow the link a month later,
+    and the wiki serves whatever the page says then -- possibly no warning at all.
+    The revid was in the payload the whole time and the URL simply did not use it,
+    which left a citation falsifiable in principle and unfalsifiable in practice.
+
+    oldid alone identifies the revision -- no title needed, so a page renamed
+    after extraction still resolves, which is exactly when pinning matters most.
+
+    Precisely what is pinned: the revision's *wikitext*, which is what our hashes
+    cover. The page this renders still transcludes templates at their current
+    versions, so the rendered view is not frozen. To check a hash, fetch the
+    wikitext (see make_revision_wikitext_url) rather than this page -- and say "pinned",
+    not "immutable", because only one of the two is true.
+    """
+    url = f"{WIKI_BASE}/index.php?oldid={revid}"
+    if anchor:
+        url += f"#{quote(anchor, safe=':/#')}"
+    return url
+
+
+def extract_title_from_url(title_or_url: str) -> str:
+    """
+    Resolve a title from an Arch Wiki URL, or pass a plain title through.
+    The exact inverse of make_wiki_url(), and lives beside it for that reason.
+
+    Parsed structurally rather than sliced. The old version split on "/title/",
+    took what followed, and never decoded it -- so a translated page pasted from a
+    browser (.../title/Installation_guide_%28Fran%C3%A7ais%29) reached the wiki as
+    the literal title "Installation_guide_%28Fran%C3%A7ais%29", which does not
+    exist. The tool then fail-closed and reported the page as missing. It was not
+    missing: we asked the wrong question and relayed the wiki's silence as fact,
+    which is the one failure this project exists to prevent.
+
+    It also matched "title=" anywhere in the query and never checked the host, so
+    https://evil.example/title/GRUB passed as an Arch Wiki page.
+
+    Refusal, never a guess: a URL we cannot resolve must not become a title we
+    invented, or the wrong page gets quoted under a valid-looking hash.
+    """
+    # Stripped and scheme-parsed rather than startswith("http"): a pasted URL that
+    # arrived with a leading space, or spelled HTTPS://, failed that test, skipped
+    # the URL branch, and was handed to the wiki *as a title* -- reopening the very
+    # bug above through the whitespace door.
+    title_or_url = title_or_url.strip()
+    parsed = urlparse(title_or_url)
+
+    # What makes a string a URL rather than a title.
+    #
+    # The scheme alone cannot be the test: urlparse reads "File:Grub.png" as scheme
+    # "file", so refusing every non-HTTP scheme would refuse the File, Category, Help
+    # and DeveloperWiki namespaces, which are real pages.
+    #
+    # Nor is a literal "://" enough. A URL can omit it -- "//host/path" is
+    # protocol-relative, and "https:host/path" is simply mistyped -- and both then
+    # fell through to the title branch and were asked of the wiki, which answered
+    # that no such page exists. Malformed input reported as the wiki's silence, which
+    # is the failure this whole function exists to prevent.
+    #
+    # An authority, or an http(s) scheme, or "://". None is true of a namespaced
+    # title, which is what makes this safe to tighten.
+    url_shaped = (
+        bool(parsed.netloc)
+        or parsed.scheme in ("http", "https")
+        or "://" in title_or_url
+    )
+    if not url_shaped:
+        # A plain title is whatever the caller typed. Decoding it would corrupt a
+        # page whose name genuinely contains a percent sign ("100%_CPU").
+        return title_or_url
+
+    if parsed.scheme not in ("http", "https"):
+        # ftp://, file://, javascript://, or a protocol-relative "//host" with no
+        # scheme at all. Asked of the wiki as titles, these became page_not_found.
+        scheme = parsed.scheme or "(none)"
+        raise MalformedWikiUrlError(
+            f"Unsupported URL scheme {scheme!r}, expected http or https: {title_or_url}"
+        )
+
+    # hostname, not netloc: lowercased, port stripped, and an exact match -- so
+    # "wiki.archlinux.org.evil.example" does not pass for the wiki.
+    if parsed.hostname != WIKI_HOST:
+        raise MalformedWikiUrlError(
+            f"Not an Arch Wiki URL (host {parsed.hostname!r}, expected {WIKI_HOST!r}): "
+            f"{title_or_url}"
+        )
+
+    if parsed.path.startswith(TITLE_PATH):
+        # A path: percent-decoded, but "+" is a literal plus, not a space.
+        title = unquote(parsed.path[len(TITLE_PATH):])
+    else:
+        # A query: parse_qs percent-decodes *and* reads "+" as a space, which is
+        # what a query string means by it. Splitting on "title=" by hand did
+        # neither, and matched "not_title=" too.
+        candidates = parse_qs(parsed.query, keep_blank_values=True).get("title", [])
+        if len(candidates) != 1:
+            # The URL most likely to be pasted back is one we handed out: a
+            # revision URL names a revid, not a title. Say so, rather than leaving
+            # an agent to wonder what it got wrong.
+            if "oldid" in parse_qs(parsed.query):
+                raise MalformedWikiUrlError(
+                    f"That is a revision URL, which names a revid and not a title. "
+                    f"Pass the page title instead: {title_or_url}"
+                )
+            raise MalformedWikiUrlError(
+                f"URL names {len(candidates)} titles, need exactly one: {title_or_url}"
+            )
+        title = candidates[0]
+
+    # MediaWiki treats an underscore and a space as the same character in a title.
+    title = title.replace("_", " ").strip()
+    if not title:
+        raise MalformedWikiUrlError(f"URL names no title: {title_or_url}")
+
+    return title
+
+
+def make_revision_wikitext_url(revid: int) -> str:
+    """
+    The revision's wikitext -- the bytes content_hash is computed over -- at a URL a
+    script can actually fetch.
+
+    This is the URL that makes a citation checkable, so it has to work unattended.
+    It used to be index.php?action=raw, which is the correct MediaWiki idiom and
+    which a browser resolves fine -- but wiki.archlinux.org answers a script there
+    with an anti-bot interstitial: HTTP *200*, an HTML challenge page, no wikitext.
+    An auditor's script would have hashed the challenge, seen a mismatch, and
+    concluded a good citation was forged. That is the worst error this project can
+    make, and it was sitting in the one field whose entire job is to prevent it.
+
+    api.php is not gated, and is the route the extractor itself uses -- so the URL we
+    hand an auditor is the URL we trust ourselves. It answers JSON; the wikitext is
+    at .parse.wikitext["*"], which is why this is not called a "raw" URL. No anchor:
+    a source document has no fragments to jump to.
+    """
+    return f"{API_ENDPOINT}?action=parse&oldid={revid}&prop=wikitext&format=json"
 
 
 def hash_content(text: str) -> str:
@@ -202,7 +453,7 @@ def _fetch_offline(params: Dict, key: Optional[str] = None) -> Dict:
     return json.loads(_read_fixture(fixture_path))
 
 
-def _fetch(params: Dict, timeout: int = 30, key: Optional[str] = None) -> Dict:
+def _fetch(params: Dict, timeout: int = REQUEST_TIMEOUT, key: Optional[str] = None) -> Dict:
     """
     Single entry point for API access. ARCHWIKI_OFFLINE swaps in fixtures.
 
@@ -215,11 +466,22 @@ def _fetch(params: Dict, timeout: int = 30, key: Optional[str] = None) -> Dict:
 
     url = f"{API_ENDPOINT}?{urlencode(params)}"
     request = Request(url, headers={"User-Agent": USER_AGENT})
-    with urlopen(request, timeout=timeout) as response:
-        return json.loads(response.read().decode("utf-8"))
+    try:
+        with urlopen(request, timeout=timeout) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except (URLError, TimeoutError, json.JSONDecodeError) as exc:
+        # _unwrap classifies what the wiki *says*; this classifies its *silence*.
+        # Left raw, the paradigm "the wiki did not answer" -- an outage, a dead
+        # socket, a truncated body -- escaped untyped and the MCP layer could
+        # only call it `internal_error`: a bug in us. It is the opposite. The
+        # remediation differs too (retry the wiki vs. fix this server), which is
+        # the whole reason the two must not arrive as one exception.
+        raise UpstreamApiError(f"Arch Wiki did not answer: {exc}") from exc
+    # FileNotFoundError from _fetch_offline is deliberately not caught: a missing
+    # fixture is our bug, and must stay loud rather than pose as an outage.
 
 
-def fetch_wiki_parse(page_title: str, timeout: int = 30) -> Dict:
+def fetch_wiki_parse(page_title: str, timeout: int = REQUEST_TIMEOUT) -> Dict:
     """
     Fetch page wikitext, sections, and revision ID from MediaWiki API.
     Supports ARCHWIKI_OFFLINE environment variable for deterministic testing.
@@ -233,13 +495,7 @@ def fetch_wiki_parse(page_title: str, timeout: int = 30) -> Dict:
 
     data = _fetch(params, timeout)
 
-    if "error" in data:
-        raise ValueError(f"API Error: {data['error'].get('info', data['error'])}")
-    
-    if "parse" not in data:
-        raise ValueError(f"Unexpected API response format: {data}")
-    
-    parse_data = data["parse"]
+    parse_data = _unwrap(data, "parse", "parse")
     # Normalize keys for constitutional code style
     if "sections" in parse_data:
         for section in parse_data["sections"]:
@@ -270,7 +526,7 @@ def extract_section_wikitext(
     "to the end of the page" and is fine.
     """
     if section_start is None:
-        raise ValueError(
+        raise EvidenceResolutionError(
             "Section has no byte offset (transcluded); its wikitext is not on this page"
         )
 
@@ -293,7 +549,7 @@ def _resolve_section(parse_data: Dict, anchor: str) -> Tuple[Dict, str]:
             continue
 
         if sect["byteoffset"] is None:
-            raise ValueError(
+            raise EvidenceResolutionError(
                 f"Section '{anchor}' in page '{title}' is transcluded "
                 f"(null byte offset); its wikitext is not on this page"
             )
@@ -312,14 +568,14 @@ def _resolve_section(parse_data: Dict, anchor: str) -> Tuple[Dict, str]:
         # offset semantics moved under us, and quoting the result would cite the
         # wrong text under a valid-looking hash.
         if not content.startswith("="):
-            raise ValueError(
+            raise EvidenceResolutionError(
                 f"Section '{anchor}' in page '{title}' did not resolve to a heading "
                 f"(offset {sect['byteoffset']} landed on {content[:40]!r})"
             )
 
         return sect, content
 
-    raise ValueError(f"Section with anchor '{anchor}' not found in page '{title}'")
+    raise SectionNotFoundError(f"Section with anchor '{anchor}' not found in page '{title}'")
 
 
 def _find_template_end(wikitext: str, start_idx: int) -> int:
@@ -1243,7 +1499,7 @@ _FALLBACK_INTERWIKI_PREFIXES = frozenset({
 _FALLBACK_EXCLUDED_PREFIXES = _NAMESPACE_PREFIXES | _FALLBACK_INTERWIKI_PREFIXES
 
 
-def fetch_siteinfo(timeout: int = 30) -> Dict:
+def fetch_siteinfo(timeout: int = REQUEST_TIMEOUT) -> Dict:
     """Fetch the wiki's namespace and interwiki tables."""
     params = {
         "action": "query",
@@ -1254,12 +1510,7 @@ def fetch_siteinfo(timeout: int = 30) -> Dict:
 
     data = _fetch(params, timeout)
 
-    if "error" in data:
-        raise ValueError(f"Siteinfo API Error: {data['error'].get('info', data['error'])}")
-    if "query" not in data:
-        raise ValueError(f"Unexpected siteinfo response format: {data}")
-
-    return data["query"]
+    return _unwrap(data, "query", "siteinfo")
 
 
 # Errors that mean "the wiki did not answer", as opposed to a bug in this module.
@@ -1335,7 +1586,7 @@ def _batched(titles: List[str]) -> List[List[str]]:
     return [titles[i:i + _TITLES_PER_QUERY] for i in range(0, len(titles), _TITLES_PER_QUERY)]
 
 
-def fetch_redirect_revids(titles: List[str], cache_key: str, timeout: int = 30) -> Dict[str, int]:
+def fetch_redirect_revids(titles: List[str], cache_key: str, timeout: int = REQUEST_TIMEOUT) -> Dict[str, int]:
     """
     The current revision of each redirect page, keyed by its full title.
 
@@ -1359,12 +1610,9 @@ def fetch_redirect_revids(titles: List[str], cache_key: str, timeout: int = 30) 
             key=f"aliasrevs_{cache_key}{suffix}",
         )
 
-        if "error" in data:
-            raise ValueError(f"Redirect revision API Error: {data['error'].get('info', data['error'])}")
-        if "query" not in data:
-            raise ValueError(f"Unexpected redirect revision response format: {data}")
+        query = _unwrap(data, "query", "redirect revision")
 
-        for page in data["query"].get("pages", {}).values():
+        for page in query.get("pages", {}).values():
             revisions = page.get("revisions")
             if revisions:
                 revids[page["title"]] = revisions[0]["revid"]
@@ -1372,7 +1620,7 @@ def fetch_redirect_revids(titles: List[str], cache_key: str, timeout: int = 30) 
     return revids
 
 
-def fetch_template_aliases(names: List[str], cache_key: str, timeout: int = 30) -> Dict[str, TemplateResolution]:
+def fetch_template_aliases(names: List[str], cache_key: str, timeout: int = REQUEST_TIMEOUT) -> Dict[str, TemplateResolution]:
     """
     Ask MediaWiki what each template name denotes, and pin how we learned it.
 
@@ -1406,12 +1654,9 @@ def fetch_template_aliases(names: List[str], cache_key: str, timeout: int = 30) 
             key=f"aliases_{cache_key}{suffix}",
         )
 
-        if "error" in data:
-            raise ValueError(f"Template alias API Error: {data['error'].get('info', data['error'])}")
-        if "query" not in data:
-            raise ValueError(f"Unexpected template alias response format: {data}")
+        query = _unwrap(data, "query", "template alias")
 
-        for redirect in data["query"].get("redirects", []):
+        for redirect in query.get("redirects", []):
             source = redirect["from"].split(":", 1)[-1].lower()
             target = redirect["to"].split(":", 1)[-1]
             admonition = canonical_admonition(target)
@@ -1425,7 +1670,9 @@ def fetch_template_aliases(names: List[str], cache_key: str, timeout: int = 30) 
             if revid is None:
                 # We know this page carries a WARNING and cannot say why. Silence
                 # would be worse: fail closed, exactly as an unanswered query does.
-                raise ValueError(
+                # The page and alias both exist -- what cannot be produced is the
+                # provenance -- so this is EvidenceResolutionError, not an outage.
+                raise EvidenceResolutionError(
                     f"No revision for redirect {source_title!r}: cannot attest that it "
                     f"denotes {admonition}."
                 )
@@ -1475,7 +1722,14 @@ def admonition_types(wikitext: str, cache_key: str) -> Dict[str, TemplateResolut
         try:
             resolved = fetch_template_aliases(unresolved, cache_key)
         except _ALIAS_FAILURES as exc:
-            raise ValueError(
+            # Re-raise as the *same* category, not a bare ValueError. ArchWikiError
+            # subclasses ValueError -- which _ALIAS_FAILURES lists -- so this arm
+            # caught the very types _unwrap had just raised and flattened them,
+            # losing the code and re-opening the conflation on precisely the path
+            # the classifier was written for. An outage here means "retry the
+            # wiki"; an unresolvable alias means "do not". They must stay apart.
+            category = type(exc) if isinstance(exc, ArchWikiError) else UpstreamApiError
+            raise category(
                 f"Cannot resolve template aliases for {cache_key!r}: {exc}. "
                 f"Refusing to report an English-only subset of the warnings as complete."
             ) from exc
@@ -1626,15 +1880,11 @@ def _search_hits(query: str, limit: int, what: str, timeout: int, key: Optional[
         key=key,
     )
 
-    if "error" in data:
-        raise ValueError(f"Search API Error: {data['error'].get('info', data['error'])}")
-    if "query" not in data or "search" not in data["query"]:
-        raise ValueError(f"Unexpected search API response: {data}")
-
-    return data["query"]["search"]
+    query = _unwrap(data, "query", "search")
+    return _unwrap(query, "search", "search results")
 
 
-def search(query: str, limit: int = 10, timeout: int = 30) -> List[Dict]:
+def search(query: str, limit: int = 10, timeout: int = REQUEST_TIMEOUT) -> List[Dict]:
     """
     MCP Tool: Search Arch Wiki using MediaWiki search API.
 
@@ -1695,7 +1945,12 @@ def page(title: str) -> Dict:
         "title": parse_data["title"],
         "pageid": parse_data["pageid"],
         "revid": parse_data["revid"],
+        # `url` here, `source_url` in commands/warnings/links: an inconsistency
+        # this predates and does not fix. Adding a third spelling as an alias
+        # would unify nothing and back-compat nothing, so it does not.
         "url": make_wiki_url(parse_data["title"]),
+        "revision_url": make_revision_url(parse_data["revid"]),
+        "revision_wikitext_url": make_revision_wikitext_url(parse_data["revid"]),
         "wikitext": wikitext,
         "wikitext_hash": hash_content(wikitext),
         "sections": [asdict(WikiSection.from_api(s)) for s in parse_data["sections"]]
@@ -1726,6 +1981,8 @@ def section(title: str, anchor: str) -> ExtractedBlock:
     return ExtractedBlock(
         title=parse_data["title"],
         url=make_wiki_url(parse_data["title"], anchor),
+        revision_url=make_revision_url(parse_data["revid"], anchor),
+        revision_wikitext_url=make_revision_wikitext_url(parse_data["revid"]),
         revid=parse_data["revid"],
         timestamp=None,
         section_anchor=anchor,
@@ -1748,12 +2005,24 @@ def commands(title: str, anchor: Optional[str] = None) -> List[Dict]:
     error.
     """
     parse_data = fetch_wiki_parse(title)
-    revid = parse_data.get("revid")
-    url_base = make_wiki_url(title)
+    # Subscript, not .get(): a revid we do not have is a citation we cannot make.
+    # Tolerated as None, it reached the agent as "?oldid=None" -- a URL that looks
+    # attested and pins nothing, which is worse than no URL at all.
+    revid = parse_data["revid"]
+
+    # Built once: the revision is a property of the page and anchor, not of each
+    # block, and every block on the page shares it.
+    #
+    # parse_data["title"], not the caller's `title`: MediaWiki normalises and follows
+    # redirects, so asking for "Grub" is answered about "GRUB". Built from the raw
+    # argument, source_url named the page the caller asked for while revid and
+    # revision_url named the page the wiki served -- one block citing two pages.
+    url_base = make_wiki_url(parse_data["title"], anchor)
+    revision_url = make_revision_url(revid, anchor)
+    revision_wikitext_url = make_revision_wikitext_url(revid)
 
     if anchor:
         _, wikitext_to_parse = _resolve_section(parse_data, anchor)
-        url_base = f"{url_base}#{anchor}"
     else:
         wikitext_to_parse = parse_data["wikitext"]["*"]
 
@@ -1769,6 +2038,8 @@ def commands(title: str, anchor: Optional[str] = None) -> List[Dict]:
             "header": block.header,
             "placeholders": block.placeholders,
             "source_url": url_base,
+            "revision_url": revision_url,
+            "revision_wikitext_url": revision_wikitext_url,
             "revid": block.revid
         }
         for block in parse_code_blocks(wikitext_to_parse, revid)
@@ -1798,17 +2069,39 @@ def warnings(title: str, anchor: Optional[str] = None) -> List[Dict]:
     if anchor:
         # The raw slice: this parses wikitext, and section().content is rendered.
         _, wikitext = _resolve_section(parse_data, anchor)
-        url_base = make_wiki_url(parse_data["title"], anchor)
     else:
         wikitext = page_wikitext
-        url_base = make_wiki_url(parse_data["title"])
 
     warning_blocks = parse_templates(wikitext, revid, types)
+
+    # Built once: the provenance is a property of the page and anchor, not of each
+    # block, and every block on the page shares it. (anchor is None in the whole-page
+    # case, which every one of these already handles.)
+    url_base = make_wiki_url(parse_data["title"], anchor)
+    revision_url = make_revision_url(revid, anchor)
+    revision_wikitext_url = make_revision_wikitext_url(revid)
 
     # asdict, not a hand-listed literal: the literal is how tool_section() came to
     # attest a hash over text it never returned. A new field must reach the agent
     # by default, not by someone remembering to add it in a second place.
-    return [{**asdict(w), "source_url": url_base} for w in warning_blocks]
+    return [
+        {
+            **asdict(w),
+            "source_url": url_base,
+            "revision_url": revision_url,
+            "revision_wikitext_url": revision_wikitext_url,
+            # alias_revid pins the redirect page, never its target. A type learned
+            # from a redirect is not attested by the article's revision, so the
+            # redirect gets a revision URL of its own -- otherwise the provenance
+            # stops one link short of the fact it is attesting. Null exactly when
+            # alias_revid is: the template spelled its own type, and the article's
+            # revision already covers it.
+            "alias_revision_url": (
+                make_revision_url(w.alias_revid) if w.alias_revid else None
+            ),
+        }
+        for w in warning_blocks
+    ]
 
 
 def links(title: str, anchor: Optional[str] = None) -> List[Dict]:
@@ -1817,25 +2110,44 @@ def links(title: str, anchor: Optional[str] = None) -> List[Dict]:
     
     Returns list of InternalLink dicts.
     """
+    # links() carried no revid at all, so its source_url was unpinnable even in
+    # principle: an agent could not have said which revision of the page listed
+    # the link, only that some revision once did. Both branches already produce
+    # the provenance -- take it from them rather than rebuilding it.
     if anchor:
         extracted = section(title, anchor)
         # The raw slice: these parse wikitext, and .content is now rendered.
         wikitext = extracted.content_raw
         url_base = extracted.url
+        revid = extracted.revid
+        revision_url = extracted.revision_url
+        revision_wikitext_url = extracted.revision_wikitext_url
+        resolved_title = extracted.title
     else:
         page_data = page(title)
         wikitext = page_data["wikitext"]
         url_base = page_data["url"]
-    
-    link_list = parse_internal_links(wikitext, title)
-    
+        revid = page_data["revid"]
+        revision_url = page_data["revision_url"]
+        revision_wikitext_url = page_data["revision_wikitext_url"]
+        resolved_title = page_data["title"]
+
+    # The page the wiki served, not the title the caller typed -- the same fix
+    # commands() needed, on the sibling that was missed. source_page named the page
+    # asked for while the revision named the page answered, and a bare [[#Anchor]]
+    # link resolved against the wrong one.
+    link_list = parse_internal_links(wikitext, resolved_title)
+
     return [
         {
             "target_page": link.target_page,
             "display_text": link.display_text,
             "anchor": link.anchor,
             "source_page": link.source_page,
-            "source_url": url_base
+            "source_url": url_base,
+            "revision_url": revision_url,
+            "revision_wikitext_url": revision_wikitext_url,
+            "revid": revid
         }
         for link in link_list
     ]

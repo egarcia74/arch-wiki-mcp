@@ -9,17 +9,27 @@ golden assertions must be updated in the same commit.
 import json
 import os
 import sys
+from pathlib import Path
 from urllib.request import urlopen, Request
 from urllib.parse import urlencode
 
 # Ensure we can run this from repo root
-sys.path.insert(0, os.path.abspath("."))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from src import extractor
-from src.extractor import SITEINFO_PROPS, fixture_filename
+from arch_wiki_mcp import extractor
+from arch_wiki_mcp.extractor import (
+    API_ENDPOINT,
+    REQUEST_TIMEOUT,
+    SITEINFO_PROPS,
+    USER_AGENT,
+    fixture_filename,
+)
 
-API_ENDPOINT = "https://wiki.archlinux.org/api.php"
-USER_AGENT = "ArchWikiMCP/1.0 (Fixture Generator)"
+# API_ENDPOINT and USER_AGENT are imported, not restated. The recorder makes real
+# requests to the Arch Wiki, and it used to introduce itself with a version the
+# project had left behind releases earlier, beside its own copy of the endpoint --
+# the identity drift #19 closed, alive in the one file that guard was not pointed
+# at. Whoever talks to the wiki speaks for the project, so they say the same thing.
 
 # Pages whose template names warnings() must resolve. A translated page writes
 # {{Note (Español)}} or {{Attention}}; only the wiki knows where those point.
@@ -59,7 +69,7 @@ def _save(filename, params, force):
         return
 
     request = Request(f"{API_ENDPOINT}?{urlencode(params)}", headers={"User-Agent": USER_AGENT})
-    with urlopen(request) as response:
+    with urlopen(request, timeout=REQUEST_TIMEOUT) as response:
         data = json.loads(response.read().decode("utf-8"))
 
     with open(filename, "w") as f:
@@ -128,7 +138,7 @@ def _record_query(filename, params, label, force):
 
     print(f"Recording {label}...")
     request = Request(f"{API_ENDPOINT}?{urlencode(params)}", headers={"User-Agent": USER_AGENT})
-    with urlopen(request) as response:
+    with urlopen(request, timeout=REQUEST_TIMEOUT) as response:
         data = json.loads(response.read().decode("utf-8"))
 
     with open(filename, "w", encoding="utf-8") as handle:

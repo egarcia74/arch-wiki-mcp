@@ -12,7 +12,7 @@ from urllib.error import URLError
 import pytest
 
 from conftest import load_wikitext
-from src import extractor
+from arch_wiki_mcp import extractor
 
 
 @pytest.fixture(autouse=True)

@@ -2,7 +2,7 @@
 
 > **"This is not 'AI that knows Linux.' This is Linux that won't let AI lie about it."**
 
-The Arch Wiki MCP is a **citability engine** that provides constitutional, deterministic extraction of the Arch Linux Wiki as machine-readable data. It acts as a **truth perimeter**, ensuring that AI agents can only provide technical advice that is cryptographically traceable to the wiki.
+The Arch Wiki MCP is a **citability engine** that provides constitutional, deterministic extraction of the Arch Linux Wiki as machine-readable data. It acts as a **truth perimeter**, ensuring that AI agents can only provide technical advice that is **cryptographically fingerprinted and revision-attributed** to the wiki: every excerpt carries a SHA-256 fingerprint and a URL pinned to the exact revision it came from, so any claim can be re-fetched from the wiki and independently verified.
 
 ## Why this is special: Real Workflows
 
@@ -10,10 +10,10 @@ This MCP does what no other tool can: it turns documentation into a versioned, a
 
 ### 1. "I need to run this command without bricking my system"
 
-When an assistant shows a command, it’s not advice—it’s a signed excerpt.
+When an assistant shows a command, it’s not advice—it’s a content-addressed excerpt: you can follow the revision link and recompute the hash yourself.
 
 * **Flow**: `search("GRUB")` → `commands("GRUB", "Installation")`
-* **Result**: Precise command + URL + Revision ID + Content Hash.
+* **Result**: Precise command + revision-pinned URL + Revision ID + Content Hash.
 * **Value**: You run what the wiki says, not what an LLM hallucinated.
 
 ### 2. "I don’t trust AI, prove it"
@@ -70,16 +70,16 @@ A reliable backend for IDEs, scripts, and agents.
 
 ```bash
 # Search wiki
-python3 src/mcp_server.py search pacman
+arch-wiki-mcp search pacman
 
 # Get full page with hash
-python3 src/mcp_server.py page GRUB
+arch-wiki-mcp page GRUB
 
 # Get commands with content hashes
-python3 src/mcp_server.py commands GRUB Installation
+arch-wiki-mcp commands GRUB Installation
 
 # Get warnings for safety
-python3 src/mcp_server.py warnings GRUB Installation
+arch-wiki-mcp warnings GRUB Installation
 ```
 
 ## MCP Tools
@@ -109,6 +109,8 @@ There is deliberately no tool that infers commands from prose.
   "header": null,
   "placeholders": ["esp"],
   "source_url": "https://wiki.archlinux.org/title/GRUB#Installation",
+  "revision_url": "https://wiki.archlinux.org/index.php?oldid=858930#Installation",
+  "revision_wikitext_url": "https://wiki.archlinux.org/api.php?action=parse&oldid=858930&prop=wikitext&format=json",
   "revid": 858930
 }
 ```
@@ -140,6 +142,8 @@ prose instead. So the same rendered/verbatim split applies:
   "content_hash": "b2ec52eef0b639a0fb2a761bdaf3eab9ae6de8ae08091025ad9cf51d022892b7",
   "content_hash_cleaned": "ef24f23bfc84c850417a1cbf5da6270d62f8d78985321dd3995f147685c485d5",
   "url": "https://wiki.archlinux.org/title/Installation_guide#Boot_the_live_environment",
+  "revision_url": "https://wiki.archlinux.org/index.php?oldid=858613#Boot_the_live_environment",
+  "revision_wikitext_url": "https://wiki.archlinux.org/api.php?action=parse&oldid=858613&prop=wikitext&format=json",
   "revid": 858613
 }
 ```
@@ -179,6 +183,8 @@ English-only subset would be an `[]` that an agent reads as "the wiki warns of n
   "content_hash": "9e183a7fb724a74e42120dc6f7e3d9631ca1036fb8758e3a481d1ff2ca22ed3a",
   "message_hash_cleaned": "27693d93de0969fc34ac243581e2f66693c6ae2b0f8cabc3098b86b49a290223",
   "source_url": "https://wiki.archlinux.org/title/Iwd#Usage",
+  "revision_url": "https://wiki.archlinux.org/index.php?oldid=847035#Usage",
+  "revision_wikitext_url": "https://wiki.archlinux.org/api.php?action=parse&oldid=847035&prop=wikitext&format=json",
   "revid": 847035,
   "alias": null,
   "alias_target": null,
@@ -202,6 +208,8 @@ redirect, including the revision of **the redirect page itself**:
   "message": "Ne formatez la partition système EFI que si vous l'avez créée pendant le partitionnement. S'il y avait déjà une partition système EFI sur le disque précédemment, son formatage peut détruire les chargeurs d'amorçage des autres systèmes d'exploitation installés.",
   "content_hash": "f007b1d054b1b6d2bc8d53a692d8ae530d7824256af4aa5fc5043a8d9e1ddb91",
   "source_url": "https://wiki.archlinux.org/title/Installation_guide_%28Fran%C3%A7ais%29",
+  "revision_url": "https://wiki.archlinux.org/index.php?oldid=875238",
+  "revision_wikitext_url": "https://wiki.archlinux.org/api.php?action=parse&oldid=875238&prop=wikitext&format=json",
   "revid": 875238,
   "alias": "Attention",
   "alias_target": "Template:Warning (Français)",
@@ -223,10 +231,70 @@ would know the page carries a `WARNING` and be unable to say why.
 
 Every response includes:
 
-* **Source URL**: Direct link to specific revision.
+* **Revision URL** (`revision_url`): The revision-addressed link (`?oldid=`). This is the one to
+  cite. It resolves to the exact revision the hash was computed over, so it still
+  serves the quoted text after the page moves on.
+* **Source URL**: The canonical page, with anchor. This one *follows the page*: a
+  reader opening it later sees the wiki's current state, not the quoted one. Both
+  are returned because they answer different questions.
 * **Revision ID**: MediaWiki revision number.
 * **Content Hash**: SHA-256 fingerprint (NFC-normalized).
 * **Extraction Method**: How content was obtained.
+
+### What the hash proves — and what it does not
+
+`content_hash` is an **unkeyed SHA-256 fingerprint**, not a digital signature. A
+project whose product is falsifiable citation cannot afford to overstate its own
+guarantees, so this section is exact about which bytes are covered by what.
+
+**How to actually check a citation.** Fetch the revision's wikitext, find the
+fragment, NFC-normalise it, SHA-256 it, and compare to `content_hash`:
+
+```bash
+# revision_wikitext_url -- the wiki's API, which a script can actually fetch:
+curl -s 'https://wiki.archlinux.org/api.php?action=parse&oldid=<revid>&prop=wikitext&format=json' \
+  | python3 -c 'import json,sys; print(json.load(sys.stdin)["parse"]["wikitext"]["*"])'
+```
+
+Every evidence block carries that URL as `revision_wikitext_url`. It is deliberately
+*not* `index.php?oldid=N&action=raw`: that is the correct MediaWiki idiom and it works
+in a browser, but `wiki.archlinux.org` answers a script there with an anti-bot
+interstitial — **HTTP 200, an HTML challenge page, no wikitext**. A checker that hashed
+that page would see a mismatch and conclude a good citation was forged. `api.php` is
+ungated, and is the route this MCP uses itself.
+
+**What each hash covers — and the one transformation you must apply:**
+
+| Field | Covers | Who can verify it |
+| --- | --- | --- |
+| `content_hash` | `content_raw` — the fragment's wikitext | **Anyone**, against the wiki, via `revision_wikitext_url`. Contiguous slice of the revision for `section`, `warnings`, and `{{bc}}`/`{{hc}}` command blocks (for those, it is the template's *payload*, not the surrounding template call). |
+| `content_hash_cleaned` | `content` — the rendered text an agent quotes | Only against *this MCP's* rendering. The wiki never held this string; we produced it. It attests that the shown text is the text we hashed — not that the wiki wrote it that way. |
+
+⚠️ **`source_pattern: "indented_block"` is the exception, and it matters.** The wiki
+marks preformatted text with a single leading space per line, and that space is the
+*marker*, not the content — so `content_raw` has it stripped. Locate the fragment in
+the raw wikitext and hash it unchanged and **you will get a mismatch**, on roughly
+half the indented blocks of a page like GRUB. Strip one leading space from each line
+first, then hash. We spell this out rather than describe `content_raw` as "byte-for-byte
+what the revision stores", because it is not, and a reader who trusted that phrasing
+would conclude a good citation was forged.
+
+**It gives you**: integrity against a named revision. The wikitext of revision
+`N` either hashes to `content_hash` or it does not, and anyone can check.
+
+**It does not give you**: authenticity or origin attestation. It does not prove an
+excerpt came from this MCP, and it cannot detect a response forged before it
+reached you — anyone can compute a valid SHA-256 over text they invented. The hash
+fingerprints content; it says nothing about who produced it.
+
+**One caveat, stated because precision is the point.** A rendered `?oldid=` page
+still transcludes templates at their *current* versions, so the rendered view of an
+old revision is pinned but not frozen. The revision's **wikitext** is immutable, and
+that is what the hashes cover — so the guarantee holds, but "pinned" is the honest
+word, not "immutable".
+
+A hash beside a URL whose content has since changed proves nothing at all. That is
+why the hash and the revision URL travel together.
 
 ## Testing
 
@@ -246,6 +314,8 @@ python3 tests/record_fixtures.py "GRUB" --force   # then update the golden const
 
 * `ARCH_WIKI_MCP_CONSTITUTION.md`: Technical and ethical contract.
 * `AGENTS.md`: Mandatory behavioral contract for AI agents.
+* `MCP_PROTOCOL.md`: The supported MCP subset, the error contract, and why this
+  server implements the transport rather than depending on the SDK.
 * `TEST_STRATEGY.md`: Validation report and hallucination traps.
 
 ## License

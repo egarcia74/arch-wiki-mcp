@@ -39,6 +39,9 @@ jobs:
       # Nothing in the pytest suite drives real stdin/stdout JSON-RPC; it calls the
       # handlers directly. This job exercises the transport itself. The exact tool
       # surface is asserted in tests/test_mcp.py, not restated here.
+      - name: Install
+        run: pip install -e .
+
       - name: MCP handshake over stdio
         env:
           ARCHWIKI_OFFLINE: "1"
@@ -48,7 +51,7 @@ jobs:
             '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
             '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' \
             '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"commands","arguments":{"title_or_url":"GRUB","anchor":"Installation"}}}' \
-            | python3 src/mcp_server.py --stdio > /tmp/rpc.jsonl
+            | arch-wiki-mcp --stdio > /tmp/rpc.jsonl
           python3 - <<'PY'
           import json
           responses = {}

@@ -13,8 +13,8 @@ root.
 
 import json
 import os
+import re
 import socket
-import sys
 from functools import lru_cache
 from pathlib import Path
 
@@ -22,9 +22,8 @@ import pytest
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.extractor import fixture_filename
+from arch_wiki_mcp.extractor import fixture_filename
 
 # Offline mode must be active before any test imports trigger a fetch.
 os.environ["ARCHWIKI_OFFLINE"] = "1"
@@ -74,3 +73,29 @@ def load_wikitext(page: str) -> str:
 # Pinned from the committed fixture rather than transcribed by hand, so
 # re-recording GRUB moves this in one place.
 GRUB_REVID = load_parse("GRUB")["revid"]
+
+# Fixture keys, so a re-record moves one line rather than several. Spelled in
+# two test modules apiece, they could drift and quietly leave a test exercising
+# a fixture it no longer names.
+MISSING_PAGE = "Nonexistent page xyz"
+TRANSCLUDED_PAGE = "Transcluded example"
+
+
+# Read here, independently of arch_wiki_mcp.__version__, on purpose. A test that asked the
+# code under test what version it thinks it is would agree with any bug in the
+# resolver. pyproject is the authority; this reads the authority.
+#
+# tomllib is 3.11+ and the floor is 3.10, so this reads the one line it needs
+# rather than taking a tomli dependency in a project whose selling point is none.
+_PROJECT_TABLE = re.compile(r"^\[project\]$(.*?)^\[", re.M | re.S)
+_VERSION_LINE = re.compile(r'^version\s*=\s*"([^"]+)"', re.M)
+
+
+def declared_version() -> str:
+    """The version in pyproject.toml, which every other statement of it derives from."""
+    pyproject = Path(__file__).parent.parent / "pyproject.toml"
+    table = _PROJECT_TABLE.search(pyproject.read_text(encoding="utf-8"))
+    assert table, "no [project] table in pyproject.toml"
+    versions = _VERSION_LINE.findall(table.group(1))
+    assert len(versions) == 1, f"expected one version in [project], found {versions}"
+    return versions[0]

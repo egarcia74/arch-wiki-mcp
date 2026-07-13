@@ -9,12 +9,20 @@ This is a throwaway script to validate extraction logic before MCP implementatio
 import hashlib
 import json
 import re
+import sys
 import unicodedata
+from pathlib import Path
 from typing import Dict, List, Optional
-from urllib.request import urlopen
+from urllib.request import urlopen, Request
 from urllib.parse import urlencode
 
-API_ENDPOINT = "https://wiki.archlinux.org/api.php"
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+
+# Identity only -- the extraction logic below stays independent on purpose, since the
+# point of this script is to check the extractor against a second implementation. But
+# it was calling the live wiki with no User-Agent at all, so the operators saw a bare
+# Python-urllib. Whoever talks to the wiki speaks for the project.
+from arch_wiki_mcp.extractor import API_ENDPOINT, REQUEST_TIMEOUT, USER_AGENT
 
 
 def fetch_page(page_title: str) -> Dict:
@@ -27,7 +35,8 @@ def fetch_page(page_title: str) -> Dict:
     }
     url = f"{API_ENDPOINT}?{urlencode(params)}"
     
-    with urlopen(url) as response:
+    request = Request(url, headers={"User-Agent": USER_AGENT})
+    with urlopen(request, timeout=REQUEST_TIMEOUT) as response:
         data = json.loads(response.read().decode("utf-8"))
     
     if "error" in data:

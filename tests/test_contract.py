@@ -13,12 +13,12 @@ field cannot be added without documenting it in both places.
 """
 
 import re
-from dataclasses import fields
+from dataclasses import asdict, fields
 from pathlib import Path
 
 import pytest
 
-from src import extractor, mcp_server
+from arch_wiki_mcp import extractor, server
 
 REPO_ROOT = Path(__file__).parent.parent
 AGENTS_MD = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
@@ -36,7 +36,12 @@ SELF_EXPLANATORY = {
     "type", "content", "message", "block_type", "source_pattern",
     "language", "header", "revid", "content_hash", "source_url",
     "title", "url", "timestamp", "section_anchor", "section_heading",
-    "extraction_method",
+    "extraction_method", "wikitext", "pageid",
+    # links(): the name says the thing. A link has a target, the words it was
+    # written as, and the page it was found on.
+    "target_page", "display_text", "anchor", "source_page",
+    # page(): the section list, in the shape sections() returns.
+    "sections",
 }
 
 
@@ -50,7 +55,7 @@ def contract_fields() -> list:
 
 
 def usage_prompt() -> str:
-    result = mcp_server._handle_prompts_get(1, {"name": "arch-wiki-usage"})
+    result = server._handle_prompts_get(1, {"name": "arch-wiki-usage"})
     return result["result"]["messages"][0]["content"]["text"]
 
 
@@ -75,16 +80,55 @@ def test_the_derived_field_set_is_the_one_we_expect():
         "match",
         "message_hash_cleaned",
         "message_raw",
-        "pageid",
         "placeholders",
+        "revision_url",
+        "revision_wikitext_url",
         "snippet",
     ]
 
 
 def test_no_self_explanatory_field_is_actually_missing_from_the_schema():
     """Guards the exemption list against rotting into a way to skip documentation."""
-    stale = SELF_EXPLANATORY - declared_fields() - {"source_url"}  # added at serialization
+    stale = SELF_EXPLANATORY - declared_fields() - serialized_fields()
     assert not stale, f"exempted fields that no longer exist: {stale}"
+
+
+def serialized_fields() -> set:
+    """
+    Every key an agent actually receives -- taken from real tool output, not from
+    the dataclasses.
+
+    The dataclasses are not the whole schema: warnings() and commands() add keys
+    at serialization (`source_url`, `alias_revision_url`), and those slipped past
+    a guard that only read `fields()`. A field an agent must interpret is one an
+    agent receives, whichever line of code put it there.
+    """
+    keys = set(extractor.page("GRUB"))
+    keys |= set(asdict(extractor.section("GRUB", "Installation")))
+    keys |= set(extractor.commands("GRUB", "Installation")[0])
+    keys |= set(extractor.links("GRUB", "Installation")[0])
+    for warning in extractor.warnings("Installation guide (Français)"):
+        keys |= set(warning)
+    for hit in extractor.search("GRUB"):
+        keys |= set(hit)
+    return keys
+
+
+def test_every_field_an_agent_receives_is_documented():
+    """
+    The guard's own stated rule -- "a new output field cannot be added without
+    documenting it in both places" -- was true only of dataclass fields. Keys added
+    at serialization reached agents undocumented, which is the same hole in the
+    same wall.
+    """
+    undocumented = {
+        field
+        for field in serialized_fields() - SELF_EXPLANATORY
+        if field not in AGENTS_MD or field not in usage_prompt()
+    }
+    assert not undocumented, (
+        f"agents receive fields no contract explains: {sorted(undocumented)}"
+    )
 
 
 def test_the_contract_no_longer_claims_all_output_is_verbatim():
@@ -118,7 +162,7 @@ def test_the_section_tool_surfaces_every_field_of_its_dataclass():
     `content_hash` attesting a verbatim slice it was never shown -- a citation it
     could not check, which is the one thing this MCP exists to prevent.
     """
-    result = mcp_server.tool_section("GRUB", "Installation")
+    result = server.tool_section("GRUB", "Installation")
     declared = {f.name for f in fields(extractor.ExtractedBlock)}
     assert set(result) == declared
 
@@ -128,7 +172,7 @@ def test_the_section_tool_surfaces_every_field_of_its_dataclass():
 
 def test_the_section_tool_returns_rendered_content_over_the_wire():
     """The wire format is where an agent actually meets the '#' ambiguity."""
-    result = mcp_server.tool_section("Installation_guide", "Boot_the_live_environment")
+    result = server.tool_section("Installation_guide", "Boot_the_live_environment")
 
     assert result["content"].startswith("### Boot the live environment")
     assert "1. Point the current boot device" in result["content"]
@@ -166,7 +210,7 @@ def documented_hashes() -> set:
 
 def reproducible_hashes() -> set:
     produced = set()
-    block = mcp_server.tool_section("Installation_guide", "Boot_the_live_environment")
+    block = server.tool_section("Installation_guide", "Boot_the_live_environment")
     produced |= {block["content_hash"], block["content_hash_cleaned"]}
     for command in extractor.commands("GRUB", "Installation"):
         produced |= {command["content_hash"], command["content_hash_cleaned"]}

@@ -18,20 +18,26 @@ dependencies = []
 test = ["pytest>=7.0", "pytest-cov>=4.0"]
 
 [project.scripts]
-arch-wiki-mcp = "src.mcp_server:main"
+arch-wiki-mcp = "arch_wiki_mcp.server:main"
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["src*"]
+where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
+# The package lives under src/, so it is importable in development without an
+# install and without a sys.path.insert in the source -- which is what the two
+# modules used to carry, purely so they could import their own package when run
+# as scripts.
+pythonpath = ["src", "tests"]
 
 [tool.coverage.run]
-source = ["src"]
+source = ["arch_wiki_mcp"]
 
 [tool.pyright]
-# tests/test_live_audit_guard.py reaches scripts/ through a sys.path.insert that
-# a static checker cannot follow. Name the path rather than silence the import.
-extraPaths = [".", "scripts"]
+# src/    -- the package lives under a src layout, so it is not on the default path.
+# scripts/ and tests/ -- reached through sys.path.insert (a script bootstrapping the
+#          project) or by pytest's own pythonpath, neither of which a static checker
+#          can follow. Name the paths rather than silence the imports.
+extraPaths = ["src", "scripts", "tests"]

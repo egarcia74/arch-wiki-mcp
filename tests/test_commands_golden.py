@@ -9,7 +9,7 @@ committed fixtures; they are the contract commands() must satisfy.
 import pytest
 
 from conftest import GRUB_REVID, load_wikitext
-from src import extractor
+from arch_wiki_mcp import extractor
 
 # (page, {{bc}} blocks, {{hc}} blocks, indented blocks)
 #

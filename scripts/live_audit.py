@@ -30,9 +30,12 @@ import re
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+# The package lives under src/ (a conventional src layout), so a script run from
+# the repo root has to say so. This is the script reaching into the project, not
+# the project reaching into itself -- which is the sys.path.insert that #22 removed.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from src import extractor
+from arch_wiki_mcp import extractor
 
 # Not derived from __doc__: that is None under `python -OO`.
 DESCRIPTION = "Audit the extractor's invariants against the live Arch Wiki."

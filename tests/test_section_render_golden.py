@@ -13,7 +13,7 @@ import re
 import pytest
 
 from conftest import load_wikitext
-from src import extractor
+from arch_wiki_mcp import extractor
 
 PAGES = ["GRUB", "Installation_guide", "Iwd", "KDE", "Pacman", "Systemd", "Users_and_groups"]
 

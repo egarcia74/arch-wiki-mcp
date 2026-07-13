@@ -354,3 +354,61 @@ def test_the_setup_guide_points_at_the_preflight():
     guide = (REPO / "MCP_SETUP.md").read_text(encoding="utf-8")
 
     assert "--check" in guide, "the setup guide never mentions the preflight"
+
+
+# A shell reads `FOO=bar cmd` as running `cmd`. So must we, or the assignment gets
+# mistaken for a tool the reader has to go and install.
+ENV_PREFIX = re.compile(r"^\s*(?:[A-Z_]+=\S*\s+)+")
+
+# Not a tool anyone obtains: it is built into the shell.
+BUILTIN = {"cd", "export", "source", "echo"}
+
+
+def _prerequisites(text: str) -> str:
+    """The section that promises what a reader needs before following the rest."""
+    section = re.search(r"^### Prerequisites\s*$(.*?)^### ", text, re.M | re.S)
+    return section.group(1) if section else ""
+
+
+def test_the_setup_guide_asks_for_no_tool_it_did_not_tell_you_to_get():
+    """
+    The guard's own rule, one step out. It already refuses a command this package
+    does not install -- but every command it *does* let through, it lets through
+    silently, and the guide had grown four: pipx, git, claude, python3, against a
+    Prerequisites list naming only Python.
+
+    pipx was not hypothetical. The machine this was written on did not have it, and
+    the very first thing `pipx install arch-wiki-mcp` did there was fail with
+    "command not found". A setup document that opens by asking for a tool it never
+    mentioned is the same failure as one that names a path it deleted: the reader
+    does what it says, and it does not work.
+
+    Prerequisites is the authority for what a reader is expected to have. A command
+    in a fence must be ours, or listed there, or not a tool at all.
+    """
+    text = (REPO / "MCP_SETUP.md").read_text(encoding="utf-8")
+    ours = declared_scripts()
+
+    # The names Prerequisites *lists*, not the characters it contains. `command not
+    # in listed` was a substring test against prose, and `pip` is a substring of
+    # `pipx`: with pip removed from the list, the guard went on passing while the
+    # fences went on saying `pip install -e .`. Blind, today, in the guard written
+    # this morning to stop a document asking for a tool it never announced.
+    #
+    # Matching text where the structure was meant -- for the fifth time this week.
+    listed = set(re.findall(r"[\w.-]+", _prerequisites(text)))
+
+    unannounced = sorted({
+        command
+        for fence in BASH_FENCE.findall(text)
+        for line in fence.splitlines()
+        for command in COMMAND_LINE.findall(ENV_PREFIX.sub("", line))[:1]
+        if command not in BUILTIN
+        and command not in ours
+        and command not in listed
+    })
+
+    assert not unannounced, (
+        f"MCP_SETUP.md tells a reader to run {unannounced}, and its Prerequisites "
+        "never mention them"
+    )

@@ -13,6 +13,7 @@ class of error as an unpinned citation: a claim about identity that nothing back
 
 import importlib
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -101,6 +102,15 @@ def test_nothing_that_talks_to_the_wiki_invents_its_own_identity(source):
     assert "wiki.archlinux.org/api.php" not in text, (
         f"{source.name} spells out the API endpoint; import extractor.API_ENDPOINT"
     )
+
+    # An untimed urlopen hangs forever on a stalled read -- no error, no answer, just
+    # a process that never comes back. The extractor has bounded every request since
+    # it was written; the two scripts beside it did not, and one of them fetches the
+    # whole fixture corpus in a loop.
+    for call in re.findall(r"urlopen\([^)]*\)", text):
+        assert "timeout" in call, (
+            f"{source.name} makes an unbounded request: {call}"
+        )
 
 
 def test_no_module_sits_beside_the_package():

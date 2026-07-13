@@ -39,6 +39,11 @@ USER_AGENT = f"ArchWikiMCP/{__version__} (Constitutional Extractor; +{REPOSITORY
 # fetch_siteinfo() requests, or the recorded fixture answers a different question.
 SITEINFO_PROPS = "namespaces|namespacealiases|interwikimap"
 
+# Named once, so anything that talks to the wiki bounds itself the same way. An
+# untimed urlopen hangs forever on a stalled read -- no error, no answer, just a
+# process that never comes back, which is the least useful failure available.
+REQUEST_TIMEOUT = 30
+
 
 class ArchWikiError(ValueError):
     """
@@ -448,7 +453,7 @@ def _fetch_offline(params: Dict, key: Optional[str] = None) -> Dict:
     return json.loads(_read_fixture(fixture_path))
 
 
-def _fetch(params: Dict, timeout: int = 30, key: Optional[str] = None) -> Dict:
+def _fetch(params: Dict, timeout: int = REQUEST_TIMEOUT, key: Optional[str] = None) -> Dict:
     """
     Single entry point for API access. ARCHWIKI_OFFLINE swaps in fixtures.
 
@@ -476,7 +481,7 @@ def _fetch(params: Dict, timeout: int = 30, key: Optional[str] = None) -> Dict:
     # fixture is our bug, and must stay loud rather than pose as an outage.
 
 
-def fetch_wiki_parse(page_title: str, timeout: int = 30) -> Dict:
+def fetch_wiki_parse(page_title: str, timeout: int = REQUEST_TIMEOUT) -> Dict:
     """
     Fetch page wikitext, sections, and revision ID from MediaWiki API.
     Supports ARCHWIKI_OFFLINE environment variable for deterministic testing.
@@ -1494,7 +1499,7 @@ _FALLBACK_INTERWIKI_PREFIXES = frozenset({
 _FALLBACK_EXCLUDED_PREFIXES = _NAMESPACE_PREFIXES | _FALLBACK_INTERWIKI_PREFIXES
 
 
-def fetch_siteinfo(timeout: int = 30) -> Dict:
+def fetch_siteinfo(timeout: int = REQUEST_TIMEOUT) -> Dict:
     """Fetch the wiki's namespace and interwiki tables."""
     params = {
         "action": "query",
@@ -1581,7 +1586,7 @@ def _batched(titles: List[str]) -> List[List[str]]:
     return [titles[i:i + _TITLES_PER_QUERY] for i in range(0, len(titles), _TITLES_PER_QUERY)]
 
 
-def fetch_redirect_revids(titles: List[str], cache_key: str, timeout: int = 30) -> Dict[str, int]:
+def fetch_redirect_revids(titles: List[str], cache_key: str, timeout: int = REQUEST_TIMEOUT) -> Dict[str, int]:
     """
     The current revision of each redirect page, keyed by its full title.
 
@@ -1615,7 +1620,7 @@ def fetch_redirect_revids(titles: List[str], cache_key: str, timeout: int = 30) 
     return revids
 
 
-def fetch_template_aliases(names: List[str], cache_key: str, timeout: int = 30) -> Dict[str, TemplateResolution]:
+def fetch_template_aliases(names: List[str], cache_key: str, timeout: int = REQUEST_TIMEOUT) -> Dict[str, TemplateResolution]:
     """
     Ask MediaWiki what each template name denotes, and pin how we learned it.
 
@@ -1879,7 +1884,7 @@ def _search_hits(query: str, limit: int, what: str, timeout: int, key: Optional[
     return _unwrap(query, "search", "search results")
 
 
-def search(query: str, limit: int = 10, timeout: int = 30) -> List[Dict]:
+def search(query: str, limit: int = 10, timeout: int = REQUEST_TIMEOUT) -> List[Dict]:
     """
     MCP Tool: Search Arch Wiki using MediaWiki search API.
 

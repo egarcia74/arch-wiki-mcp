@@ -22,7 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 # point of this script is to check the extractor against a second implementation. But
 # it was calling the live wiki with no User-Agent at all, so the operators saw a bare
 # Python-urllib. Whoever talks to the wiki speaks for the project.
-from arch_wiki_mcp.extractor import API_ENDPOINT, USER_AGENT
+from arch_wiki_mcp.extractor import API_ENDPOINT, REQUEST_TIMEOUT, USER_AGENT
 
 
 def fetch_page(page_title: str) -> Dict:
@@ -35,7 +35,8 @@ def fetch_page(page_title: str) -> Dict:
     }
     url = f"{API_ENDPOINT}?{urlencode(params)}"
     
-    with urlopen(Request(url, headers={"User-Agent": USER_AGENT})) as response:
+    request = Request(url, headers={"User-Agent": USER_AGENT})
+    with urlopen(request, timeout=REQUEST_TIMEOUT) as response:
         data = json.loads(response.read().decode("utf-8"))
     
     if "error" in data:

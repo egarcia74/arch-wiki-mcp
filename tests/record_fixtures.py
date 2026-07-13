@@ -17,7 +17,13 @@ from urllib.parse import urlencode
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from arch_wiki_mcp import extractor
-from arch_wiki_mcp.extractor import API_ENDPOINT, SITEINFO_PROPS, USER_AGENT, fixture_filename
+from arch_wiki_mcp.extractor import (
+    API_ENDPOINT,
+    REQUEST_TIMEOUT,
+    SITEINFO_PROPS,
+    USER_AGENT,
+    fixture_filename,
+)
 
 # API_ENDPOINT and USER_AGENT are imported, not restated. The recorder makes real
 # requests to the Arch Wiki, and it used to introduce itself with a version the
@@ -63,7 +69,7 @@ def _save(filename, params, force):
         return
 
     request = Request(f"{API_ENDPOINT}?{urlencode(params)}", headers={"User-Agent": USER_AGENT})
-    with urlopen(request) as response:
+    with urlopen(request, timeout=REQUEST_TIMEOUT) as response:
         data = json.loads(response.read().decode("utf-8"))
 
     with open(filename, "w") as f:
@@ -132,7 +138,7 @@ def _record_query(filename, params, label, force):
 
     print(f"Recording {label}...")
     request = Request(f"{API_ENDPOINT}?{urlencode(params)}", headers={"User-Agent": USER_AGENT})
-    with urlopen(request) as response:
+    with urlopen(request, timeout=REQUEST_TIMEOUT) as response:
         data = json.loads(response.read().decode("utf-8"))
 
     with open(filename, "w", encoding="utf-8") as handle:

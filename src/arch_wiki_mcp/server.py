@@ -9,7 +9,6 @@ import logging
 import re
 from dataclasses import asdict
 from typing import Any, Dict, Optional
-from urllib.parse import parse_qs, unquote, urlparse
 
 from arch_wiki_mcp import __version__, extractor
 

@@ -17,10 +17,13 @@ from urllib.parse import urlencode
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from arch_wiki_mcp import extractor
-from arch_wiki_mcp.extractor import SITEINFO_PROPS, fixture_filename
+from arch_wiki_mcp.extractor import API_ENDPOINT, SITEINFO_PROPS, USER_AGENT, fixture_filename
 
-API_ENDPOINT = "https://wiki.archlinux.org/api.php"
-USER_AGENT = "ArchWikiMCP/1.0 (Fixture Generator)"
+# API_ENDPOINT and USER_AGENT are imported, not restated. The recorder makes real
+# requests to the Arch Wiki, and it used to introduce itself with a version the
+# project had left behind releases earlier, beside its own copy of the endpoint --
+# the identity drift #19 closed, alive in the one file that guard was not pointed
+# at. Whoever talks to the wiki speaks for the project, so they say the same thing.
 
 # Pages whose template names warnings() must resolve. A translated page writes
 # {{Note (Español)}} or {{Attention}}; only the wiki knows where those point.

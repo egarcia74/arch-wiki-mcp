@@ -70,6 +70,39 @@ PACKAGE = Path(__file__).parent.parent / "src" / "arch_wiki_mcp"
 SOURCES = sorted(PACKAGE.glob("*.py"))
 
 
+REPO = Path(__file__).parent.parent
+
+# Everything outside the package that reaches the live wiki in earnest. Not every
+# file that mentions urlopen: test_failures.py opens a socket precisely to prove the
+# suite cannot reach the wiki, and this module has to spell the User-Agent out in
+# order to assert its shape. Those talk *about* the wiki; these talk *to* it.
+LIVE_CALLERS = sorted(
+    [*REPO.glob("scripts/*.py"), REPO / "tests" / "record_fixtures.py"]
+)
+
+
+@pytest.mark.parametrize("source", LIVE_CALLERS, ids=lambda p: p.name)
+def test_nothing_that_talks_to_the_wiki_invents_its_own_identity(source):
+    """
+    The #19 tripwire scanned src/*.py only, so it never looked at the two scripts
+    that also call the wiki -- and the fixture recorder went on introducing itself
+    as ArchWikiMCP/1.0 (a version abandoned releases ago) with its own copy of the
+    API endpoint. The drift this fix exists to end, alive in the one place the guard
+    was not pointed at.
+
+    Identity is a property of the project, not of the file that happens to make the
+    request. Anything that reaches the wiki derives it.
+    """
+    text = source.read_text(encoding="utf-8")
+
+    assert "ArchWikiMCP/" not in text, (
+        f"{source.name} spells out a User-Agent; import extractor.USER_AGENT"
+    )
+    assert "wiki.archlinux.org/api.php" not in text, (
+        f"{source.name} spells out the API endpoint; import extractor.API_ENDPOINT"
+    )
+
+
 def test_no_module_sits_beside_the_package():
     """
     A stray *module* beside the package is a second import identity waiting to

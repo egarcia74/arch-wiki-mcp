@@ -245,15 +245,45 @@ You should see responses with:
 
 ### "Failed to connect" / "Command not found"
 
-Run the preflight first — it distinguishes the causes the client cannot:
+Those three words are what a client says for a dead path, an uninstalled package, an
+import error and a firewall alike. Point the preflight at the config, and it will say
+which:
+
+```bash
+arch-wiki-mcp --check ~/.claude.json
+```
+
+It finds every Arch Wiki registration in the file — wherever your client keeps them —
+and **runs** them. It does not compare paths; it starts the command and asks who
+answered.
+
+```console
+$ arch-wiki-mcp --check ~/.claude.json
+~/.claude.json
+      python3 /home/you/code/arch-wiki-mcp/src/mcp_server.py --stdio
+  XX  projects./home/you/code/arch-wiki-mcp.mcpServers.arch-wiki
+      python3: can't open file '/home/you/code/arch-wiki-mcp/src/mcp_server.py': [Errno 2] No such file or directory
+
+1 registration(s) a client cannot start. Replace with:
+{ "mcpServers": { "arch-wiki": { "command": "/home/you/.local/bin/arch-wiki-mcp", ... } } }
+```
+
+- `OK` — it starts and answers as this server. Nothing to do.
+- `??` — it works, but the command is bare, so it resolves from PATH. That is the
+  config that passes in a terminal and fails in a GUI client, which inherits the
+  desktop session's PATH and not your shell's.
+- `XX` — a client cannot start it. The replacement is printed; paste it over.
+
+Other servers in the same file are left alone, and never run.
+
+With no config argument it simply prints the registration that works here:
 
 ```bash
 arch-wiki-mcp --check
 ```
 
 - **Exits non-zero**: the package is not installed for that interpreter. `pip install -e .`
-- **Prints a registration**: the server is fine, and your client has a *different*
-  (stale or relative) command registered. Replace it with the one printed.
+- **Prints a registration**: the server is fine. Replace whatever your client has.
 - **Your shell cannot find `arch-wiki-mcp` either**: then asking it to check itself
   is no help. Ask the interpreter instead — it does not need PATH:
 

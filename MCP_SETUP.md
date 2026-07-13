@@ -85,9 +85,15 @@ Use the `command` and `args` from `--check`, with an empty `env`.
 
 ### After an upgrade, a rename, or a moved virtualenv
 
-Re-run `--check` and compare it to what your client has registered. A registration
-is a path written once into a file nobody looks at again; nothing in this repository
-can reach out and correct a stale one. This is the only step that catches it.
+Re-run `--check` and **re-register with what it prints**. Do not compare it against
+what you have — comparing two paths by eye is the transcription this page exists to
+get rid of, and it is the step you would get wrong. Replacing is idempotent: if the
+registration was already right you rewrite it unchanged, and if it had gone stale you
+have just fixed it. You never have to know which.
+
+A registration is a path written once into a file nobody opens again, and nothing in
+this repository can reach out and correct a stale one. Re-registering is the step that
+does.
 
 ---
 

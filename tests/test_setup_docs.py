@@ -51,13 +51,15 @@ def _tracked_documents() -> list:
     # that is not a failed test but an aborted suite, all of it, behind an exit code
     # that explains nothing.
     #
-    # Returning nothing skips *only* the two tests parametrized over documents. It
-    # must not skip the module: the preflight tests below need no git at all, and a
-    # packaging build is the place where "does the installed entry point actually
-    # start a server" most wants asking. A guard that opts out of more than it has
-    # to is the same error as one scoped to less than it should be.
+    # A skip marker, not an empty list. Skipping *only* the two document tests is the
+    # point -- the preflight tests below need no git, and a packaging build is exactly
+    # where "does the installed entry point actually start a server" most wants asking.
+    # But an empty set would now abort collection, because empty_parameter_set_mark is
+    # fail_at_collect: a guard over nothing is an error here. This is the one place
+    # where nothing to guard is the honest answer, so it says so out loud rather than
+    # arriving as an empty list indistinguishable from a set that rotted away.
     if not (REPO / ".git").exists():
-        return []
+        return [pytest.param(None, id="no-git", marks=pytest.mark.skip(reason="no .git: source tarball"))]
 
     tracked = subprocess.run(
         ["git", "ls-files"], cwd=REPO, capture_output=True, text=True, check=True

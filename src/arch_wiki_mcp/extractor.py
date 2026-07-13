@@ -312,22 +312,36 @@ def extract_title_from_url(title_or_url: str) -> str:
     title_or_url = title_or_url.strip()
     parsed = urlparse(title_or_url)
 
-    # A URL is a string with an *authority* -- "scheme://host". The scheme alone
-    # cannot be the test: urlparse reads "File:Grub.png" as scheme "file", so
-    # refusing every non-HTTP scheme would refuse the File, Category, Help and
-    # DeveloperWiki namespaces, which are real pages. A colon is just a namespace.
-    if "://" not in title_or_url:
+    # What makes a string a URL rather than a title.
+    #
+    # The scheme alone cannot be the test: urlparse reads "File:Grub.png" as scheme
+    # "file", so refusing every non-HTTP scheme would refuse the File, Category, Help
+    # and DeveloperWiki namespaces, which are real pages.
+    #
+    # Nor is a literal "://" enough. A URL can omit it -- "//host/path" is
+    # protocol-relative, and "https:host/path" is simply mistyped -- and both then
+    # fell through to the title branch and were asked of the wiki, which answered
+    # that no such page exists. Malformed input reported as the wiki's silence, which
+    # is the failure this whole function exists to prevent.
+    #
+    # An authority, or an http(s) scheme, or "://". None is true of a namespaced
+    # title, which is what makes this safe to tighten.
+    url_shaped = (
+        bool(parsed.netloc)
+        or parsed.scheme in ("http", "https")
+        or "://" in title_or_url
+    )
+    if not url_shaped:
         # A plain title is whatever the caller typed. Decoding it would corrupt a
         # page whose name genuinely contains a percent sign ("100%_CPU").
         return title_or_url
 
     if parsed.scheme not in ("http", "https"):
-        # ftp://, file://, data:, javascript: -- these fell through to the title
-        # branch, so the wiki was asked for the page "ftp://evil.example/x" and
-        # answered page_not_found. A malformed URL reported as a missing page is
-        # the wiki's silence, invented one layer up.
+        # ftp://, file://, javascript://, or a protocol-relative "//host" with no
+        # scheme at all. Asked of the wiki as titles, these became page_not_found.
+        scheme = parsed.scheme or "(none)"
         raise MalformedWikiUrlError(
-            f"Unsupported URL scheme {parsed.scheme!r}, expected http or https: {title_or_url}"
+            f"Unsupported URL scheme {scheme!r}, expected http or https: {title_or_url}"
         )
 
     # hostname, not netloc: lowercased, port stripped, and an exact match -- so

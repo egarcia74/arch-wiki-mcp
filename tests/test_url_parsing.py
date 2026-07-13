@@ -144,6 +144,28 @@ def test_a_non_http_url_is_refused_rather_than_asked_for_as_a_title(given):
         extract(given)
 
 
+@pytest.mark.parametrize("given", [
+    pytest.param("//wiki.archlinux.org/title/GRUB", id="protocol-relative"),
+    pytest.param("https:wiki.archlinux.org/title/GRUB", id="scheme-without-slashes"),
+    pytest.param("http:/wiki.archlinux.org/title/GRUB", id="scheme-with-one-slash"),
+    pytest.param("//evil.example/title/GRUB", id="protocol-relative-foreign-host"),
+])
+def test_a_url_shaped_input_is_never_asked_for_as_a_page_title(given):
+    """
+    "://" was the test for URL-ness, so a URL that omitted it -- a protocol-relative
+    "//host/...", or a scheme typed with the wrong number of slashes -- fell through
+    to the title branch and was asked of the wiki, which answered that no such page
+    exists. Malformed input reported as the wiki's silence, again, one shape further
+    out.
+
+    A string is URL-shaped if it has an authority, or an http(s) scheme, or "://".
+    None of those is true of File:, Category: or DeveloperWiki:, which is what makes
+    this safe to tighten.
+    """
+    with pytest.raises(extractor.MalformedWikiUrlError):
+        extract(given)
+
+
 @pytest.mark.parametrize("given", ["data:text/plain,GRUB", "mailto:x@example.com"])
 def test_an_authorityless_uri_is_treated_as_a_title_and_fails_closed(given):
     """

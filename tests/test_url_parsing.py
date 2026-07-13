@@ -126,6 +126,59 @@ def test_a_sloppy_paste_does_not_smuggle_a_foreign_host_past_the_check(given):
         extract(given)
 
 
+@pytest.mark.parametrize("given", [
+    pytest.param("ftp://evil.example/x", id="ftp"),
+    pytest.param("file:///etc/passwd", id="file-url"),
+    pytest.param("javascript://wiki.archlinux.org/title/GRUB", id="javascript"),
+    pytest.param("gopher://wiki.archlinux.org/title/GRUB", id="gopher-at-the-right-host"),
+    pytest.param("ws://wiki.archlinux.org/title/GRUB", id="websocket"),
+])
+def test_a_non_http_url_is_refused_rather_than_asked_for_as_a_title(given):
+    """
+    An unsupported scheme fell through to the plain-title branch, so the wiki was
+    asked for the page "ftp://evil.example/x" and answered page_not_found. A
+    malformed URL reported as a missing page is the wiki's silence again, invented
+    one layer up.
+    """
+    with pytest.raises(extractor.MalformedWikiUrlError):
+        extract(given)
+
+
+@pytest.mark.parametrize("given", ["data:text/plain,GRUB", "mailto:x@example.com"])
+def test_an_authorityless_uri_is_treated_as_a_title_and_fails_closed(given):
+    """
+    The limit of what can be known here, stated rather than papered over.
+
+    "data:text/plain,x" and "File:Grub.png" have the same shape -- a scheme-ish
+    prefix, a colon, no authority -- and only the wiki's namespace list could tell
+    them apart. Refusing every such string would refuse the File namespace, so these
+    go to the wiki as titles and the wiki answers that no such page exists.
+
+    That is a wrong error *code*, not a wrong answer: nothing is fetched, nothing is
+    executed, and the caller is still told truthfully that we have no page for them.
+    The URLs a person actually pastes carry an authority, and those are refused
+    above.
+    """
+    assert extract(given) == given
+
+
+@pytest.mark.parametrize("title", [
+    "File:Grub.png",
+    "Category:Boot loaders",
+    "Help:Style",
+    "DeveloperWiki:Something",
+    "Template:Warning (Français)",
+])
+def test_a_namespaced_title_is_not_mistaken_for_a_url_scheme(title):
+    """
+    The converse, and the reason the scheme alone cannot be the test: urlparse reads
+    "File:Grub.png" as scheme "file". Refusing every non-HTTP scheme would refuse the
+    File, Category, Help and DeveloperWiki namespaces -- real pages, all of them. A
+    URL is a string with an authority (`://`); a colon alone is just a namespace.
+    """
+    assert extract(title) == title
+
+
 REAL_TITLES = [
     "GRUB",
     "Installation guide",

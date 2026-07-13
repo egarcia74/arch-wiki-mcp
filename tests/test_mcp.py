@@ -462,6 +462,47 @@ def test_a_blank_string_is_refused_by_a_rule_the_schema_declares():
         server.handle_tool_call("page", {"title_or_url": "   "})
 
 
+def test_an_explicit_null_id_still_gets_an_answer(monkeypatch, capsys):
+    """
+    A notification is a message with NO id member. `"id": null` is a request that
+    happens to carry a null id, and JSON-RPC says answer it (with a null id).
+    Checking `msg_id is None` conflated the two, so a client sending an explicit
+    null id was met with silence and waited forever for a reply that never came.
+    """
+    responses = _drive_server(
+        '{"jsonrpc":"2.0","id":null,"method":"tools/list"}\n', monkeypatch, capsys
+    )
+
+    assert responses, "an explicit null id was silently swallowed as a notification"
+    assert responses[0]["id"] is None
+    assert "result" in responses[0]
+
+
+def test_a_notification_is_still_answered_with_silence(monkeypatch, capsys):
+    """The converse: no id member at all expects no reply, and must not get one."""
+    responses = _drive_server(
+        '{"jsonrpc":"2.0","method":"notifications/initialized"}\n', monkeypatch, capsys
+    )
+
+    assert responses == []
+
+
+@pytest.mark.parametrize("params", ["[]", '"nope"', "42"])
+def test_non_object_params_are_invalid_params_not_our_bug(params, monkeypatch, capsys):
+    """
+    `params` is an object by construction. A list reached params.get(), raised
+    AttributeError into the catch-all, and answered -32603 Internal error -- the
+    server confessing to a bug that belongs to the request.
+    """
+    responses = _drive_server(
+        '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":%s}\n' % params,
+        monkeypatch,
+        capsys,
+    )
+
+    assert responses[0]["error"]["code"] == -32602
+
+
 def test_a_non_object_request_is_an_invalid_request_not_our_bug(monkeypatch, capsys):
     """
     `42` and `[]` are valid JSON. message.get() then raised AttributeError and the

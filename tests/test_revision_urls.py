@@ -135,6 +135,22 @@ def test_a_redirected_page_does_not_cite_two_different_pages_at_once(monkeypatch
     )
 
 
+def test_links_does_not_cite_the_page_the_caller_asked_for_either(monkeypatch):
+    """
+    The sibling of the commands() bug, missed when that one was fixed. links() passed
+    the caller's raw title to parse_internal_links, so `source_page` -- and the target
+    of a bare [[#Anchor]] link -- named the page asked for, while the revision named
+    the page served. One block, two pages, again.
+    """
+    served = dict(extractor.fetch_wiki_parse("GRUB"))
+    monkeypatch.setattr(extractor, "fetch_wiki_parse", lambda *a, **k: served)
+
+    for link in extractor.links("Grub", ANCHOR):
+        assert link["source_page"] == "GRUB", (
+            f"source_page cites the title asked for, not the page served: {link['source_page']}"
+        )
+
+
 def test_a_reader_following_the_readme_can_actually_reproduce_a_hash():
     """
     The claim, executed. `content_hash` covers `content_raw`, and the README tells a

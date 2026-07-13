@@ -584,9 +584,12 @@ NON-NEGOTIABLE RULES (Truth Perimeter)
 1) You must use the MCP as your only source for Arch Linux instructions in this workflow.
 2) You must not synthesize commands, flags, paths, or steps that are not explicitly returned by the MCP.
 3) Every claim or command you present must include provenance:
-   - revision_url -- cite THIS one. It is pinned to the revision below (?oldid=),
-     so it still serves the text you quoted after the page moves on. source_url
-     follows the page and will show a reader something else.
+   - revision_url -- cite THIS one. It names the revision below (?oldid=), so it
+     still identifies the text you quoted after the page moves on. (It renders that
+     revision; a rendered old revision still transcludes templates as they are now,
+     so it pins the article rather than every detail of the page. The wikitext the
+     hashes cover is fixed.) source_url follows the page and will show a reader
+     something else entirely.
    - source_url (with anchor if applicable) -- the live page, for a reader who
      wants the current state rather than the quoted one
    - revid
@@ -774,14 +777,26 @@ def run_mcp_server():
                 )
                 continue
 
-            method = message.get("method")
-            params = message.get("params", {})
-            msg_id = message.get("id")
+            # A notification is a message with NO id member, and expects no reply --
+            # the client's notifications/initialized after the handshake. `"id": null`
+            # is something else: a request carrying a null id, which JSON-RPC says to
+            # answer (with a null id). Testing `msg_id is None` conflated the two, so
+            # a client that sent an explicit null id was met with silence and waited
+            # for a reply that was never coming.
+            if "id" not in message:
+                continue
 
-            # A JSON-RPC notification carries no id and expects no reply. The
-            # client sends notifications/initialized after the handshake; saying
-            # nothing is the correct answer, not a gap.
-            if msg_id is None:
+            method = message.get("method")
+            msg_id = message["id"]
+
+            # `params` is an object by construction. A list reached params.get(),
+            # raised AttributeError into the catch-all, and answered -32603 Internal
+            # error -- the server confessing to a fault in the request.
+            params = message.get("params", {})
+            if not isinstance(params, dict):
+                _send_response(
+                    _protocol_error(msg_id, "Invalid params: 'params' must be an object")
+                )
                 continue
 
             handler = _METHOD_DISPATCH.get(method)

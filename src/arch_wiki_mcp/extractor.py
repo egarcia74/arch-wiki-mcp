@@ -154,7 +154,7 @@ class ExtractedBlock:
     revision_url: str  # Pinned to `revid` -- the revision whose wikitext is hashed here
     revision_wikitext_url: str  # That revision's wikitext: the bytes content_hash covers
     revid: int
-    timestamp: Optional[str]  # Fallback if revid unavailable
+    timestamp: Optional[str]  # Always None today: revid is the only revision we cite
     section_anchor: Optional[str]
     section_heading: Optional[str]
     extraction_method: str
@@ -312,10 +312,23 @@ def extract_title_from_url(title_or_url: str) -> str:
     title_or_url = title_or_url.strip()
     parsed = urlparse(title_or_url)
 
-    if parsed.scheme not in ("http", "https"):
+    # A URL is a string with an *authority* -- "scheme://host". The scheme alone
+    # cannot be the test: urlparse reads "File:Grub.png" as scheme "file", so
+    # refusing every non-HTTP scheme would refuse the File, Category, Help and
+    # DeveloperWiki namespaces, which are real pages. A colon is just a namespace.
+    if "://" not in title_or_url:
         # A plain title is whatever the caller typed. Decoding it would corrupt a
         # page whose name genuinely contains a percent sign ("100%_CPU").
         return title_or_url
+
+    if parsed.scheme not in ("http", "https"):
+        # ftp://, file://, data:, javascript: -- these fell through to the title
+        # branch, so the wiki was asked for the page "ftp://evil.example/x" and
+        # answered page_not_found. A malformed URL reported as a missing page is
+        # the wiki's silence, invented one layer up.
+        raise MalformedWikiUrlError(
+            f"Unsupported URL scheme {parsed.scheme!r}, expected http or https: {title_or_url}"
+        )
 
     # hostname, not netloc: lowercased, port stripped, and an exact match -- so
     # "wiki.archlinux.org.evil.example" does not pass for the wiki.
@@ -2090,6 +2103,7 @@ def links(title: str, anchor: Optional[str] = None) -> List[Dict]:
         revid = extracted.revid
         revision_url = extracted.revision_url
         revision_wikitext_url = extracted.revision_wikitext_url
+        resolved_title = extracted.title
     else:
         page_data = page(title)
         wikitext = page_data["wikitext"]
@@ -2097,8 +2111,13 @@ def links(title: str, anchor: Optional[str] = None) -> List[Dict]:
         revid = page_data["revid"]
         revision_url = page_data["revision_url"]
         revision_wikitext_url = page_data["revision_wikitext_url"]
+        resolved_title = page_data["title"]
 
-    link_list = parse_internal_links(wikitext, title)
+    # The page the wiki served, not the title the caller typed -- the same fix
+    # commands() needed, on the sibling that was missed. source_page named the page
+    # asked for while the revision named the page answered, and a bare [[#Anchor]]
+    # link resolved against the wrong one.
+    link_list = parse_internal_links(wikitext, resolved_title)
 
     return [
         {

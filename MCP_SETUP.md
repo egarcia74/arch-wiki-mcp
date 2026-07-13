@@ -261,8 +261,10 @@ Every response includes:
 This enables:
 
 - **Reproducibility**: Same revid → same hash
-- **Auditability**: Verify AI didn't fabricate
-- **Traceability**: Follow citations to exact wiki version
+- **Integrity checking**: Detect an excerpt that does not match the revision it
+  names. This is *not* a signature: it cannot prove an excerpt came from this MCP,
+  nor detect one forged before it reached you — anyone can hash text they invented.
+- **Traceability**: Follow citations to the exact wiki revision
 
 ---
 

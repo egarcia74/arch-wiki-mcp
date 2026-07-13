@@ -40,8 +40,11 @@ The Arch Wiki MCP exposes the Arch Linux Wiki as **evidence objects**:
 Each artifact is returned with:
 
 - `revision_url` — the revision-addressed link (`?oldid=`). **Cite this one.** It
-  resolves to the exact revision the hash was computed over, so it still serves
-  the text you quoted after the page moves on.
+  names the exact revision the hash was computed over, so it still identifies the
+  text you quoted after the page moves on. (It *renders* that revision, and a
+  rendered old revision still transcludes templates at their current versions — so
+  it pins the article, not every pixel of the page. The revision's wikitext, which
+  is what the hashes cover, is fixed: see `revision_wikitext_url`.)
 - `source_url` — the canonical page, with anchor. It follows the page: a reader
   who opens it later sees what the wiki says *then*, not what you quoted.
 - Section anchor
@@ -54,7 +57,7 @@ They are **chain-of-custody**.
 
 | Field | What it is |
 | :---- | :--------- |
-| `revision_url` | The revision-pinned page (`?oldid=`). **Cite this.** Renders the revision for a human. |
+| `revision_url` | The revision-pinned page (`?oldid=`). **Cite this.** Renders that revision for a human — though a rendered old revision still transcludes templates as they are *now*, so it names the article revision rather than guaranteeing identical output. |
 | `revision_wikitext_url` | That revision's **wikitext** — the exact bytes `content_hash` covers — from the wiki's API, which a script can actually fetch. This is what an auditor fetches to recheck a hash. |
 | `alias_revision_url` | `alias_revid` as a followable link: the **redirect page's** own revision. Null whenever `alias_revid` is. |
 | `wikitext_hash` | On `page()` only: SHA-256 of the **whole page's** wikitext, not of any one block. Do not confuse it with `content_hash`, which covers a single fragment. |

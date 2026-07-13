@@ -397,8 +397,8 @@ placeholder, and `content_hash_cleaned` moves with it. `content_raw` and
   mistake outranks a prompt that forbids it. AGENTS.md §7 becomes the backstop, not
   the primary defence.
 
-  116 of the 327 code blocks across the seven English corpus pages carry
-  placeholders. Blocks without them are byte-identical to 1.4.
+  Many code blocks across the corpus carry placeholders; blocks without them are
+  byte-identical to 1.4.
 
   *Migration:* substitute `<token>` for each entry in `placeholders` before running
   a command, or read `content_raw` and substitute deliberately. Agents must not

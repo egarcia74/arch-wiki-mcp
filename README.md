@@ -6,7 +6,9 @@ The Arch Wiki MCP is a **citability engine** that provides constitutional, deter
 
 ## Why this is special: Real Workflows
 
-This MCP does what no other tool can: it turns documentation into a versioned, auditable evidence stream.
+This MCP turns documentation into a versioned, auditable evidence stream: every excerpt 
+an agent receives carries the revision it came from and a fingerprint of the exact bytes, 
+so a claim can be checked instead of trusted.
 
 ### 1. "I need to run this command without bricking my system"
 
@@ -35,7 +37,8 @@ Detect when documentation updates invalidate previous instructions.
 Forces the AI to fail closed instead of guessing when a query is ambiguous.
 
 * **Flow**: `search("wifi")` → many results → Agent refuses to guess.
-* **Value**: Every other assistant will hallucinate here. Yours won't.
+* **Value**: The tool refuses rather than guessing, so an agent that invents an answer 
+  here has to do it *without* evidence, visibly, instead of dressing a guess as a citation.
 
 ### 5. "I want raw data, not a tutorial"
 
@@ -55,7 +58,8 @@ Suppresses the AI's tendency to sound confident by surfacing every warning templ
 
 A reliable backend for IDEs, scripts, and agents.
 
-* **Value**: Safe embedding of Arch knowledge without the risk of hallucination.
+* **Value**: Every answer is traceable to a revision, so unsupported instructions are 
+  harder to produce and easier to catch.
 
 ---
 
@@ -64,7 +68,10 @@ A reliable backend for IDEs, scripts, and agents.
 ✅ **Extractor**: Deterministic wikitext parser with hash stability  
 ✅ **MCP Server**: Thin wrapper exposing extractor as MCP tools  
 ✅ **Search**: MediaWiki search API integration complete  
-✅ **Tests**: 210 offline tests pinned to recorded wiki fixtures; 108/108 `{{bc}}`/`{{hc}}` blocks and 432/432 sections resolve correctly
+✅ **Tests**: offline suite pinned to recorded wiki fixtures — extraction, protocol, 
+packaging, registration and provenance invariants. Every `{{bc}}`/`{{hc}}` block in the 
+corpus renders, and every recorded section resolves onto its own heading. (Counts live in 
+the tests, where changing one fails something; a count in prose only goes quietly stale.)
 
 ## Quick Start
 

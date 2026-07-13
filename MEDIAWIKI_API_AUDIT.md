@@ -66,10 +66,12 @@
 > position per multibyte character preceding the heading, silently returning a
 > neighbouring section's text.
 >
-> Verified against the live API and the recorded corpus: character indexing lands
-> on the section's own heading for 432/432 sections; byte indexing for 121/432.
-> The single page that agreed under both (`Pacman`) contains no multibyte
-> character at all.
+> Verified against the live API and the recorded corpus, and asserted over it by
+> `test_every_section_in_the_corpus_resolves_as_a_character_offset`: character
+> indexing lands on the section's own heading for *every* recorded section; byte
+> indexing for roughly a quarter. The pages that agree under both contain no
+> multibyte character at all. The exact counts are pinned in that test rather than
+> quoted here, so the corpus cannot move without something failing.
 >
 > In the example above, `2099` is the character index of `== Pre-installation ==`.
 > Its byte index is `2125`. Slice with `wikitext[byteoffset:next_byteoffset]`.

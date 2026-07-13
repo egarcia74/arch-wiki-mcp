@@ -7,13 +7,24 @@
 - Python 3.10+
 - Internet access (for MediaWiki API calls)
 
-### Clone Repository
+### Install
+
+To *use* it, install it into its own environment with pipx:
+
+```bash
+pipx install git+https://github.com/egarcia74/arch-wiki-mcp.git
+```
+
+To *work on* it, clone and install in editable mode:
 
 ```bash
 git clone https://github.com/egarcia74/arch-wiki-mcp.git
 cd arch-wiki-mcp
 pip install -e .
 ```
+
+Either way, run `arch-wiki-mcp --check` next: it prints the registration to give your
+MCP client.
 
 No runtime dependencies — the standard library only. The install exists to put the
 package on the import path and provide the `arch-wiki-mcp` console script; it pulls

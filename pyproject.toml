@@ -32,6 +32,18 @@ addopts = "-ra"
 # as scripts.
 pythonpath = ["src", "tests"]
 
+# A parametrized test over an empty set is skipped, not failed -- and a skip inside a
+# green run reads exactly like a pass. Several guards here are parametrized over sets
+# they *derive* (the documented output fields, the tracked documents), so a set that
+# quietly empties takes its guard with it and the suite goes on reporting success.
+# contract_fields() is the live one: it subtracts a hand-maintained "self-explanatory"
+# whitelist from the declared fields, and adding names to that whitelist is exactly
+# what a contributor does to quiet a failing contract test. Whitelist the last of them
+# and the guard that swears no field reaches an agent undocumented stops running at all.
+#
+# A guard over nothing must be an error, not a quiet green.
+empty_parameter_set_mark = "fail_at_collect"
+
 [tool.coverage.run]
 source = ["arch_wiki_mcp"]
 

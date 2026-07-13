@@ -250,6 +250,22 @@ HASHED_EVIDENCE = {
 ATTRIBUTED_ONLY = ["links"]        # a link is a target, not a quotation
 POINTERS = ["search", "sections"]  # no revid, no hash, and they must not pretend
 
+# Any field whose name says it fingerprints something -- derived, not listed.
+#
+# These first excluded `content_hash` alone, and this codebase has four: a pointer
+# could have grown a `wikitext_hash` and the guard swearing pointers never look like
+# evidence would have waved it through. That is a favourite *field name*, after a
+# favourite punctuation and a favourite notation: three guards in three days, each
+# keyed on the one spelling I happened to think of.
+#
+# A hardcoded set of four would rot the day a fifth is added -- and adding one is
+# exactly how the drift arrives. Ask the payload instead.
+FINGERPRINT = re.compile(r"hash", re.I)
+
+
+def _fingerprints(payload: dict) -> set:
+    return {key for key in payload if FINGERPRINT.search(key)}
+
 
 def _first(tool: str) -> dict:
     call = {
@@ -279,8 +295,9 @@ def test_a_link_is_attributed_but_not_fingerprinted(tool):
     payload = _first(tool)
 
     assert payload.get("revid"), f"{tool}() is unattributed"
-    assert "content_hash" not in payload, (
-        f"{tool}() now carries a hash; the README says it does not"
+    assert not _fingerprints(payload), (
+        f"{tool}() now carries a fingerprint {sorted(_fingerprints(payload))}; "
+        "the README says it does not"
     )
 
 
@@ -294,4 +311,7 @@ def test_a_pointer_never_looks_like_evidence(tool):
     payload = _first(tool)
 
     assert "revid" not in payload, f"{tool}() is a pointer but carries a revid"
-    assert "content_hash" not in payload, f"{tool}() is a pointer but carries a hash"
+    assert not _fingerprints(payload), (
+        f"{tool}() is a pointer but carries a fingerprint "
+        f"{sorted(_fingerprints(payload))}"
+    )

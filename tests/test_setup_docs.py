@@ -358,13 +358,14 @@ def test_the_setup_guide_points_at_the_preflight():
 
 def _commands_in(fence: str) -> list:
     """
-    The lines a reader would type. A ```console fence is a *transcript* -- a prompted
-    command, then what the machine said back -- so reading every line as a command
-    made the guard demand that `XX` and `1` be listed as prerequisites. It could not
-    tell an instruction from its output.
-
-    A prompt is the structure that distinguishes them. Where there is one, only the
-    prompted lines are commands; where there is none, every line is.
+    Extract the commands a reader would enter from a shell transcript.
+    
+    Parameters:
+        fence (str): Fenced shell content, optionally containing lines prefixed with
+            ``$ ``.
+    
+    Returns:
+        list: Prompted command lines, or all lines when no prompts are present.
     """
     prompted = [line.lstrip()[2:] for line in fence.splitlines() if line.lstrip().startswith("$ ")]
     return prompted or fence.splitlines()

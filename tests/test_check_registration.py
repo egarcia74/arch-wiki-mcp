@@ -30,7 +30,17 @@ from arch_wiki_mcp import server
 
 
 def _check(tmp_path, config: dict, path: str = ""):
-    """Run `--check <config>` as a user does, and return (exit code, what they read)."""
+    """
+    Run the server's configuration check and collect its exit status and output.
+    
+    Parameters:
+    	tmp_path: Directory in which to create the temporary configuration file.
+    	config (dict): Configuration data to serialize and check.
+    	path (str): Optional directory to prepend to the subprocess's PATH.
+    
+    Returns:
+    	tuple: The process exit code and combined standard output and error.
+    """
     config_file = tmp_path / "config.json"
     config_file.write_text(json.dumps(config), encoding="utf-8")
 
@@ -63,7 +73,12 @@ def test_the_registration_offered_is_one_that_exists():
 
 
 def _working() -> dict:
-    """The registration this machine would print -- the one that works."""
+    """
+    Provide the working Arch Wiki MCP registration for the current machine.
+    
+    Returns:
+        dict: The Arch Wiki registration from the generated MCP server configuration.
+    """
     return server._registration()["mcpServers"]["arch-wiki"]
 
 

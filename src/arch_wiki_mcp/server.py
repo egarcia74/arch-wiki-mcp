@@ -559,6 +559,15 @@ def _send_response(response: dict):
 
 
 def _handle_initialize(msg_id: int) -> dict:
+    """
+    Build the MCP initialization response for the server.
+    
+    Parameters:
+    	msg_id (int): The JSON-RPC request identifier.
+    
+    Returns:
+    	dict: A JSON-RPC response containing the supported protocol version, server identity, and available tools and prompts capabilities.
+    """
     return {
         "jsonrpc": "2.0",
         "id": msg_id,
@@ -841,11 +850,10 @@ def _cli_parameters(tool: str) -> list:
 
 def _cli_usage() -> str:
     """
-    Generated from the schema, not restated beside it.
-
-    The argv ladder used to spell out every tool and parameter by hand -- a
-    fourth copy of the tool list after _TOOLS, _INPUT_SCHEMAS and _TOOL_DISPATCH,
-    with the usage text a fifth. A tool added to the schema now appears here.
+    Builds the command-line usage text for available tools and operating modes.
+    
+    Returns:
+        str: The formatted usage information.
     """
     lines = ["Usage: arch-wiki-mcp <tool> <args...>", "", "Available tools:"]
     for tool in _TOOL_DISPATCH:
@@ -929,7 +937,13 @@ def _installed_command() -> Optional[Path]:
 
 
 def _registration() -> dict:
-    """The command an MCP client should spawn, resolved rather than transcribed."""
+    """
+    Build the MCP client registration for the Arch Wiki server.
+    
+    Returns:
+        dict: A registration containing the command and arguments needed to start
+        the server in stdio mode.
+    """
     console_script = _installed_command()
 
     if console_script:
@@ -943,7 +957,15 @@ def _registration() -> dict:
 
 
 def _installed_version() -> str:
-    """The installed distribution, or the reason no client can start one."""
+    """
+    Get the installed package version.
+    
+    Returns:
+    	str: The installed distribution version.
+    
+    Raises:
+    	SystemExit: If the distribution is not installed.
+    """
     try:
         return metadata.version(_DISTRIBUTION)
     except metadata.PackageNotFoundError:
@@ -965,7 +987,17 @@ def _installed_version() -> str:
 # precisely the bug this command exists to end, reproduced one layer out. The reader
 # names the file; we read whatever shape they hand us.
 def _registrations_in(config: Any, at: str = "", key: str = "") -> list:
-    """Returns (where it sits, the name it is filed under, the entry)."""
+    """
+    Find command-based registration entries throughout a nested configuration.
+    
+    Parameters:
+        config (Any): Configuration object to traverse.
+        at (str): Current location within the configuration.
+        key (str): Name associated with the current entry.
+    
+    Returns:
+        list: Tuples containing each entry's location, associated name, and configuration dictionary.
+    """
     found = []
 
     if isinstance(config, dict):
@@ -991,19 +1023,15 @@ _PYTHON = re.compile(r"python(\d+(\.\d+)?)?")
 
 def _executes(command: str, args: list) -> list:
     """
-    The arguments naming something *this command* will run, not something it is told
-    about.
-
-    This is the whole safety of the feature, and it took two passes to get right.
-    First it matched every argument -- so a filesystem server granted access to this
-    repository (`npx @mcp/server-filesystem /home/you/code/arch-wiki-mcp`) was read as
-    ours and executed. Then it matched a `.py` or `-m` argument regardless of the
-    command -- so `touch /tmp/arch-wiki-mcp.py`, which runs nothing, was read as ours
-    and executed too. A path ending in .py is a script only to a program that runs
-    scripts; to `touch` it is a filename.
-
-    So the command decides. Only when it is a Python interpreter does a `.py`/`.pyz`
-    argument, or the module after `-m`, name something it will execute.
+    Identify arguments that specify executable Python scripts or modules.
+    
+    Parameters:
+        command (str): Command name or path to inspect.
+        args (list): Command-line arguments to examine.
+    
+    Returns:
+        list: Arguments ending in `.py` or `.pyz`, or the argument following `-m`,
+        when the command is a Python interpreter.
     """
     if not _PYTHON.fullmatch(Path(command).name):
         return []
@@ -1017,19 +1045,14 @@ def _executes(command: str, args: list) -> list:
 
 def _is_ours(key: str, entry: dict) -> bool:
     """
-    The name it is filed under, the command's own name, and what that command runs.
-
-    The key counts: an entry whose command is wrong in every part still says which
-    server it was *meant* to be (`"arch-wiki": {...}`), and reading only the command
-    called that "no Arch Wiki MCP server registered" -- not merely unhelpful but wrong,
-    and it sends the reader to add a second entry beside the broken one.
-
-    The key, though, and not the path to it: Claude Code files servers under the
-    project directory, which here is *called* arch-wiki-mcp, so matching the path made
-    every server in this repo's config look like ours.
-
-    And the command's basename, not the whole path, for the same reason -- a venv
-    inside this checkout puts `arch-wiki-mcp` in every absolute path it holds.
+    Determine whether a registration appears to refer to this MCP server.
+    
+    Parameters:
+    	key (str): The registration key to inspect.
+    	entry (dict): The registration data containing a command and optional arguments.
+    
+    Returns:
+    	bool: `true` if the key, command name, or executed target identifies this server, `false` otherwise.
     """
     command = str(entry["command"])
     args = [str(a) for a in entry.get("args") or []]
@@ -1040,13 +1063,14 @@ def _is_ours(key: str, entry: dict) -> bool:
 
 def _child_environment(entry: dict) -> dict:
     """
-    The environment the *client* would spawn it in, not the one we happen to be in.
-
-    Inheriting ours quietly blesses the failure this command exists to catch: with a
-    venv activated, `python3 -m arch_wiki_mcp.server` answers healthy here and dies in
-    the GUI client, which has neither VIRTUAL_ENV nor PYTHONPATH. A registration that
-    only works because of the shell you checked it from is exactly the registration
-    that will not work.
+    Build the environment used to launch a registered MCP server.
+    
+    Parameters:
+        entry (dict): Registration containing optional environment variable overrides.
+    
+    Returns:
+        dict: Environment variables inherited from the current process, excluding
+            ``PYTHONPATH`` and ``VIRTUAL_ENV``, with registration overrides applied.
     """
     environment = {
         key: value
@@ -1059,12 +1083,15 @@ def _child_environment(entry: dict) -> dict:
 
 def _answers(argv: list, environment: dict) -> Tuple[Optional[str], Optional[str], str]:
     """
-    Run the registration and ask who answered. Returns (name, version, why-not).
-
-    The whole point. A registration is not a string to be compared with another string
-    -- it is a command a client executes, and the only honest question is whether
-    executing it produces this server. Everything else is a guess about a path, which
-    is how the dead one survived for months.
+    Run a registration command and inspect its MCP initialization response.
+    
+    Parameters:
+        argv (list): Command and arguments to execute.
+        environment (dict): Environment variables for the subprocess.
+    
+    Returns:
+        Tuple[Optional[str], Optional[str], str]: Server name, server version, and an
+        empty string on success; otherwise, two ``None`` values and a failure reason.
     """
     try:
         answer = subprocess.run(
@@ -1091,7 +1118,14 @@ def _answers(argv: list, environment: dict) -> Tuple[Optional[str], Optional[str
 
 
 def _diagnose(entry: dict) -> Tuple[str, str]:
-    """(verdict, explanation) for one registration a client would spawn."""
+    """Diagnose an MCP registration using the environment and command resolution available to its client.
+    
+    Parameters:
+    	entry (dict): Registration containing the command, optional arguments, and environment overrides.
+    
+    Returns:
+    	Tuple[str, str]: A verdict and an explanation describing the registration's status.
+    """
     command = str(entry["command"])
     args = [str(a) for a in entry.get("args") or []]
     environment = _child_environment(entry)
@@ -1133,19 +1167,14 @@ _VERDICTS = {
 
 def check_registration(config_path: str):
     """
-    Does the registration you already have actually work?
-
-    `--check` alone prints the registration that *would* work. It cannot tell you the
-    one in your config is dead, and that is the failure this project actually shipped:
-    a path written into a config months earlier, pointing at a file a rename deleted,
-    reported by the client as "Failed to connect" -- three words that name a dead path,
-    a missing package, an import error and a firewall identically.
-
-    This reads the file you name, finds every registration in it that mentions this
-    project, and *runs* them. Not compares -- runs. A registration is a command a
-    client executes; whether it works is a question with an answer, and asking a human
-    to eyeball two paths instead is the transcription this whole command exists to
-    abolish.
+    Check Arch Wiki MCP registrations in a JSON configuration file.
+    
+    Reads the configuration, identifies registrations for this server, and verifies each
+    by performing an MCP initialization handshake. Reports registration diagnostics and
+    prints a replacement registration when any registration cannot be started.
+    
+    Parameters:
+        config_path (str): Path to the JSON configuration file.
     """
     installed = _installed_version()
     path = Path(config_path).expanduser()
@@ -1197,13 +1226,10 @@ def check_registration(config_path: str):
 
 def run_preflight(argv: list):
     """
-    Answer the one question a failed registration cannot: *why*.
-
-    An MCP client reports a dead path, an uninstalled package, an import error and
-    a blocked port identically -- "Failed to connect". With no argument this prints
-    the registration that works on *this* machine (stdout, so it can be redirected
-    straight into a config). Given a config file, it checks the registration you
-    already have, by running it.
+    Print a usable MCP registration or diagnose an existing registration.
+    
+    Parameters:
+        argv (list): Optional command-line arguments; the first argument is treated as a configuration file path to check.
     """
     if argv:
         check_registration(argv[0])
@@ -1248,10 +1274,12 @@ _MODE_DISPATCH = {
 
 def main():
     """
-    Entry point - detect MCP mode vs CLI mode.
-
-    MCP mode: Running via stdio (no args)
-    CLI mode: Direct invocation with args
+    Run the command-line entry point for MCP modes and direct tool calls.
+    
+    With no arguments, starts the MCP stdio server. Mode flags dispatch to
+    their handlers, while other arguments are interpreted as tool calls.
+    Invalid modes, arguments, and tool failures are reported on stderr with a
+    nonzero exit status.
     """
     # No arguments *is* --stdio: the default is an entry in the table, not a branch
     # above it, or the table stops being the one statement of what modes exist.

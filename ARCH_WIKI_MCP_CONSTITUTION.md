@@ -461,7 +461,7 @@ The articles above are the constitution as it stands. What follows is the record
 how it got here: one migration note per amendment, newest first. They are history,
 not rules -- the rule each one established already lives in the articles.
 
-## Amendment 1.14 — Migration Notes
+### Amendment 1.14 — Migration Notes
 
 Per §12 (API Governance): `search()` gains `match`, and `snippet` changes from
 MediaWiki's highlight HTML to plain text. `title`, `pageid` and `url` are
@@ -508,7 +508,7 @@ has nothing" was being lied to; it will now receive pages.
 
 ---
 
-## Amendment 1.13 — Migration Notes
+### Amendment 1.13 — Migration Notes
 
 Per §12 (API Governance): no field changes. `message_hash_cleaned` moves for the
 three warnings whose body opened at an orphaned list depth — the `{{Tip|#** …}}`
@@ -554,7 +554,7 @@ on the English, Spanish and French Installation guides. `content_hash` and
 
 ---
 
-## Amendment 1.12 — Migration Notes
+### Amendment 1.12 — Migration Notes
 
 Per §12 (API Governance): no field changes. `content_hash_cleaned` and
 `message_hash_cleaned` move for any block whose source uses `<nowiki>` or an HTML
@@ -624,7 +624,7 @@ the raw payload was always correct. Only the rendered text was wrong.
 
 ---
 
-## Amendment 1.11 — Migration Notes
+### Amendment 1.11 — Migration Notes
 
 Per §12 (API Governance): `warnings()` gains three additive fields — `alias`,
 `alias_target`, `alias_revid`. All are `null` for every warning on an English
@@ -666,7 +666,7 @@ field changes, and no hash moves.
 
 ---
 
-## Amendment 1.10 — Migration Notes
+### Amendment 1.10 — Migration Notes
 
 Per §12 (API Governance): no field changes. `message_hash_cleaned` moves for any
 warning whose body contains a nested list. `content_hash` and `message_raw` are
@@ -691,7 +691,7 @@ unchanged.
 
 ---
 
-## Amendment 1.9 — Migration Notes
+### Amendment 1.9 — Migration Notes
 
 Per §12 (API Governance): no field changes. `content_hash_cleaned` moves for any
 section containing an unrendered template or a nested list. `content_hash` and
@@ -723,7 +723,7 @@ every verbatim field are unchanged.
 
 ---
 
-## Amendment 1.8 — Migration Notes
+### Amendment 1.8 — Migration Notes
 
 Per §12 (API Governance): `warnings()` gains a failure mode. It now raises when
 it cannot resolve a page's template names, where it previously returned a subset.
@@ -763,7 +763,7 @@ No field changes; no hash of an English page moves.
 
 ---
 
-## Amendment 1.7 — Migration Notes
+### Amendment 1.7 — Migration Notes
 
 Found by driving the server as an agent against the *live* wiki, not by testing it
 from outside. No field is added or removed. `content_hash` and the verbatim fields
@@ -792,7 +792,7 @@ containing a nested list.
 
 ---
 
-## Amendment 1.6 — Migration Notes
+### Amendment 1.6 — Migration Notes
 
 Per §12 (API Governance): `section()` gains `content_raw` and
 `content_hash_cleaned`, and its `content` changes from raw wikitext to rendered
@@ -833,7 +833,7 @@ text. `content_hash` still attests the verbatim slice and does **not** move.
 
 ---
 
-## Amendment 1.5 — Migration Notes
+### Amendment 1.5 — Migration Notes
 
 Per §12 (API Governance): `content` changes for every code block containing a
 placeholder, and `content_hash_cleaned` moves with it. `content_raw` and
@@ -867,7 +867,7 @@ placeholder, and `content_hash_cleaned` moves with it. `content_raw` and
 
 ---
 
-## Amendment 1.4 — Migration Notes
+### Amendment 1.4 — Migration Notes
 
 Found by using the server as an agent rather than testing it from outside.
 
@@ -925,7 +925,7 @@ Found by using the server as an agent rather than testing it from outside.
 
 ---
 
-## Amendment 1.3 — Migration Notes
+### Amendment 1.3 — Migration Notes
 
 Per §12 (API Governance), this breaking change to response structure is recorded here.
 

@@ -427,21 +427,31 @@ def test_a_python_data_argument_is_not_mistaken_for_its_script(tmp_path):
 
     tmp_path is never under an arch-wiki directory, so foreign.py's own path cannot
     match; only the trailing data argument does, and it must not count.
-    """
-    foreign = tmp_path / "foreign.py"
-    victim = tmp_path / "PWNED"
-    foreign.write_text(f"import pathlib; pathlib.Path({str(victim)!r}).touch()\n")
 
-    code = f"import pathlib; pathlib.Path({str(victim)!r}).touch()"
+    Every command here is one that *would* create the victim file if it ran -- the
+    interpreter is sys.executable (not a hardcoded path that might be absent), the
+    script and the module both touch the file, and the inline code does too. So a
+    matcher regression does not merely fail to prove innocence; it executes something
+    that leaves a mark, and the assertion catches it. A security test that stays green
+    whether or not the command ran is no test at all.
+    """
+    victim = tmp_path / "PWNED"
+    touch = f"import pathlib; pathlib.Path({str(victim)!r}).touch()"
+
+    foreign = tmp_path / "foreign.py"
+    foreign.write_text(touch + "\n")
+    (tmp_path / "pwn_module.py").write_text(touch + "\n")   # importable, and it bites
+    env = {"PYTHONPATH": str(tmp_path)}                     # applied after the strip, so -m finds it
+
     for args in (
-        [str(foreign), "/tmp/arch-wiki-mcp.py"],          # data .py after the script
-        [str(foreign), "-m", "arch_wiki_evil"],            # data -m after the script
-        ["-c", code, "/tmp/arch-wiki.py"],                 # bare -c inline code
-        [f"-c{code}", "/tmp/arch-wiki.py"],                # ATTACHED -c: Python accepts -cCODE
-        ["-mevil_module", "/tmp/arch-wiki-marker"],        # ATTACHED -m: module is evil, marker is data
+        [str(foreign), "/tmp/arch-wiki-mcp.py"],       # data .py after the script
+        [str(foreign), "-m", "arch_wiki_mcp.server"],  # data -m after the script
+        ["-c", touch, "/tmp/arch-wiki.py"],            # bare -c inline code
+        [f"-c{touch}", "/tmp/arch-wiki.py"],           # ATTACHED -c: Python accepts -cCODE
+        ["-mpwn_module", str(tmp_path / "arch-wiki-marker")],  # ATTACHED -m: module is pwn_module, marker is data
     ):
         victim.unlink(missing_ok=True)
-        _check(tmp_path, {"mcpServers": {"x": {"command": "/usr/bin/python3", "args": args}}})
+        _check(tmp_path, {"mcpServers": {"x": {"command": sys.executable, "args": args, "env": env}}})
         assert not victim.exists(), (
             f"--check ran a Python command because a *data* argument named arch-wiki: {args}"
         )

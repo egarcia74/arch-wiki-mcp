@@ -112,51 +112,90 @@ _OURS = re.compile(r"arch[-_]wiki", re.I)
 _PYTHON = re.compile(r"python(\d+(\.\d+)?)?")
 
 
-def _executes(command: str, args: list) -> list:
+# Short options that consume a value -- the rest of their own token if attached
+# (`-mmod`, `-Wspec`), or the next token if bare (`-m mod`). Getting this wrong is how
+# a data argument gets mistaken for the script; see _execution_target.
+_PY_VALUE_LETTERS = "cmWX"
+
+
+def _execution_target(command: str, args: list) -> Optional[str]:
     """
-    The arguments naming something *this command* will run, not something it is told
-    about.
+    The single thing a Python command actually runs -- and nothing else it is handed.
 
-    This is the whole safety of the feature, and it took two passes to get right.
-    First it matched every argument -- so a filesystem server granted access to this
-    repository (`npx @mcp/server-filesystem /home/you/code/arch-wiki-mcp`) was read as
-    ours and executed. Then it matched a `.py` or `-m` argument regardless of the
-    command -- so `touch /tmp/arch-wiki-mcp.py`, which runs nothing, was read as ours
-    and executed too. A path ending in .py is a script only to a program that runs
-    scripts; to `touch` it is a filename.
+    The whole safety of the feature lives here, and it took four passes, each undone
+    by a form of Python's own argv parsing:
 
-    So the command decides. Only when it is a Python interpreter does a `.py`/`.pyz`
-    argument, or the module after `-m`, name something it will execute.
+    - it matched every argument (a filesystem server given this repo's path ran);
+    - then any `.py`/`-m` argument regardless of command (`touch /x/arch-wiki.py` ran);
+    - then *every* `.py`/`-m` of a Python command (`python foreign.py /x/arch-wiki.py`
+      ran foreign.py, because a trailing data `.py` looked like a target);
+    - then only the bare `-c`/`-m` tokens -- but Python also accepts them *attached*
+      (`python -cCODE arch-wiki.py`), and the attached form slipped past, so the code
+      ran while a data argument named us.
+
+    So this walks the argument list the way CPython does: short options cluster, and
+    `c`/`m`/`W`/`X` consume the rest of their token or the next one. `-c` in any form
+    is inline code and names no target. `-m` names the module Python runs. The first
+    non-option token is the script. That single value -- and never a program's own
+    argv -- is what we match against our name.
     """
     if not _PYTHON.fullmatch(Path(command).name):
-        return []
+        return None
 
-    return [
-        arg
-        for index, arg in enumerate(args)
-        if str(arg).endswith((".py", ".pyz")) or (index and args[index - 1] == "-m")
-    ]
+    index = 0
+    while index < len(args):
+        arg = args[index]
+
+        if not arg.startswith("-") or arg == "-":
+            return arg if arg != "-" else None    # first positional is the script ("-" is stdin)
+
+        if arg.startswith("--"):                  # only --check-hash-based-pycs takes a value
+            index += 2 if arg == "--check-hash-based-pycs" else 1
+            continue
+
+        # A short-option cluster, e.g. -B, -Bs, -OO, -mmod, -cCODE, -Wspec.
+        position = 1
+        while position < len(arg):
+            letter = arg[position]
+            if letter == "c":
+                return None                       # inline code: attached or next arg, no target
+            if letter == "m":
+                module = arg[position + 1:]
+                return module or (args[index + 1] if index + 1 < len(args) else None)
+            if letter in _PY_VALUE_LETTERS:       # W or X: consumes the rest, or the next token
+                if position + 1 == len(arg):
+                    index += 1                    # value is the next token
+                break
+            position += 1                         # a valueless flag letter (B, O, s, E, I, ...)
+        index += 1
+    return None
+
+
+def _args_of(entry: dict) -> list:
+    """The entry's args as strings, or [] if it is not even a list. Never raises."""
+    args = entry.get("args")
+    return [str(a) for a in args] if isinstance(args, list) else []
 
 
 def _is_ours(key: str, entry: dict) -> bool:
     """
-    The name it is filed under, the command's own name, and what that command runs.
+    The name it is filed under, the command's own name, and the one thing it runs.
 
     The key counts: an entry whose command is wrong in every part still says which
     server it was *meant* to be (`"arch-wiki": {...}`), and reading only the command
     called that "no Arch Wiki MCP server registered" -- not merely unhelpful but wrong,
     and it sends the reader to add a second entry beside the broken one.
 
-    The key, though, and not the path to it: Claude Code files servers under the
-    project directory, which here is *called* arch-wiki-mcp, so matching the path made
-    every server in this repo's config look like ours.
-
-    And the command's basename, not the whole path, for the same reason -- a venv
-    inside this checkout puts `arch-wiki-mcp` in every absolute path it holds.
+    The key, not the path to it (Claude Code files servers under the project directory,
+    which here is *called* arch-wiki-mcp); the command's basename, not the whole path (a
+    venv in this checkout puts `arch-wiki-mcp` in every absolute path); and the single
+    target the command executes, not every argument it is handed.
     """
-    command = str(entry["command"])
-    args = [str(a) for a in entry.get("args") or []]
-    words = [key, Path(command).name, *_executes(command, args)]
+    command = str(entry.get("command", ""))
+    words = [key, Path(command).name]
+    target = _execution_target(command, _args_of(entry))
+    if target:
+        words.append(target)
 
     return any(_OURS.search(word) for word in words)
 
@@ -176,7 +215,9 @@ def _child_environment(entry: dict) -> dict:
         for key, value in os.environ.items()
         if key not in ("PYTHONPATH", "VIRTUAL_ENV")
     }
-    environment.update({str(k): str(v) for k, v in (entry.get("env") or {}).items()})
+    overrides = entry.get("env")
+    if isinstance(overrides, dict):     # a malformed env is caught in _diagnose; never crash here
+        environment.update({str(k): str(v) for k, v in overrides.items()})
     return environment
 
 
@@ -215,8 +256,18 @@ def _answers(argv: list, environment: dict) -> Tuple[Optional[str], Optional[str
 
 def _diagnose(entry: dict) -> Tuple[str, str]:
     """(verdict, explanation) for one registration a client would spawn."""
+    # This command's whole job is broken configs, so a malformed field is a verdict,
+    # not a traceback: a client cannot start `"args": "..."` or `"env": "..."` either.
+    # (A non-string `command` never reaches here -- _registrations_in only collects an
+    # entry whose command is a string, so an array command is reported "not registered"
+    # upstream, with the correct registration offered.)
+    if entry.get("args") is not None and not isinstance(entry.get("args"), list):
+        return "dead", f"`args` must be a list, not {type(entry['args']).__name__}"
+    if entry.get("env") is not None and not isinstance(entry.get("env"), dict):
+        return "dead", f"`env` must be an object, not {type(entry['env']).__name__}"
+
     command = str(entry["command"])
-    args = [str(a) for a in entry.get("args") or []]
+    args = _args_of(entry)
     environment = _child_environment(entry)
 
     # Resolved against the client's PATH, not ours. An entry may set env.PATH so a

@@ -356,7 +356,7 @@ def test_our_own_environment_never_makes_a_dead_registration_look_healthy(tmp_pa
 
 def test_a_data_argument_that_looks_like_a_script_is_not_executed(tmp_path):
     """
-    The second escape from the same trap. `_executes` learned to match a `.py` or `-m`
+    The second escape from the same trap. The matcher learned to require a `.py`/`-m`
     argument -- but a path ending in .py is a script only to a program that runs
     scripts. `touch /tmp/arch-wiki-mcp.py` runs nothing; the .py is a filename. Matched
     without the command, that filesystem-cleanup entry was read as ours and executed.
@@ -414,3 +414,61 @@ def test_a_bare_command_resolvable_only_by_the_entrys_env_is_found(tmp_path):
     )
     # It is found and runs; bare, so it is flagged fragile, not failed.
     assert "PATH" in said, said
+
+
+def test_a_python_data_argument_is_not_mistaken_for_its_script(tmp_path):
+    """
+    The third escape, and the sharpest: the command *is* a Python interpreter, so a
+    `.py` argument is plausibly a script -- but Python runs exactly one, the first
+    positional (or the module after -m). `python foreign.py /x/arch-wiki.py` runs
+    foreign.py; the arch-wiki path is that program's argv, not a second script. Reading
+    every `.py` argument ran foreign servers whose data happened to end in .py, and
+    `-c` is worse -- it runs inline code no argument names at all.
+
+    tmp_path is never under an arch-wiki directory, so foreign.py's own path cannot
+    match; only the trailing data argument does, and it must not count.
+    """
+    foreign = tmp_path / "foreign.py"
+    victim = tmp_path / "PWNED"
+    foreign.write_text(f"import pathlib; pathlib.Path({str(victim)!r}).touch()\n")
+
+    code = f"import pathlib; pathlib.Path({str(victim)!r}).touch()"
+    for args in (
+        [str(foreign), "/tmp/arch-wiki-mcp.py"],          # data .py after the script
+        [str(foreign), "-m", "arch_wiki_evil"],            # data -m after the script
+        ["-c", code, "/tmp/arch-wiki.py"],                 # bare -c inline code
+        [f"-c{code}", "/tmp/arch-wiki.py"],                # ATTACHED -c: Python accepts -cCODE
+        ["-mevil_module", "/tmp/arch-wiki-marker"],        # ATTACHED -m: module is evil, marker is data
+    ):
+        victim.unlink(missing_ok=True)
+        _check(tmp_path, {"mcpServers": {"x": {"command": "/usr/bin/python3", "args": args}}})
+        assert not victim.exists(), (
+            f"--check ran a Python command because a *data* argument named arch-wiki: {args}"
+        )
+
+
+def test_a_genuine_python_module_target_is_still_recognized(tmp_path):
+    """The converse: `python -m arch_wiki_mcp.server` must still be seen as ours."""
+    code, said = _check(tmp_path, {
+        "mcpServers": {
+            "arch-wiki": {"command": sys.executable, "args": ["-m", "arch_wiki_mcp.server", "--stdio"]}
+        }
+    })
+    assert "registers no Arch Wiki MCP server" not in said, said
+
+
+@pytest.mark.parametrize("entry,why", [
+    pytest.param({"command": "python3", "args": "not-a-list"}, "`args` must be a list", id="args-string"),
+    pytest.param({"command": "python3", "args": ["-m", "x"], "env": "not-a-dict"}, "`env` must be an object", id="env-string"),
+])
+def test_a_malformed_registration_is_a_verdict_not_a_traceback(tmp_path, entry, why):
+    """
+    This command diagnoses *broken* configs, so a field of the wrong type is a `dead`
+    verdict with a reason -- not an AttributeError a reader has to decode. A client
+    cannot start `"env": "..."` or `"args": "..."` either.
+    """
+    code, said = _check(tmp_path, {"mcpServers": {"arch-wiki": entry}})
+
+    assert "Traceback" not in said, said
+    assert code != 0
+    assert why in said, said

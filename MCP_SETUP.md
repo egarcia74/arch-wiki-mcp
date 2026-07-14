@@ -70,10 +70,9 @@ on stdout, ready to paste:
 
 The path is absolute on purpose. A bare `arch-wiki-mcp` resolves only against the
 PATH the client happens to inherit — and a GUI client inherits the desktop
-session's, not your shell's. The config that works in a terminal is exactly the one
-that fails in the app, which is a bad way to spend an evening. If you use a
-virtualenv, run `--check` from inside it: the path it prints is the one that has the
-package.
+session's, not your shell's, so the config that works in a terminal can fail in the
+app. If you use a virtualenv, run `--check` from inside it: the path it prints is the
+one that has the package.
 
 If it prints nothing and exits non-zero, it is telling you the package is not
 installed for that interpreter. That is the whole point of it — an MCP client
@@ -110,11 +109,10 @@ Use the `command` and `args` from `--check`, with an empty `env`.
 
 ### After an upgrade, a rename, or a moved virtualenv
 
-Re-run `--check` and **re-register with what it prints**. Do not compare it against
-what you have — comparing two paths by eye is the transcription this page exists to
-get rid of, and it is the step you would get wrong. Replacing is idempotent: if the
-registration was already right you rewrite it unchanged, and if it had gone stale you
-have just fixed it. You never have to know which.
+Re-run `--check` and **re-register with what it prints**, rather than comparing it
+against what you have. Replacing is idempotent — if the registration was already
+right you rewrite it unchanged, and if it had gone stale you have just fixed it — so
+it sidesteps the manual path comparison this page exists to get rid of.
 
 A registration is a path written once into a file nobody opens again, and nothing in
 this repository can reach out and correct a stale one. Re-registering is the step that

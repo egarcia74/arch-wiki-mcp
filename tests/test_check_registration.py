@@ -26,7 +26,7 @@ from pathlib import Path
 import pytest
 
 from conftest import REPO
-from arch_wiki_mcp import server
+from arch_wiki_mcp import registration
 
 
 def _check(tmp_path, config: dict, path: str = ""):
@@ -52,7 +52,7 @@ def _check(tmp_path, config: dict, path: str = ""):
 def test_the_registration_offered_is_one_that_exists():
     """
     The oracle, checked independently. Every assertion below that a fix was offered
-    compares against server._registration() -- the code under test -- so a bug that
+    compares against registration._registration() -- the code under test -- so a bug that
     printed a command that does not exist would agree with itself. This does not ask
     the code; it asks the filesystem.
     """
@@ -64,7 +64,7 @@ def test_the_registration_offered_is_one_that_exists():
 
 def _working() -> dict:
     """The registration this machine would print -- the one that works."""
-    return server._registration()["mcpServers"]["arch-wiki"]
+    return registration._registration()["mcpServers"]["arch-wiki"]
 
 
 # The config as it stood when the MCP stopped connecting: Claude Code's own nesting,
@@ -236,7 +236,7 @@ def test_a_bare_command_is_flagged_rather_than_blessed(tmp_path):
     The console script's directory is put on PATH explicitly, so this tests the
     *fragility* of a bare command and not whether the test runner happened to have one.
     """
-    script = server._installed_command()
+    script = registration._installed_command()
     assert script, "the console script is not installed; this test would prove nothing"
 
     code, said = _check(
@@ -312,7 +312,7 @@ def test_a_registration_is_found_wherever_the_client_chose_to_put_it():
     """
     deep = {"a": {"b": [{"c": {"mcpServers": {"arch-wiki": {"command": "x", "args": []}}}}]}}
 
-    found = server._registrations_in(deep)
+    found = registration._registrations_in(deep)
 
     assert [where for where, _, _ in found] == ["a.b[0].c.mcpServers.arch-wiki"]
 

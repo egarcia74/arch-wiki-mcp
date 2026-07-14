@@ -6,6 +6,461 @@
 
 ---
 
+
+> Amendments and their migration notes are collected in the appendix at the end.
+
+## 1. Mission
+
+This MCP server exists to provide AI systems with **live, authoritative, non-hallucinated access to the Arch Linux Wiki**.
+
+No more. No less.
+
+It is infrastructure for correctness. Not assistance. Not troubleshooting. Not helpfulness.
+
+If an AI agent needs verified Arch Linux documentation, this server retrieves it. If the information doesn't exist in the wiki, the server fails closed. It does not synthesize. It does not guess. It does not help.
+
+---
+
+## 2. The Problem
+
+### Why This Exists
+
+**LLMs hallucinate.**  
+They fabricate `pacman` flags, invent configuration paths, and confidently suggest commands that brick systems.
+
+**Web search is polluted.**  
+Random blog posts, outdated Stack Overflow answers, and ChatGPT-generated "tutorials" dominate results. None cite sources. Most are wrong.
+
+**Generic Linux tooling doesn't understand Arch.**  
+Ubuntu scripts break on Arch. RHEL advice is irrelevant. Systemd behaviors differ. The AUR exists.
+
+**Arch users need ground truth.**  
+The Arch Wiki is that ground truth. It is maintained, versioned, and authoritative. But it's HTML designed for humans.
+
+This MCP server makes it machine-readable without compromising fidelity.
+
+---
+
+## 3. Scope
+
+### What This MCP Server Does
+
+- **Retrieves wiki pages** by exact title or URL
+- **Extracts page sections** by heading
+- **Returns command examples** as quoted, traceable text
+- **Surfaces warnings and notes** explicitly marked in wiki content
+- **Searches for pages** by keyword or topic
+- **Reports package information** as documented in wiki articles
+
+All outputs are **traceable to specific wiki pages and sections**. All data is **extracted, not synthesized**.
+
+### What This MCP Server Does Not Do
+
+This is **not**:
+
+- A Linux assistant
+- A package manager wrapper
+- A troubleshooting chatbot
+- A command generator
+- A configuration validator
+- A system administration tool
+- An AI that "understands" Linux
+
+It does not:
+
+- Interpret commands
+- Suggest alternatives
+- Recommend packages
+- Diagnose problems
+- Generate scripts
+- Paraphrase wiki content
+- Aggregate external sources
+
+**If it's not in the wiki, it's out of scope.**
+
+---
+
+## 4. Data Contract
+
+### Single Source of Truth
+
+The **Arch Linux Wiki** is the only authoritative source.
+
+- URL: `https://wiki.archlinux.org/`
+- License: GNU Free Documentation License 1.3 or later
+- Maintenance: Arch Linux community
+
+### No Synthetic Knowledge
+
+This server does not:
+
+- Paraphrase wiki content into "simpler" language
+- Combine information from multiple pages unless explicitly requested by the API caller with page-level granularity
+- Infer meaning from context
+- Fill gaps with "reasonable" assumptions
+- Use training data as a fallback
+
+### Extraction, Not Interpretation
+
+All returned content must be:
+
+- **Quoted directly** from wiki source, or
+- **Extracted as structured metadata** (headings, links, code blocks), or
+- **Returned as failure** if unavailable
+
+There is no "close enough." There is no "probably this." There is success or failure.
+
+---
+
+## 5. API Philosophy
+
+### Structured Artifacts, Not Natural Language
+
+This MCP exposes the wiki as **machine-readable primitives**:
+
+- **Pages**: Title, URL, last modified timestamp, full content
+- **Sections**: Heading hierarchy, section content, anchor links
+- **Commands**: Code blocks tagged with language, context, and source section
+- **Warnings**: Explicit note/warning/tip blocks with severity
+- **Packages**: Names, categories, and wiki references
+- **Links**: Internal wiki links extracted with source and target page
+- **Search Results**: Ranked page titles with match context
+
+Responses are JSON-structured, version-tagged, and citation-linked.
+
+### Traceability Over Brevity
+
+Every response includes:
+
+- Source wiki URL
+- Section anchor (if applicable)
+- MediaWiki revision ID or last-modified timestamp when revision ID is unavailable
+- Extraction method (direct quote, code block, heading structure)
+- **Content hash** (SHA-256) of extracted text block
+
+If an agent cannot cite its source, it should not have used this server.
+
+### Provenance Persistence
+
+Extracted blocks must include a **cryptographic hash** of the quoted wiki fragment,
+paired with a **revision-addressed URL** that resolves to the exact revision the
+hash was computed over.
+
+The pairing is the point. A hash proves that a fragment matches some text; the
+revision URL says *which* text, immutably. A hash beside a canonical page URL —
+which follows the page — proves nothing once the page is edited, and the Arch
+Wiki is continuously edited.
+
+Be precise about what this buys. The hash is an **unkeyed SHA-256 fingerprint**:
+it provides *integrity against a named revision*, not authenticity. It does not
+prove an excerpt originated from this server, and it cannot detect a response
+forged before it reached the reader, since anyone can hash text they invented. It
+is not a signature, and this document does not claim it is one. Overstating the
+guarantee would undermine the very thing the guarantee exists to protect.
+
+Be precise about what is pinned, too. The hash covers the revision's **wikitext**,
+which is immutable; the *rendered* view of an old revision is not, because it still
+transcludes templates at their current versions. `revision_wikitext_url` therefore
+returns the wikitext (via the API, so a script can fetch it), and that — not the rendered page — is what an auditor fetches
+to recheck a hash. "Pinned", not "frozen", is the honest word for the rest.
+
+The Arch Wiki is continuously edited. A timestamp alone cannot prove what version was served if a page has been modified multiple times in the same day.
+
+Content hashing ensures:
+
+- **Bug Reports**: Users can prove exactly what text justified a command
+- **Reproducibility**: Researchers can verify historical responses
+- **Auditability**: System owners can trace bad advice to exact wiki versions
+- **Blame**: Maintainers can determine if wiki or MCP introduced error
+
+Implementation requirements:
+
+- Use **SHA-256** for content fingerprinting
+- Hash the **exact extracted text** before any formatting
+- Text must be normalized to **Unicode NFC** and whitespace preserved before hashing
+- Include hash in all JSON responses as `content_hash` field
+- Log hashes with timestamps for forensic retrieval
+
+This turns citation from "well-sourced" into **forensically sound**.
+
+### Fail Closed
+
+When in doubt, return an error. Do not approximate. Do not fallback. Do not "try to help."
+
+Examples of correct failure modes:
+
+- `Page not found: "acrhlinux"` (typo, do not suggest "archlinux")
+- `Section "GPU passthrough" not found in page "Xorg"` (do not return "closest match")
+- `No command blocks in section "See Also"` (do not synthesize examples)
+
+---
+
+## 6. Non-Goals
+
+### Explicitly Out of Bounds
+
+This project will **never** become:
+
+❌ **A Linux Assistant**  
+No conversational AI. No "what do you want to do?" No task inference.
+
+❌ **A Package Manager**  
+No `pacman` wrappers. No AUR helpers. No installation automation.
+
+❌ **A Troubleshooting Bot**  
+No log analysis. No error diagnosis. No "try this" suggestions.
+
+❌ **A Blog Aggregator**  
+No Reddit scraping. No forum crawling. No "community wisdom."
+
+❌ **A Command Generator**  
+No "AI-suggested scripts." No "smart defaults." No execution.
+
+❌ **A Configuration Manager**  
+No dotfile generation. No systemd unit creation. No validation.
+
+### Why These Are Non-Goals
+
+Each of these requires **interpretation, inference, or synthesis**. This violates the core contract: **wiki extraction only**.
+
+If a feature cannot be implemented by retrieving and structuring wiki content, it does not belong in this project.
+
+---
+
+## 7. Quality Bar
+
+### Definition of "Correct"
+
+A response is correct if and only if:
+
+1. **Traceable**: Response includes wiki URL and section
+2. **Verbatim or Structured**: Content is quoted directly or extracted as metadata
+3. **Version-Aware**: Timestamp or revision ID included
+4. **Content-Hashed**: SHA-256 fingerprint of extracted text included
+5. **Falsifiable**: A human can verify the response against the wiki
+
+A response is **incorrect** if:
+
+- Content is paraphrased without citation
+- Commands are modified or "improved"
+- Information is inferred from context
+- Fallback data is used when wiki content is unavailable
+
+### Testing Standards
+
+All functionality must include:
+
+- **Unit tests** for parsers and extractors
+- **Integration tests** against live wiki pages
+- **Regression tests** for critical pages (installation guide, pacman, systemd)
+- **Failure tests** confirming correct error handling
+
+Tests must fail if:
+
+- Content deviates from wiki source
+- Citations are missing or incorrect
+- Extraction logic hallucinates structure
+
+---
+
+## 8. Contributor Rules
+
+### Core Principle
+
+**Anyone who adds logic that synthesizes, guesses, or fabricates Linux instructions violates this project's constitution.**
+
+### Prohibited Changes
+
+Contributors may **not**:
+
+- Add LLM calls for "summarization" or "clarification"
+- Implement "smart" fallbacks when wiki content is missing
+- Paraphrase wiki text for "readability"
+- Infer commands from partial matches
+- Scrape external sources (Reddit, forums, blogs)
+- Generate synthetic examples
+- Implement "helpful" error messages that suggest fixes
+
+### Required Changes
+
+Contributors **must**:
+
+- Cite wiki pages in all responses
+- Preserve exact wiki content in quotes
+- Fail explicitly when content is unavailable
+- Document extraction methods
+- Include version/timestamp metadata
+- Write tests that verify against live wiki
+
+### Code Review Standards
+
+Pull requests must:
+
+- Include before/after wiki citations
+- Demonstrate no content synthesis
+- Pass all extraction tests
+- Document failure modes
+
+Reviewers must reject PRs that:
+
+- Introduce inference logic
+- Remove citation tracking
+- Add "smart" approximations
+- Implement workarounds for missing content
+
+---
+
+## 9. Agent Contract
+
+### Rules for AI Agents Using This MCP
+
+AI systems using this server **must**:
+
+1. **Cite Pages**: Include wiki URLs in user-facing responses
+2. **Respect Warnings**: Surface all `[!WARNING]` and `[!CAUTION]` blocks from wiki
+3. **Fail Transparently**: Tell users when information is unavailable
+4. **Prefer Failure Over Invention**: Do not supplement with training data
+5. **Preserve Context**: Do not strip section headings or source metadata
+6. **Verify Commands**: Encourage users to check wiki before executing
+
+AI systems using this server **must not**:
+
+- Claim wiki content as their own knowledge
+- Modify commands without explicit citation of changes
+- Fill gaps with "general Linux knowledge"
+- Suggest alternatives not documented in wiki
+- Execute retrieved commands without user confirmation
+
+### Example: Correct Usage
+
+**User**: "How do I install GRUB?"
+
+**Agent**: According to the [GRUB wiki page](https://wiki.archlinux.org/title/GRUB#Installation):
+
+```bash
+# pacman -S grub
+```
+
+> [!WARNING]  
+> The wiki states: "It is important to install the GRUB package for the correct architecture."
+
+**Agent**: "Would you like me to retrieve the full installation section?"
+
+### Example: Incorrect Usage
+
+**User**: "How do I install GRUB?"
+
+**Agent**: "You can install GRUB with `pacman -S grub`. Then run `grub-install` to set it up."
+
+❌ **Violation**: Added `grub-install` command without wiki citation  
+❌ **Violation**: Did not link to source page  
+❌ **Violation**: Did not surface warnings from wiki
+
+---
+
+## 10. Governance
+
+### Decision Authority
+
+Technical decisions are resolved by:
+
+1. **Does it violate the data contract?** → Reject
+2. **Does it require synthesis?** → Reject
+3. **Can it be implemented via wiki extraction?** → Evaluate
+4. **Does it improve traceability?** → Approve
+
+### Amendment Process
+
+This constitution can be amended only by:
+
+1. Demonstrating that the amendment **strengthens** the data contract
+2. Proving that the amendment **reduces** hallucination risk
+3. Showing that the amendment **improves** citation fidelity
+
+Amendments that weaken correctness guarantees are **unconstitutional**.
+
+---
+
+## 11. License and Attribution
+
+### Project License
+
+This MCP server is licensed under **MIT** for code, **CC BY-SA 4.0** for documentation.
+
+### Wiki License
+
+All Arch Wiki content is licensed under the **GNU Free Documentation License 1.3 or later**.
+
+Retrieved content must:
+
+- Preserve original licensing
+- Attribute to "Arch Linux Wiki contributors"
+- Link to source pages
+
+---
+
+## 12. Enforcement
+
+### Violations
+
+Code that violates this constitution must be:
+
+- Reverted immediately
+- Documented in a post-mortem
+- Used to strengthen tests
+
+### Examples of Violations
+
+- Adding a "suggest alternative packages" feature
+- Implementing LLM-based summarization
+- Scraping Stack Overflow for additional context
+- Generating commands not found in wiki
+- Removing citation metadata for "cleaner" output
+
+### Consequences
+
+Repeated violations result in:
+
+- Contributor access revocation
+- Reversion to last constitutional state
+- Public documentation of breach
+
+### API Governance
+
+Breaking changes to API semantics require:
+
+- Constitution version bump
+- Migration notes documenting changes
+- Backward compatibility period when feasible
+
+Quietly changing response structure, field names, or extraction behavior violates this constitution even if implementation details remain "correct."
+
+Governance applies to interfaces, not just code.
+
+---
+
+## Final Statement
+
+This is not a product. This is infrastructure.
+
+It exists so that AI agents can retrieve Arch Linux documentation without lying.
+
+Everything else is out of scope.
+
+If you want helpfulness, synthesis, or interpretation, you are in the wrong repository.
+
+This is a citability layer for the Arch Wiki. Nothing more.
+
+**End of Constitution.**
+
+---
+
+## Appendix — Amendment Migration Notes
+
+The articles above are the constitution as it stands. What follows is the record of
+how it got here: one migration note per amendment, newest first. They are history,
+not rules -- the rule each one established already lives in the articles.
+
 ## Amendment 1.14 — Migration Notes
 
 Per §12 (API Governance): `search()` gains `match`, and `snippet` changes from
@@ -506,449 +961,3 @@ Per §12 (API Governance), this breaking change to response structure is recorde
   with wikitext emphasis stripped and `{{ic}}`/`{{=}}` resolved.
 - **`links()` excludes namespace and interwiki links** and splits `Target#Anchor`
   into `target_page` + `anchor`.
-
----
-
-## 1. Mission
-
-This MCP server exists to provide AI systems with **live, authoritative, non-hallucinated access to the Arch Linux Wiki**.
-
-No more. No less.
-
-It is infrastructure for correctness. Not assistance. Not troubleshooting. Not helpfulness.
-
-If an AI agent needs verified Arch Linux documentation, this server retrieves it. If the information doesn't exist in the wiki, the server fails closed. It does not synthesize. It does not guess. It does not help.
-
----
-
-## 2. The Problem
-
-### Why This Exists
-
-**LLMs hallucinate.**  
-They fabricate `pacman` flags, invent configuration paths, and confidently suggest commands that brick systems.
-
-**Web search is polluted.**  
-Random blog posts, outdated Stack Overflow answers, and ChatGPT-generated "tutorials" dominate results. None cite sources. Most are wrong.
-
-**Generic Linux tooling doesn't understand Arch.**  
-Ubuntu scripts break on Arch. RHEL advice is irrelevant. Systemd behaviors differ. The AUR exists.
-
-**Arch users need ground truth.**  
-The Arch Wiki is that ground truth. It is maintained, versioned, and authoritative. But it's HTML designed for humans.
-
-This MCP server makes it machine-readable without compromising fidelity.
-
----
-
-## 3. Scope
-
-### What This MCP Server Does
-
-- **Retrieves wiki pages** by exact title or URL
-- **Extracts page sections** by heading
-- **Returns command examples** as quoted, traceable text
-- **Surfaces warnings and notes** explicitly marked in wiki content
-- **Searches for pages** by keyword or topic
-- **Reports package information** as documented in wiki articles
-
-All outputs are **traceable to specific wiki pages and sections**. All data is **extracted, not synthesized**.
-
-### What This MCP Server Does Not Do
-
-This is **not**:
-
-- A Linux assistant
-- A package manager wrapper
-- A troubleshooting chatbot
-- A command generator
-- A configuration validator
-- A system administration tool
-- An AI that "understands" Linux
-
-It does not:
-
-- Interpret commands
-- Suggest alternatives
-- Recommend packages
-- Diagnose problems
-- Generate scripts
-- Paraphrase wiki content
-- Aggregate external sources
-
-**If it's not in the wiki, it's out of scope.**
-
----
-
-## 4. Data Contract
-
-### Single Source of Truth
-
-The **Arch Linux Wiki** is the only authoritative source.
-
-- URL: `https://wiki.archlinux.org/`
-- License: GNU Free Documentation License 1.3 or later
-- Maintenance: Arch Linux community
-
-### No Synthetic Knowledge
-
-This server does not:
-
-- Paraphrase wiki content into "simpler" language
-- Combine information from multiple pages unless explicitly requested by the API caller with page-level granularity
-- Infer meaning from context
-- Fill gaps with "reasonable" assumptions
-- Use training data as a fallback
-
-### Extraction, Not Interpretation
-
-All returned content must be:
-
-- **Quoted directly** from wiki source, or
-- **Extracted as structured metadata** (headings, links, code blocks), or
-- **Returned as failure** if unavailable
-
-There is no "close enough." There is no "probably this." There is success or failure.
-
----
-
-## 5. API Philosophy
-
-### Structured Artifacts, Not Natural Language
-
-This MCP exposes the wiki as **machine-readable primitives**:
-
-- **Pages**: Title, URL, last modified timestamp, full content
-- **Sections**: Heading hierarchy, section content, anchor links
-- **Commands**: Code blocks tagged with language, context, and source section
-- **Warnings**: Explicit note/warning/tip blocks with severity
-- **Packages**: Names, categories, and wiki references
-- **Links**: Internal wiki links extracted with source and target page
-- **Search Results**: Ranked page titles with match context
-
-Responses are JSON-structured, version-tagged, and citation-linked.
-
-### Traceability Over Brevity
-
-Every response includes:
-
-- Source wiki URL
-- Section anchor (if applicable)
-- MediaWiki revision ID or last-modified timestamp when revision ID is unavailable
-- Extraction method (direct quote, code block, heading structure)
-- **Content hash** (SHA-256) of extracted text block
-
-If an agent cannot cite its source, it should not have used this server.
-
-### Provenance Persistence
-
-Extracted blocks must include a **cryptographic hash** of the quoted wiki fragment,
-paired with a **revision-addressed URL** that resolves to the exact revision the
-hash was computed over.
-
-The pairing is the point. A hash proves that a fragment matches some text; the
-revision URL says *which* text, immutably. A hash beside a canonical page URL —
-which follows the page — proves nothing once the page is edited, and the Arch
-Wiki is continuously edited.
-
-Be precise about what this buys. The hash is an **unkeyed SHA-256 fingerprint**:
-it provides *integrity against a named revision*, not authenticity. It does not
-prove an excerpt originated from this server, and it cannot detect a response
-forged before it reached the reader, since anyone can hash text they invented. It
-is not a signature, and this document does not claim it is one. Overstating the
-guarantee would undermine the very thing the guarantee exists to protect.
-
-Be precise about what is pinned, too. The hash covers the revision's **wikitext**,
-which is immutable; the *rendered* view of an old revision is not, because it still
-transcludes templates at their current versions. `revision_wikitext_url` therefore
-returns the wikitext (via the API, so a script can fetch it), and that — not the rendered page — is what an auditor fetches
-to recheck a hash. "Pinned", not "frozen", is the honest word for the rest.
-
-The Arch Wiki is continuously edited. A timestamp alone cannot prove what version was served if a page has been modified multiple times in the same day.
-
-Content hashing ensures:
-
-- **Bug Reports**: Users can prove exactly what text justified a command
-- **Reproducibility**: Researchers can verify historical responses
-- **Auditability**: System owners can trace bad advice to exact wiki versions
-- **Blame**: Maintainers can determine if wiki or MCP introduced error
-
-Implementation requirements:
-
-- Use **SHA-256** for content fingerprinting
-- Hash the **exact extracted text** before any formatting
-- Text must be normalized to **Unicode NFC** and whitespace preserved before hashing
-- Include hash in all JSON responses as `content_hash` field
-- Log hashes with timestamps for forensic retrieval
-
-This turns citation from "well-sourced" into **forensically sound**.
-
-### Fail Closed
-
-When in doubt, return an error. Do not approximate. Do not fallback. Do not "try to help."
-
-Examples of correct failure modes:
-
-- `Page not found: "acrhlinux"` (typo, do not suggest "archlinux")
-- `Section "GPU passthrough" not found in page "Xorg"` (do not return "closest match")
-- `No command blocks in section "See Also"` (do not synthesize examples)
-
----
-
-## 6. Non-Goals
-
-### Explicitly Out of Bounds
-
-This project will **never** become:
-
-❌ **A Linux Assistant**  
-No conversational AI. No "what do you want to do?" No task inference.
-
-❌ **A Package Manager**  
-No `pacman` wrappers. No AUR helpers. No installation automation.
-
-❌ **A Troubleshooting Bot**  
-No log analysis. No error diagnosis. No "try this" suggestions.
-
-❌ **A Blog Aggregator**  
-No Reddit scraping. No forum crawling. No "community wisdom."
-
-❌ **A Command Generator**  
-No "AI-suggested scripts." No "smart defaults." No execution.
-
-❌ **A Configuration Manager**  
-No dotfile generation. No systemd unit creation. No validation.
-
-### Why These Are Non-Goals
-
-Each of these requires **interpretation, inference, or synthesis**. This violates the core contract: **wiki extraction only**.
-
-If a feature cannot be implemented by retrieving and structuring wiki content, it does not belong in this project.
-
----
-
-## 7. Quality Bar
-
-### Definition of "Correct"
-
-A response is correct if and only if:
-
-1. **Traceable**: Response includes wiki URL and section
-2. **Verbatim or Structured**: Content is quoted directly or extracted as metadata
-3. **Version-Aware**: Timestamp or revision ID included
-4. **Content-Hashed**: SHA-256 fingerprint of extracted text included
-5. **Falsifiable**: A human can verify the response against the wiki
-
-A response is **incorrect** if:
-
-- Content is paraphrased without citation
-- Commands are modified or "improved"
-- Information is inferred from context
-- Fallback data is used when wiki content is unavailable
-
-### Testing Standards
-
-All functionality must include:
-
-- **Unit tests** for parsers and extractors
-- **Integration tests** against live wiki pages
-- **Regression tests** for critical pages (installation guide, pacman, systemd)
-- **Failure tests** confirming correct error handling
-
-Tests must fail if:
-
-- Content deviates from wiki source
-- Citations are missing or incorrect
-- Extraction logic hallucinates structure
-
----
-
-## 8. Contributor Rules
-
-### Core Principle
-
-**Anyone who adds logic that synthesizes, guesses, or fabricates Linux instructions violates this project's constitution.**
-
-### Prohibited Changes
-
-Contributors may **not**:
-
-- Add LLM calls for "summarization" or "clarification"
-- Implement "smart" fallbacks when wiki content is missing
-- Paraphrase wiki text for "readability"
-- Infer commands from partial matches
-- Scrape external sources (Reddit, forums, blogs)
-- Generate synthetic examples
-- Implement "helpful" error messages that suggest fixes
-
-### Required Changes
-
-Contributors **must**:
-
-- Cite wiki pages in all responses
-- Preserve exact wiki content in quotes
-- Fail explicitly when content is unavailable
-- Document extraction methods
-- Include version/timestamp metadata
-- Write tests that verify against live wiki
-
-### Code Review Standards
-
-Pull requests must:
-
-- Include before/after wiki citations
-- Demonstrate no content synthesis
-- Pass all extraction tests
-- Document failure modes
-
-Reviewers must reject PRs that:
-
-- Introduce inference logic
-- Remove citation tracking
-- Add "smart" approximations
-- Implement workarounds for missing content
-
----
-
-## 9. Agent Contract
-
-### Rules for AI Agents Using This MCP
-
-AI systems using this server **must**:
-
-1. **Cite Pages**: Include wiki URLs in user-facing responses
-2. **Respect Warnings**: Surface all `[!WARNING]` and `[!CAUTION]` blocks from wiki
-3. **Fail Transparently**: Tell users when information is unavailable
-4. **Prefer Failure Over Invention**: Do not supplement with training data
-5. **Preserve Context**: Do not strip section headings or source metadata
-6. **Verify Commands**: Encourage users to check wiki before executing
-
-AI systems using this server **must not**:
-
-- Claim wiki content as their own knowledge
-- Modify commands without explicit citation of changes
-- Fill gaps with "general Linux knowledge"
-- Suggest alternatives not documented in wiki
-- Execute retrieved commands without user confirmation
-
-### Example: Correct Usage
-
-**User**: "How do I install GRUB?"
-
-**Agent**: According to the [GRUB wiki page](https://wiki.archlinux.org/title/GRUB#Installation):
-
-```bash
-# pacman -S grub
-```
-
-> [!WARNING]  
-> The wiki states: "It is important to install the GRUB package for the correct architecture."
-
-**Agent**: "Would you like me to retrieve the full installation section?"
-
-### Example: Incorrect Usage
-
-**User**: "How do I install GRUB?"
-
-**Agent**: "You can install GRUB with `pacman -S grub`. Then run `grub-install` to set it up."
-
-❌ **Violation**: Added `grub-install` command without wiki citation  
-❌ **Violation**: Did not link to source page  
-❌ **Violation**: Did not surface warnings from wiki
-
----
-
-## 10. Governance
-
-### Decision Authority
-
-Technical decisions are resolved by:
-
-1. **Does it violate the data contract?** → Reject
-2. **Does it require synthesis?** → Reject
-3. **Can it be implemented via wiki extraction?** → Evaluate
-4. **Does it improve traceability?** → Approve
-
-### Amendment Process
-
-This constitution can be amended only by:
-
-1. Demonstrating that the amendment **strengthens** the data contract
-2. Proving that the amendment **reduces** hallucination risk
-3. Showing that the amendment **improves** citation fidelity
-
-Amendments that weaken correctness guarantees are **unconstitutional**.
-
----
-
-## 11. License and Attribution
-
-### Project License
-
-This MCP server is licensed under **MIT** for code, **CC BY-SA 4.0** for documentation.
-
-### Wiki License
-
-All Arch Wiki content is licensed under the **GNU Free Documentation License 1.3 or later**.
-
-Retrieved content must:
-
-- Preserve original licensing
-- Attribute to "Arch Linux Wiki contributors"
-- Link to source pages
-
----
-
-## 12. Enforcement
-
-### Violations
-
-Code that violates this constitution must be:
-
-- Reverted immediately
-- Documented in a post-mortem
-- Used to strengthen tests
-
-### Examples of Violations
-
-- Adding a "suggest alternative packages" feature
-- Implementing LLM-based summarization
-- Scraping Stack Overflow for additional context
-- Generating commands not found in wiki
-- Removing citation metadata for "cleaner" output
-
-### Consequences
-
-Repeated violations result in:
-
-- Contributor access revocation
-- Reversion to last constitutional state
-- Public documentation of breach
-
-### API Governance
-
-Breaking changes to API semantics require:
-
-- Constitution version bump
-- Migration notes documenting changes
-- Backward compatibility period when feasible
-
-Quietly changing response structure, field names, or extraction behavior violates this constitution even if implementation details remain "correct."
-
-Governance applies to interfaces, not just code.
-
----
-
-## Final Statement
-
-This is not a product. This is infrastructure.
-
-It exists so that AI agents can retrieve Arch Linux documentation without lying.
-
-Everything else is out of scope.
-
-If you want helpfulness, synthesis, or interpretation, you are in the wrong repository.
-
-This is a citability layer for the Arch Wiki. Nothing more.
-
-**End of Constitution.**

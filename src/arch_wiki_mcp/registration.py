@@ -122,16 +122,11 @@ def _execution_target(command: str, args: list) -> Optional[str]:
     """
     The single thing a Python command actually runs -- and nothing else it is handed.
 
-    The whole safety of the feature lives here, and it took four passes, each undone
-    by a form of Python's own argv parsing:
-
-    - it matched every argument (a filesystem server given this repo's path ran);
-    - then any `.py`/`-m` argument regardless of command (`touch /x/arch-wiki.py` ran);
-    - then *every* `.py`/`-m` of a Python command (`python foreign.py /x/arch-wiki.py`
-      ran foreign.py, because a trailing data `.py` looked like a target);
-    - then only the bare `-c`/`-m` tokens -- but Python also accepts them *attached*
-      (`python -cCODE arch-wiki.py`), and the attached form slipped past, so the code
-      ran while a data argument named us.
+    The whole safety of the feature lives here: `_is_ours` runs what this returns, so
+    anything looser than "the one target" turns a data argument that merely *names* us
+    into a command we execute. That is not a theoretical bound -- naive matches (any
+    `.py`, any `-m`, the bare-but-not-attached `-c`) each admitted an exploit; the
+    vectors are pinned in tests/test_check_registration.py.
 
     So this walks the argument list the way CPython does: short options cluster, and
     `c`/`m`/`W`/`X` consume the rest of their token or the next one. `-c` in any form

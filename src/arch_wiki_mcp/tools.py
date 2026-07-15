@@ -155,11 +155,13 @@ def tool_commands(title_or_url: str, anchor: Optional[str] = None) -> dict:
         }
 
     content is runnable once its placeholders are substituted; those stay marked as
-    <esp>. content_raw is what content_hash covers: verbatim wikitext for a template
-    block ({{bc}}/{{hc}}), but an indented block has MediaWiki's one leading marker space
-    stripped from each line, so restore it before re-hashing (source_pattern says which).
-    content_hash_cleaned covers content, so the cleaning step is attested too. Raises on
-    a missing page or anchor; returns [] only when the page truly has no code blocks.
+    <esp>. content_raw is what content_hash covers, so hashing it as returned always
+    reproduces content_hash. A template block ({{bc}}/{{hc}}) is verbatim wikitext; an
+    indented block has MediaWiki's one leading marker space stripped from each line, so
+    to falsify it against the revision's wikitext, strip that marker from the wiki lines
+    first (source_pattern says which). content_hash_cleaned covers content, so the
+    cleaning step is attested too. Raises on a missing page or anchor; returns [] only
+    when the page truly has no code blocks.
 
     A bodiless {{bc}} contributes no block: an empty command attested by the SHA-256
     of the empty string is evidence for nothing. Text the wiki wrapped in <nowiki> --

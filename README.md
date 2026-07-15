@@ -2,7 +2,7 @@
 
 > **"This is not 'AI that knows Linux.' This is Linux that won't let AI lie about it."**
 
-The Arch Wiki MCP is a **citability engine** that provides constitutional, deterministic extraction of the Arch Linux Wiki as machine-readable data. It acts as a **truth perimeter**, ensuring that AI agents can only provide technical advice that is **cryptographically fingerprinted and revision-attributed** to the wiki: every excerpt carries a SHA-256 fingerprint and a URL pinned to the exact revision it came from, so any claim can be re-fetched from the wiki and independently verified.
+The Arch Wiki MCP is a **citability engine** that provides constitutional, deterministic extraction of the Arch Linux Wiki as machine-readable data. It acts as a **truth perimeter**, giving AI agents a constrained channel of Arch Wiki evidence that is **cryptographically fingerprinted and revision-attributed**: every excerpt carries a SHA-256 fingerprint and a URL pinned to the exact revision it came from, so any claim drawn from it can be re-fetched from the wiki and independently verified. The MCP cannot force an agent to use only this evidence — but an agent that invents an answer instead has to do so visibly, without a citation that checks out.
 
 ## Why this is special: Real Workflows
 
@@ -27,7 +27,7 @@ When an assistant shows a command, it’s not advice—it’s a content-addresse
 
 ### 2. "I don’t trust AI, prove it"
 
-Skeptical sysadmins can audit exactly what the AI says against the wiki's current state.
+Skeptical sysadmins can audit exactly what the AI says against the exact wiki revision it cites, and compare that revision with the current page.
 
 * **Flow**: The agent returns `revid: 858930` and `hash: 8b8dfad439...` with a deep link.
 * **Value**: The hash covers `content_raw`, the verbatim wikitext, so you can grep the wiki source and check it yourself.

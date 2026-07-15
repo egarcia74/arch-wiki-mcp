@@ -122,11 +122,12 @@ def _execution_target(command: str, args: list) -> Optional[str]:
     """
     The single thing a Python command actually runs -- and nothing else it is handed.
 
-    The whole safety of the feature lives here: `_is_ours` runs what this returns, so
-    anything looser than "the one target" turns a data argument that merely *names* us
-    into a command we execute. That is not a theoretical bound -- naive matches (any
-    `.py`, any `-m`, the bare-but-not-attached `-c`) each admitted an exploit; the
-    vectors are pinned in tests/test_check_registration.py.
+    The whole safety of the feature lives here: this feeds `_is_ours`, and
+    `check_registration` executes every registration `_is_ours` accepts -- so anything
+    looser than "the one target" lets a data argument that merely *names* us pull its
+    whole command through the gate and be run. That is not a theoretical bound -- naive
+    matches (any `.py`, any `-m`, the bare-but-not-attached `-c`) each admitted an
+    exploit; the vectors are pinned in tests/test_check_registration.py.
 
     So this walks the argument list the way CPython does: short options cluster, and
     `c`/`m`/`W`/`X` consume the rest of their token or the next one. `-c` in any form

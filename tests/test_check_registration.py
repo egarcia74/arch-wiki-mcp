@@ -26,7 +26,7 @@ from pathlib import Path
 import pytest
 
 from conftest import REPO
-from arch_wiki_mcp import server
+from arch_wiki_mcp import registration
 
 
 def _check(tmp_path, config: dict, path: str = ""):
@@ -52,7 +52,7 @@ def _check(tmp_path, config: dict, path: str = ""):
 def test_the_registration_offered_is_one_that_exists():
     """
     The oracle, checked independently. Every assertion below that a fix was offered
-    compares against server._registration() -- the code under test -- so a bug that
+    compares against registration._registration() -- the code under test -- so a bug that
     printed a command that does not exist would agree with itself. This does not ask
     the code; it asks the filesystem.
     """
@@ -64,7 +64,7 @@ def test_the_registration_offered_is_one_that_exists():
 
 def _working() -> dict:
     """The registration this machine would print -- the one that works."""
-    return server._registration()["mcpServers"]["arch-wiki"]
+    return registration._registration()["mcpServers"]["arch-wiki"]
 
 
 # The config as it stood when the MCP stopped connecting: Claude Code's own nesting,
@@ -236,7 +236,7 @@ def test_a_bare_command_is_flagged_rather_than_blessed(tmp_path):
     The console script's directory is put on PATH explicitly, so this tests the
     *fragility* of a bare command and not whether the test runner happened to have one.
     """
-    script = server._installed_command()
+    script = registration._installed_command()
     assert script, "the console script is not installed; this test would prove nothing"
 
     code, said = _check(
@@ -312,7 +312,7 @@ def test_a_registration_is_found_wherever_the_client_chose_to_put_it():
     """
     deep = {"a": {"b": [{"c": {"mcpServers": {"arch-wiki": {"command": "x", "args": []}}}}]}}
 
-    found = server._registrations_in(deep)
+    found = registration._registrations_in(deep)
 
     assert [where for where, _, _ in found] == ["a.b[0].c.mcpServers.arch-wiki"]
 
@@ -356,7 +356,7 @@ def test_our_own_environment_never_makes_a_dead_registration_look_healthy(tmp_pa
 
 def test_a_data_argument_that_looks_like_a_script_is_not_executed(tmp_path):
     """
-    The second escape from the same trap. `_executes` learned to match a `.py` or `-m`
+    The second escape from the same trap. The matcher learned to require a `.py`/`-m`
     argument -- but a path ending in .py is a script only to a program that runs
     scripts. `touch /tmp/arch-wiki-mcp.py` runs nothing; the .py is a filename. Matched
     without the command, that filesystem-cleanup entry was read as ours and executed.
@@ -414,3 +414,71 @@ def test_a_bare_command_resolvable_only_by_the_entrys_env_is_found(tmp_path):
     )
     # It is found and runs; bare, so it is flagged fragile, not failed.
     assert "PATH" in said, said
+
+
+def test_a_python_data_argument_is_not_mistaken_for_its_script(tmp_path):
+    """
+    The third escape, and the sharpest: the command *is* a Python interpreter, so a
+    `.py` argument is plausibly a script -- but Python runs exactly one, the first
+    positional (or the module after -m). `python foreign.py /x/arch-wiki.py` runs
+    foreign.py; the arch-wiki path is that program's argv, not a second script. Reading
+    every `.py` argument ran foreign servers whose data happened to end in .py, and
+    `-c` is worse -- it runs inline code no argument names at all.
+
+    tmp_path is never under an arch-wiki directory, so foreign.py's own path cannot
+    match; only the trailing data argument does, and it must not count.
+
+    Every command here is one that *would* create the victim file if it ran -- the
+    interpreter is sys.executable (not a hardcoded path that might be absent), the
+    script and the module both touch the file, and the inline code does too. So a
+    matcher regression does not merely fail to prove innocence; it executes something
+    that leaves a mark, and the assertion catches it. A security test that stays green
+    whether or not the command ran is no test at all.
+    """
+    victim = tmp_path / "PWNED"
+    touch = f"import pathlib; pathlib.Path({str(victim)!r}).touch()"
+
+    foreign = tmp_path / "foreign.py"
+    foreign.write_text(touch + "\n")
+    (tmp_path / "pwn_module.py").write_text(touch + "\n")   # importable, and it bites
+    env = {"PYTHONPATH": str(tmp_path)}                     # applied after the strip, so -m finds it
+
+    for args in (
+        [str(foreign), "/tmp/arch-wiki-mcp.py"],       # data .py after the script
+        [str(foreign), "-m", "arch_wiki_mcp.server"],  # data -m after the script
+        ["-c", touch, "/tmp/arch-wiki.py"],            # bare -c inline code
+        [f"-c{touch}", "/tmp/arch-wiki.py"],           # ATTACHED -c: Python accepts -cCODE
+        ["-mpwn_module", str(tmp_path / "arch-wiki-marker")],  # ATTACHED -m: module is pwn_module, marker is data
+    ):
+        victim.unlink(missing_ok=True)
+        _check(tmp_path, {"mcpServers": {"x": {"command": sys.executable, "args": args, "env": env}}})
+        assert not victim.exists(), (
+            f"--check ran a Python command because a *data* argument named arch-wiki: {args}"
+        )
+
+
+def test_a_genuine_python_module_target_is_still_recognized(tmp_path):
+    """The converse: `python -m arch_wiki_mcp.server` must still be seen as ours."""
+    code, said = _check(tmp_path, {
+        "mcpServers": {
+            "arch-wiki": {"command": sys.executable, "args": ["-m", "arch_wiki_mcp.server", "--stdio"]}
+        }
+    })
+    assert "registers no Arch Wiki MCP server" not in said, said
+
+
+@pytest.mark.parametrize("entry,why", [
+    pytest.param({"command": "python3", "args": "not-a-list"}, "`args` must be a list", id="args-string"),
+    pytest.param({"command": "python3", "args": ["-m", "x"], "env": "not-a-dict"}, "`env` must be an object", id="env-string"),
+])
+def test_a_malformed_registration_is_a_verdict_not_a_traceback(tmp_path, entry, why):
+    """
+    This command diagnoses *broken* configs, so a field of the wrong type is a `dead`
+    verdict with a reason -- not an AttributeError a reader has to decode. A client
+    cannot start `"env": "..."` or `"args": "..."` either.
+    """
+    code, said = _check(tmp_path, {"mcpServers": {"arch-wiki": entry}})
+
+    assert "Traceback" not in said, said
+    assert code != 0
+    assert why in said, said

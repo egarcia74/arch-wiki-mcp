@@ -321,15 +321,15 @@ def test_an_uninstalled_package_is_named_as_the_problem(monkeypatch):
     "Failed to connect" is what the client says for a dead path, a missing package,
     a syntax error and a firewall alike. The preflight exists to say which.
     """
-    from arch_wiki_mcp import server
+    from arch_wiki_mcp import registration
 
     def _not_installed(_name):
-        raise server.metadata.PackageNotFoundError(_name)
+        raise registration.metadata.PackageNotFoundError(_name)
 
-    monkeypatch.setattr(server.metadata, "version", _not_installed)
+    monkeypatch.setattr(registration.metadata, "version", _not_installed)
 
     with pytest.raises(SystemExit) as exit_code:
-        server.run_preflight([])
+        registration.run_preflight([])
 
     assert exit_code.value.code != 0, "an uninstalled package reported as healthy"
 

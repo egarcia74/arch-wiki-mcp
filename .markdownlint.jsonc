@@ -3,7 +3,7 @@
   // markdownlint extension, so the editor and the command line agree on what
   // "clean" means.
   //
-  // Defaults stand, with one deliberate exception:
+  // Defaults stand, with two deliberate exceptions (MD013 and MD024 below):
   //
   // MD013 (line-length) is off. This project's prose wraps long by design --
   // README, CHANGELOG and the contract documents run to ~90-110 characters --

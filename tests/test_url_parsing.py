@@ -14,9 +14,9 @@ so https://evil.example/title/GRUB was accepted as an Arch Wiki page.
 
 import pytest
 
-from arch_wiki_mcp import extractor, server
+from arch_wiki_mcp import extractor, tools
 
-extract = server.extract_title_from_url
+extract = tools.extract_title_from_url
 
 WIKI = "https://wiki.archlinux.org"
 
@@ -89,7 +89,7 @@ def test_a_foreign_host_is_never_reachable_through_a_tool(monkeypatch):
     monkeypatch.setattr(extractor, "_fetch", _no_fetch)
 
     with pytest.raises(extractor.MalformedWikiUrlError):
-        server.handle_tool_call("page", {"title_or_url": "https://evil.example/title/GRUB"})
+        tools.handle_tool_call("page", {"title_or_url": "https://evil.example/title/GRUB"})
 
 
 def test_a_plain_title_is_passed_through_untouched():
@@ -249,7 +249,7 @@ def test_the_decoded_title_actually_reaches_the_wiki(monkeypatch):
         "title": t, "pageid": 1, "revid": 1, "wikitext": {"*": ""}, "sections": []
     })
 
-    server.tool_page(f"{WIKI}/title/Installation_guide_%28Fran%C3%A7ais%29")
+    tools.tool_page(f"{WIKI}/title/Installation_guide_%28Fran%C3%A7ais%29")
 
     assert asked == ["Installation guide (Français)"], (
         "the wiki was asked for a title nobody pasted"

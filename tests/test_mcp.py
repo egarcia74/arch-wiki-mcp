@@ -9,39 +9,39 @@ from pathlib import Path
 import pytest
 
 from conftest import GRUB_REVID, MISSING_PAGE, declared_version
-from arch_wiki_mcp import extractor, server
+from arch_wiki_mcp import extractor, tools, protocol, server
 
 CONTENT_TOOLS = {"search", "page", "sections", "section", "commands", "warnings", "links"}
 
 
 def test_extract_title_from_url():
-    assert server.extract_title_from_url("GRUB") == "GRUB"
-    assert server.extract_title_from_url("https://wiki.archlinux.org/title/GRUB") == "GRUB"
+    assert tools.extract_title_from_url("GRUB") == "GRUB"
+    assert tools.extract_title_from_url("https://wiki.archlinux.org/title/GRUB") == "GRUB"
     assert (
-        server.extract_title_from_url("https://wiki.archlinux.org/title/GRUB#Installation")
+        tools.extract_title_from_url("https://wiki.archlinux.org/title/GRUB#Installation")
         == "GRUB"
     )
 
 
 def test_extract_title_from_url_rejects_unparseable():
     with pytest.raises(ValueError):
-        server.extract_title_from_url("https://wiki.archlinux.org/")
+        tools.extract_title_from_url("https://wiki.archlinux.org/")
 
 
 def test_tools_list_surface_is_exact():
     """examples() was removed; it violated the Exclusive Command Source rule."""
-    listed = {t["name"] for t in server._handle_tools_list(1)["result"]["tools"]}
+    listed = {t["name"] for t in protocol._handle_tools_list(1)["result"]["tools"]}
     assert listed == CONTENT_TOOLS
     assert "examples" not in listed
 
     # A tool advertised but not routable answers every call with "Unknown tool";
     # one routable but unadvertised is reachable by a client that guesses. Only
     # the schema was pinned, so nothing held the two in step.
-    assert set(server._TOOL_DISPATCH) == CONTENT_TOOLS
+    assert set(tools._TOOL_DISPATCH) == CONTENT_TOOLS
 
 
 def test_usage_prompt_does_not_bless_heuristic_inference():
-    prompt = server._handle_prompts_get(1, {"name": "arch-wiki-usage"})
+    prompt = protocol._handle_prompts_get(1, {"name": "arch-wiki-usage"})
     text = prompt["result"]["messages"][0]["content"]["text"]
     assert "examples()" not in text
     assert "Heuristic inference" not in text
@@ -49,7 +49,7 @@ def test_usage_prompt_does_not_bless_heuristic_inference():
 
 
 def test_page_tool():
-    result = server.tool_page("GRUB")
+    result = tools.tool_page("GRUB")
     assert result["title"] == "GRUB"
     assert result["revid"] == GRUB_REVID
     assert result["url"] == "https://wiki.archlinux.org/title/GRUB"
@@ -57,18 +57,18 @@ def test_page_tool():
 
 
 def test_page_tool_accepts_url():
-    assert server.tool_page("https://wiki.archlinux.org/title/GRUB")["title"] == "GRUB"
+    assert tools.tool_page("https://wiki.archlinux.org/title/GRUB")["title"] == "GRUB"
 
 
 def test_sections_tool():
-    sections = server.tool_sections("GRUB")["sections"]
+    sections = tools.tool_sections("GRUB")["sections"]
     assert len(sections) == 73
     assert sections[0]["anchor"]
     assert "byteoffset" in sections[0]
 
 
 def test_section_tool_provenance():
-    result = server.tool_section("GRUB", "Installation")
+    result = tools.tool_section("GRUB", "Installation")
     for field in (
         "title",
         "url",
@@ -84,7 +84,7 @@ def test_section_tool_provenance():
 
 
 def test_commands_tool_schema():
-    blocks = server.tool_commands("GRUB", "Installation")["commands"]
+    blocks = tools.tool_commands("GRUB", "Installation")["commands"]
     assert blocks, "GRUB#Installation contains code blocks"
     for block in blocks:
         for field in (
@@ -103,19 +103,19 @@ def test_commands_tool_schema():
 
 
 def test_commands_tool_full_page():
-    blocks = server.tool_commands("GRUB")["commands"]
+    blocks = tools.tool_commands("GRUB")["commands"]
     assert len(blocks) == 60  # 17 bc + 8 hc + 35 indented
 
 
 def test_warnings_tool():
-    found = server.tool_warnings("GRUB", "Installation")["warnings"]
+    found = tools.tool_warnings("GRUB", "Installation")["warnings"]
     for warning in found:
         assert warning["source_url"].endswith("#Installation")
         assert warning["content_hash"]
 
 
 def test_links_tool():
-    found = server.tool_links("GRUB", "Installation")["links"]
+    found = tools.tool_links("GRUB", "Installation")["links"]
     for link in found:
         assert link["source_page"] == "GRUB"
         assert not link["target_page"].startswith(("Category:", "File:"))
@@ -130,18 +130,18 @@ def test_missing_anchor_raises_rather_than_returning_a_silent_empty_list():
     the failure is now raised and a caller has to handle it.
     """
     with pytest.raises(extractor.SectionNotFoundError):
-        server.handle_tool_call("commands", {"title_or_url": "GRUB", "anchor": "Bogus"})
+        tools.handle_tool_call("commands", {"title_or_url": "GRUB", "anchor": "Bogus"})
 
 
 def test_missing_page_raises():
     with pytest.raises(extractor.PageNotFoundError):
-        server.handle_tool_call("page", {"title_or_url": MISSING_PAGE})
+        tools.handle_tool_call("page", {"title_or_url": MISSING_PAGE})
 
 
 def test_removed_examples_tool_is_rejected():
     """examples() violated the Exclusive Command Source rule and must stay gone."""
-    with pytest.raises(server.UnknownToolError):
-        server.handle_tool_call("examples", {"title_or_url": "GRUB"})
+    with pytest.raises(tools.UnknownToolError):
+        tools.handle_tool_call("examples", {"title_or_url": "GRUB"})
 
 
 def test_an_unknown_tool_is_a_protocol_error_not_a_tool_error(monkeypatch, capsys):
@@ -157,7 +157,7 @@ def test_an_unknown_tool_is_a_protocol_error_not_a_tool_error(monkeypatch, capsy
 
 
 def test_search_tool():
-    results = server.tool_search("GRUB")["results"]
+    results = tools.tool_search("GRUB")["results"]
     assert results
     assert results[0]["title"]
     assert results[0]["url"].startswith("https://wiki.archlinux.org/title/")
@@ -168,7 +168,7 @@ def test_search_puts_the_exact_title_first():
     Full-text search alone buries it: searching GRUB returned GRUB2 (Indonesia)
     before GRUB. The wiki's own search box answers the exact-title question too.
     """
-    results = server.tool_search("GRUB")["results"]
+    results = tools.tool_search("GRUB")["results"]
     assert results[0]["title"] == "GRUB"
     assert results[0]["match"] == "title"
     assert all(r["match"] == "text" for r in results[1:])
@@ -181,7 +181,7 @@ def test_search_answers_a_multiword_question():
     pages. [] is this MCP's way of saying the wiki specifies nothing, so the
     discovery entry point was manufacturing silence.
     """
-    results = server.tool_search("wifi not working")["results"]
+    results = tools.tool_search("wifi not working")["results"]
     assert results, "the wiki has dozens of matching pages"
     assert all(r["match"] == "text" for r in results)
 
@@ -203,7 +203,7 @@ def test_search_asks_the_wiki_both_questions(monkeypatch):
         return original(params, timeout, key)
 
     monkeypatch.setattr(extractor, "_fetch", _spy)
-    server.tool_search("GRUB")
+    tools.tool_search("GRUB")
 
     modes = [p.get("srwhat") for p in sent if p.get("list") == "search"]
     assert modes == ["nearmatch", "text"], f"srwhat sequence was {modes}"
@@ -212,13 +212,13 @@ def test_search_asks_the_wiki_both_questions(monkeypatch):
 
 def test_search_tool_zero_results():
     """The only honest empty result: the wiki really has nothing."""
-    assert server.tool_search("zzzqqxnotathing")["results"] == []
+    assert tools.tool_search("zzzqqxnotathing")["results"] == []
 
 
 def _drive_server(stdin_text, monkeypatch, capsys):
     """Feed raw lines to the stdio loop; return the parsed responses."""
-    monkeypatch.setattr(server.sys, "stdin", io.StringIO(stdin_text))
-    server.run_mcp_server()
+    monkeypatch.setattr(protocol.sys, "stdin", io.StringIO(stdin_text))
+    protocol.run_mcp_server()
     return [json.loads(line) for line in capsys.readouterr().out.splitlines() if line.strip()]
 
 
@@ -267,7 +267,7 @@ def test_a_genuine_server_fault_is_still_an_internal_error(monkeypatch, capsys):
     def _explode(msg_id):
         raise RuntimeError("boom")
 
-    monkeypatch.setattr(server, "_handle_tools_list", _explode)
+    monkeypatch.setattr(protocol, "_handle_tools_list", _explode)
     responses = _drive_server('{"jsonrpc":"2.0","id":3,"method":"tools/list"}\n', monkeypatch, capsys)
 
     assert responses[0]["error"]["code"] == -32603
@@ -290,7 +290,7 @@ def test_the_documented_subset_is_the_implemented_one(monkeypatch, capsys):
     """
     doc = (Path(__file__).parent.parent / "MCP_PROTOCOL.md").read_text()
 
-    for method in server._METHOD_DISPATCH:
+    for method in protocol._METHOD_DISPATCH:
         assert f"`{method}`" in doc, f"{method} is routed but undocumented"
 
     for code in ("-32700", "-32601", "-32602", "-32603"):
@@ -314,7 +314,7 @@ def test_the_documented_subset_is_the_implemented_one(monkeypatch, capsys):
 
 def test_every_routed_method_is_declared(monkeypatch, capsys):
     """The dispatch table is what the document is checked against; it must be true."""
-    for method in server._METHOD_DISPATCH:
+    for method in protocol._METHOD_DISPATCH:
         responses = _drive_server(
             json.dumps({"jsonrpc": "2.0", "id": 1, "method": method, "params": {}}) + "\n",
             monkeypatch,
@@ -442,8 +442,8 @@ def test_a_malformed_call_is_rejected_before_the_extractor_runs(tool, arguments,
 
     monkeypatch.setattr(extractor, "_fetch", _no_fetch)
 
-    with pytest.raises(server.InvalidParamsError):
-        server.handle_tool_call(tool, arguments)
+    with pytest.raises(tools.InvalidParamsError):
+        tools.handle_tool_call(tool, arguments)
 
 
 def test_a_blank_string_is_refused_by_a_rule_the_schema_declares():
@@ -453,13 +453,13 @@ def test_a_blank_string_is_refused_by_a_rule_the_schema_declares():
     never stated -- the same lie #20 exists to end, told in the strict direction.
     Refusing a blank title is right; the schema has to say so.
     """
-    tools = {t["name"]: t for t in server._handle_tools_list(1)["result"]["tools"]}
-    title = tools["page"]["inputSchema"]["properties"]["title_or_url"]
+    advertised = {t["name"]: t for t in protocol._handle_tools_list(1)["result"]["tools"]}
+    title = advertised["page"]["inputSchema"]["properties"]["title_or_url"]
 
     assert title.get("pattern"), "blank-rejection is enforced but nowhere declared"
 
-    with pytest.raises(server.InvalidParamsError):
-        server.handle_tool_call("page", {"title_or_url": "   "})
+    with pytest.raises(tools.InvalidParamsError):
+        tools.handle_tool_call("page", {"title_or_url": "   "})
 
 
 def test_an_explicit_null_id_still_gets_an_answer(monkeypatch, capsys):
@@ -534,24 +534,24 @@ def test_the_declared_limit_schema_matches_what_is_enforced():
     or 2.5 -- was acceptable, and the code then passed it to the wiki. A schema
     the runtime does not honour is a lie told to every client that reads it.
     """
-    tools = {t["name"]: t for t in server._handle_tools_list(1)["result"]["tools"]}
-    limit = tools["search"]["inputSchema"]["properties"]["limit"]
+    advertised = {t["name"]: t for t in protocol._handle_tools_list(1)["result"]["tools"]}
+    limit = advertised["search"]["inputSchema"]["properties"]["limit"]
 
     assert limit["type"] == "integer"
     assert limit["minimum"] == 1
-    assert limit["maximum"] == server.SEARCH_LIMIT_MAX
-    assert limit["default"] == server.SEARCH_LIMIT_DEFAULT
+    assert limit["maximum"] == tools.SEARCH_LIMIT_MAX
+    assert limit["default"] == tools.SEARCH_LIMIT_DEFAULT
 
 
 @pytest.mark.parametrize("limit", [1, 10, 50])
 def test_a_limit_within_bounds_is_accepted(limit):
     """The converse guard: validation must not reject what the schema allows."""
-    assert server.handle_tool_call("search", {"query": "GRUB", "limit": limit})["results"]
+    assert tools.handle_tool_call("search", {"query": "GRUB", "limit": limit})["results"]
 
 
 def _run_cli(argv, monkeypatch, capsys):
     """Drive main() as a shell would; return (exit_code, stdout, stderr)."""
-    monkeypatch.setattr(server.sys, "argv", ["server.py"] + argv)
+    monkeypatch.setattr(protocol.sys, "argv", ["server.py"] + argv)
     with pytest.raises(SystemExit) as exit_info:
         server.main()
     captured = capsys.readouterr()
@@ -585,13 +585,13 @@ def test_the_cli_reports_an_unknown_tool_with_usage(monkeypatch, capsys):
     assert code == 1
     assert "Unknown tool: bogustool" in stderr
     # The usage text is generated from the schema, so every routable tool appears.
-    for tool in server._TOOL_DISPATCH:
+    for tool in tools._TOOL_DISPATCH:
         assert tool in stderr
 
 
 def test_the_cli_prints_a_result_on_the_happy_path(monkeypatch, capsys):
     """The converse guard: a good call must still exit 0 with JSON on stdout."""
-    monkeypatch.setattr(server.sys, "argv", ["server.py", "page", "GRUB"])
+    monkeypatch.setattr(protocol.sys, "argv", ["server.py", "page", "GRUB"])
     server.main()
 
     assert json.loads(capsys.readouterr().out)["title"] == "GRUB"
@@ -609,6 +609,6 @@ def test_an_omitted_limit_defaults_to_the_declared_value(monkeypatch):
         extractor, "search", lambda q, limit=None: seen.append(limit) or original(q, limit)
     )
 
-    server.handle_tool_call("search", {"query": "GRUB"})
+    tools.handle_tool_call("search", {"query": "GRUB"})
 
-    assert seen == [server.SEARCH_LIMIT_DEFAULT]
+    assert seen == [tools.SEARCH_LIMIT_DEFAULT]

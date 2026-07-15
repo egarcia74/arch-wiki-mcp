@@ -82,6 +82,18 @@ the tests, where changing one fails something; a count in prose only goes quietl
 
 ## Quick Start
 
+Install it into its own environment with [pipx](https://pipx.pypa.io) (Arch:
+`pacman -S python-pipx`; elsewhere: `python3 -m pip install --user pipx`).
+[MCP_SETUP.md](MCP_SETUP.md) lists every prerequisite.
+
+```bash
+pipx install arch-wiki-mcp
+```
+
+Then register it with your MCP client — `arch-wiki-mcp --check` prints the exact
+registration to paste, and [MCP_SETUP.md](MCP_SETUP.md) has per-client instructions.
+Everything below also works straight from the shell:
+
 ```bash
 # Search wiki
 arch-wiki-mcp search pacman

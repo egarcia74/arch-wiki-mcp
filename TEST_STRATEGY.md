@@ -17,15 +17,15 @@ This document describes how the **Arch Wiki Model Context Protocol (MCP) Server*
 
 Run `pytest` from the repository root. All figures are enforced by tests.
 
-| Metric                                              | Value                                  | Enforced by                                                                   |
-| :-------------------------------------------------- | :------------------------------------- | :---------------------------------------------------------------------------- |
-| Network calls during tests                          | 0                                      | `tests/conftest.py` blocks sockets; `test_failures.py` proves the guard bites |
-| Runs on every push and PR                           | Python 3.10-3.13 + MCP stdio handshake | `.github/workflows/tests.yml`                                                 |
-| `{{bc}}`/`{{hc}}` blocks recovered                  | 108 / 108                              | `test_commands_golden.py`                                                     |
-| Sections resolving to their own heading             | every recorded section                 | `test_content_shapes.py`                                                      |
-| Pages in fixture corpus                             | every page under `tests/fixtures/`, translated pages included | `test_content_shapes.py` |
-| Wikitext markup surviving into `warnings().message` | 0, across every warning in the corpus  | `test_warnings_golden.py`                                                     |
-| Link prefixes                                       | derived from live `siteinfo`           | `test_siteinfo.py`                                                            |
+| Metric                                              | Value                                                         | Enforced by                                                                   |
+| :-------------------------------------------------- | :------------------------------------------------------------ | :---------------------------------------------------------------------------- |
+| Network calls during tests                          | 0                                                             | `tests/conftest.py` blocks sockets; `test_failures.py` proves the guard bites |
+| Runs on every push and PR                           | Python 3.10-3.13 + MCP stdio handshake                        | `.github/workflows/tests.yml`                                                 |
+| `{{bc}}`/`{{hc}}` blocks recovered                  | 108 / 108                                                     | `test_commands_golden.py`                                                     |
+| Sections resolving to their own heading             | every recorded section                                        | `test_content_shapes.py`                                                      |
+| Pages in fixture corpus                             | every page under `tests/fixtures/`, translated pages included | `test_content_shapes.py`                                                      |
+| Wikitext markup surviving into `warnings().message` | 0, across every warning in the corpus                         | `test_warnings_golden.py`                                                     |
+| Link prefixes                                       | derived from live `siteinfo`                                  | `test_siteinfo.py`                                                            |
 
 ---
 

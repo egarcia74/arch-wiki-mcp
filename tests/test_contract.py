@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pytest
 
-from arch_wiki_mcp import extractor, server
+from arch_wiki_mcp import extractor, tools, protocol
 
 REPO_ROOT = Path(__file__).parent.parent
 AGENTS_MD = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
@@ -55,7 +55,7 @@ def contract_fields() -> list:
 
 
 def usage_prompt() -> str:
-    result = server._handle_prompts_get(1, {"name": "arch-wiki-usage"})
+    result = protocol._handle_prompts_get(1, {"name": "arch-wiki-usage"})
     return result["result"]["messages"][0]["content"]["text"]
 
 
@@ -162,7 +162,7 @@ def test_the_section_tool_surfaces_every_field_of_its_dataclass():
     `content_hash` attesting a verbatim slice it was never shown -- a citation it
     could not check, which is the one thing this MCP exists to prevent.
     """
-    result = server.tool_section("GRUB", "Installation")
+    result = tools.tool_section("GRUB", "Installation")
     declared = {f.name for f in fields(extractor.ExtractedBlock)}
     assert set(result) == declared
 
@@ -172,7 +172,7 @@ def test_the_section_tool_surfaces_every_field_of_its_dataclass():
 
 def test_the_section_tool_returns_rendered_content_over_the_wire():
     """The wire format is where an agent actually meets the '#' ambiguity."""
-    result = server.tool_section("Installation_guide", "Boot_the_live_environment")
+    result = tools.tool_section("Installation_guide", "Boot_the_live_environment")
 
     assert result["content"].startswith("### Boot the live environment")
     assert "1. Point the current boot device" in result["content"]
@@ -210,7 +210,7 @@ def documented_hashes() -> set:
 
 def reproducible_hashes() -> set:
     produced = set()
-    block = server.tool_section("Installation_guide", "Boot_the_live_environment")
+    block = tools.tool_section("Installation_guide", "Boot_the_live_environment")
     produced |= {block["content_hash"], block["content_hash_cleaned"]}
     for command in extractor.commands("GRUB", "Installation"):
         produced |= {command["content_hash"], command["content_hash_cleaned"]}
@@ -275,7 +275,7 @@ def _first(tool: str) -> dict:
         "warnings": lambda: extractor.warnings("Iwd", "Usage")[0],
         "links": lambda: extractor.links("GRUB", "Installation")[0],
         "search": lambda: extractor.search("GRUB")[0],
-        "sections": lambda: server.tool_sections("GRUB")["sections"][0],
+        "sections": lambda: tools.tool_sections("GRUB")["sections"][0],
     }[tool]
     return call()
 

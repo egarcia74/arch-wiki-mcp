@@ -3,7 +3,7 @@
   // markdownlint extension, so the editor and the command line agree on what
   // "clean" means.
   //
-  // Defaults stand, with one deliberate exception:
+  // Defaults stand, with two deliberate exceptions (MD013 and MD024 below):
   //
   // MD013 (line-length) is off. This project's prose wraps long by design --
   // README, CHANGELOG and the contract documents run to ~90-110 characters --
@@ -11,5 +11,10 @@
   // style. Reflowing every document to 80 columns would be churn for no reader's
   // benefit. The remaining rules (trailing spaces, emphasis style, table
   // alignment, blank lines) catch real inconsistencies and stay on.
-  "MD013": false
+  "MD013": false,
+
+  // MD024 (no-duplicate-heading) only fires on siblings. A changelog repeats
+  // "### Added" / "### Fixed" under every version heading by design; forbidding
+  // that across the whole file would be a rule against the Keep a Changelog shape.
+  "MD024": { "siblings_only": true }
 }

@@ -94,7 +94,7 @@ of anchors, not evidence. Everything else — `page()`, `section()`, `commands()
 
 A `snippet` is a truncated fragment of a revision nobody named, re-indexed
 whenever the wiki likes. Its markup is resolved where it can be, but a token cut
-in half (`a:C++|C++]]`) keeps its brackets. Use it to _choose_ a page. To say
+in half (`a:C++|C++]]`) keeps its brackets. Use it to *choose* a page. To say
 anything about that page, call `section()`, `commands()` or `warnings()` and cite
 what they return.
 
@@ -230,7 +230,7 @@ never present it as a command, and never as something the article instructs.
 ### Where a warning's type came from
 
 A translated page rarely writes `{{Warning}}`. The French Installation guide
-writes `{{Attention}}`, which is a _redirect_ to `Template:Warning (Français)`.
+writes `{{Attention}}`, which is a *redirect* to `Template:Warning (Français)`.
 The type `WARNING` is therefore not visible anywhere in the article's wikitext,
 and the article's `revid` does not attest it.
 
@@ -349,7 +349,7 @@ it must:
 
 ---
 
-_This document is a binding operational contract. Violation of these rules constitutes Constitutional Fraud._
+*This document is a binding operational contract. Violation of these rules constitutes Constitutional Fraud.*
 
 ## Allowed Response Shapes
 

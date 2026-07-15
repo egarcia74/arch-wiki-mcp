@@ -6,13 +6,13 @@ The Arch Wiki MCP is a **citability engine** that provides constitutional, deter
 
 ## Why this is special: Real Workflows
 
-This MCP turns documentation into a versioned, auditable evidence stream — and is exact about 
+This MCP turns documentation into a versioned, auditable evidence stream — and is exact about
 how far that reaches:
 
-* **`page`, `section`, `commands`, `warnings`** hand an agent text to quote, and carry both the 
+* **`page`, `section`, `commands`, `warnings`** hand an agent text to quote, and carry both the
   revision it came from and a fingerprint of the exact bytes. A claim can be checked, not trusted.
 * **`links`** is revision-attributed but unhashed. A link is a target, not a quotation.
-* **`search`, `sections`** are pointers, not evidence: no revid, no hash. A snippet quoted as fact 
+* **`search`, `sections`** are pointers, not evidence: no revid, no hash. A snippet quoted as fact
   is the failure this project exists to prevent, so they refuse to look like evidence.
 
 (These tiers are asserted by `test_contract.py`, not merely asserted here.)
@@ -44,7 +44,7 @@ Detect when documentation updates invalidate previous instructions.
 Forces the AI to fail closed instead of guessing when a query is ambiguous.
 
 * **Flow**: `search("wifi")` → many results → Agent refuses to guess.
-* **Value**: The tool refuses rather than guessing, so an agent that invents an answer 
+* **Value**: The tool refuses rather than guessing, so an agent that invents an answer
   here has to do it *without* evidence, visibly, instead of dressing a guess as a citation.
 
 ### 5. "I want raw data, not a tutorial"
@@ -65,7 +65,7 @@ Suppresses the AI's tendency to sound confident by surfacing every warning templ
 
 A reliable backend for IDEs, scripts, and agents.
 
-* **Value**: Every quotable excerpt is traceable to a revision, so unsupported instructions 
+* **Value**: Every quotable excerpt is traceable to a revision, so unsupported instructions
   are harder to produce and easier to catch.
 
 ---
@@ -75,9 +75,9 @@ A reliable backend for IDEs, scripts, and agents.
 ✅ **Extractor**: Deterministic wikitext parser with hash stability  
 ✅ **MCP Server**: Thin wrapper exposing extractor as MCP tools  
 ✅ **Search**: MediaWiki search API integration complete  
-✅ **Tests**: offline suite pinned to recorded wiki fixtures — extraction, protocol, 
-packaging, registration and provenance invariants. Every `{{bc}}`/`{{hc}}` block in the 
-corpus renders, and every recorded section resolves onto its own heading. (Counts live in 
+✅ **Tests**: offline suite pinned to recorded wiki fixtures — extraction, protocol,
+packaging, registration and provenance invariants. Every `{{bc}}`/`{{hc}}` block in the
+corpus renders, and every recorded section resolves onto its own heading. (Counts live in
 the tests, where changing one fails something; a count in prose only goes quietly stale.)
 
 ## Quick Start
@@ -343,11 +343,11 @@ python3 tests/record_fixtures.py "GRUB" --force   # then update the golden const
 
 ## Governance & Contracts
 
-* `ARCH_WIKI_MCP_CONSTITUTION.md`: Technical and ethical contract.
-* `AGENTS.md`: Mandatory behavioral contract for AI agents.
-* `MCP_PROTOCOL.md`: The supported MCP subset, the error contract, and why this
+* [ARCH_WIKI_MCP_CONSTITUTION.md](ARCH_WIKI_MCP_CONSTITUTION.md): Technical and ethical contract.
+* [AGENTS.md](AGENTS.md): Mandatory behavioral contract for AI agents.
+* [MCP_PROTOCOL.md](MCP_PROTOCOL.md): The supported MCP subset, the error contract, and why this
   server implements the transport rather than depending on the SDK.
-* `TEST_STRATEGY.md`: Validation report and hallucination traps.
+* [TEST_STRATEGY.md](TEST_STRATEGY.md): Validation report and hallucination traps.
 
 ## License
 

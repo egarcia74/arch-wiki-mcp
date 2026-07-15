@@ -6,7 +6,6 @@
 
 ---
 
-
 > Amendments and their migration notes are collected in the appendix at the end.
 
 ## 1. Mission

@@ -1,0 +1,15 @@
+{
+  // markdownlint configuration. Read by both markdownlint-cli2 and the VS Code
+  // markdownlint extension, so the editor and the command line agree on what
+  // "clean" means.
+  //
+  // Defaults stand, with one deliberate exception:
+  //
+  // MD013 (line-length) is off. This project's prose wraps long by design --
+  // README, CHANGELOG and the contract documents run to ~90-110 characters --
+  // and 216 of 233 default findings were this single rule firing on that house
+  // style. Reflowing every document to 80 columns would be churn for no reader's
+  // benefit. The remaining rules (trailing spaces, emphasis style, table
+  // alignment, blank lines) catch real inconsistencies and stay on.
+  "MD013": false
+}

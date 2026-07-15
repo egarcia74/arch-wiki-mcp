@@ -17,15 +17,15 @@ This document describes how the **Arch Wiki Model Context Protocol (MCP) Server*
 
 Run `pytest` from the repository root. All figures are enforced by tests.
 
-| Metric                                              | Value                                  | Enforced by                                                                   |
-| :-------------------------------------------------- | :------------------------------------- | :---------------------------------------------------------------------------- |
-| Network calls during tests                          | 0                                      | `tests/conftest.py` blocks sockets; `test_failures.py` proves the guard bites |
-| Runs on every push and PR                           | Python 3.10-3.13 + MCP stdio handshake | `.github/workflows/tests.yml`                                                 |
-| `{{bc}}`/`{{hc}}` blocks recovered                  | 108 / 108                              | `test_commands_golden.py`                                                     |
-| Sections resolving to their own heading             | every recorded section                 | `test_content_shapes.py`                                                      |
-| Pages in fixture corpus                             | every page under `tests/fixtures/`, translated pages included | `test_content_shapes.py` |
-| Wikitext markup surviving into `warnings().message` | 0, across every warning in the corpus  | `test_warnings_golden.py`                                                     |
-| Link prefixes                                       | derived from live `siteinfo`           | `test_siteinfo.py`                                                            |
+| Metric                                              | Value                                                         | Enforced by                                                                   |
+| :-------------------------------------------------- | :------------------------------------------------------------ | :---------------------------------------------------------------------------- |
+| Network calls during tests                          | 0                                                             | `tests/conftest.py` blocks sockets; `test_failures.py` proves the guard bites |
+| Runs on every push and PR                           | Python 3.10-3.13 + MCP stdio handshake                        | `.github/workflows/tests.yml`                                                 |
+| `{{bc}}`/`{{hc}}` blocks recovered                  | 108 / 108                                                     | `test_commands_golden.py`                                                     |
+| Sections resolving to their own heading             | every recorded section                                        | `test_content_shapes.py`                                                      |
+| Pages in fixture corpus                             | every page under `tests/fixtures/`, translated pages included | `test_content_shapes.py`                                                      |
+| Wikitext markup surviving into `warnings().message` | 0, across every warning in the corpus                         | `test_warnings_golden.py`                                                     |
+| Link prefixes                                       | derived from live `siteinfo`                                  | `test_siteinfo.py`                                                            |
 
 ---
 
@@ -148,7 +148,7 @@ templates: 1271 `{{ic}}`, 82 `{{hc}}`, 26 `{{bc}}`. `commands()` recovered 7 of
 108 `{{bc}}`/`{{hc}}` blocks, and those 7 were coincidences where the same command
 also appeared indented elsewhere.
 
-This is worse than ordinary under-extraction. `AGENTS.md` §6 instructs the calling
+This is worse than ordinary under-extraction. [AGENTS.md](AGENTS.md#6-exclusive-command-source) §6 instructs the calling
 agent that an empty `commands()` means the wiki "does not specify an explicit
 command block" — so a miss was laundered into a confident false statement about
 the wiki. **False silence, not false speech.**
@@ -186,7 +186,7 @@ had to _consume_ the output.
 - **`content` was executed but unhashed.** `content_hash` attested `content_raw`;
   the cleaning transform — the only non-verbatim step in the chain — was attested
   by nothing. Now covered by `content_hash_cleaned`.
-- **`AGENTS.md` §4 told agents every field was verbatim.** It is the binding
+- **[AGENTS.md](AGENTS.md#4-do-not-alter-extracted-content) §4 told agents every field was verbatim.** It is the binding
   contract, and after `content`/`message` became rendered fields it was wrong: an
   agent obeying it would present `--efi-directory=esp` as wiki text, when the wiki
   says `''esp''` and means "substitute your EFI partition". `test_contract.py` now

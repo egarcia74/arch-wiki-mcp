@@ -148,7 +148,7 @@ templates: 1271 `{{ic}}`, 82 `{{hc}}`, 26 `{{bc}}`. `commands()` recovered 7 of
 108 `{{bc}}`/`{{hc}}` blocks, and those 7 were coincidences where the same command
 also appeared indented elsewhere.
 
-This is worse than ordinary under-extraction. `AGENTS.md` §6 instructs the calling
+This is worse than ordinary under-extraction. [AGENTS.md](AGENTS.md) §6 instructs the calling
 agent that an empty `commands()` means the wiki "does not specify an explicit
 command block" — so a miss was laundered into a confident false statement about
 the wiki. **False silence, not false speech.**
@@ -186,7 +186,7 @@ had to _consume_ the output.
 - **`content` was executed but unhashed.** `content_hash` attested `content_raw`;
   the cleaning transform — the only non-verbatim step in the chain — was attested
   by nothing. Now covered by `content_hash_cleaned`.
-- **`AGENTS.md` §4 told agents every field was verbatim.** It is the binding
+- **[AGENTS.md](AGENTS.md) §4 told agents every field was verbatim.** It is the binding
   contract, and after `content`/`message` became rendered fields it was wrong: an
   agent obeying it would present `--efi-directory=esp` as wiki text, when the wiki
   says `''esp''` and means "substitute your EFI partition". `test_contract.py` now

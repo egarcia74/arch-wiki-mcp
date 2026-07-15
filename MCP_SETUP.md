@@ -345,7 +345,7 @@ Every response includes:
   and shows the wiki's current state, not the quoted one.
 - **Revision ID**: MediaWiki revision number
 - **Content Hash**: SHA-256 fingerprint (NFC-normalized) of the verbatim wikitext.
-  A fingerprint, not a signature — see `README.md` for exactly what it proves.
+  A fingerprint, not a signature — see [README.md](README.md) for exactly what it proves.
 - **Extraction Method**: How content was obtained
 
 This enables:
@@ -383,12 +383,12 @@ For production use, consider:
 
 ## License
 
-MIT License. See `ARCH_WIKI_MCP_CONSTITUTION.md` for full licensing details on documentation (CC BY-SA 4.0) and code.
+MIT License. See [ARCH_WIKI_MCP_CONSTITUTION.md](ARCH_WIKI_MCP_CONSTITUTION.md) for full licensing details on documentation (CC BY-SA 4.0) and code.
 
 ---
 
 ## Support
 
 - **Issues**: [https://github.com/egarcia74/arch-wiki-mcp/issues](https://github.com/egarcia74/arch-wiki-mcp/issues)
-- **Governance**: See `ARCH_WIKI_MCP_CONSTITUTION.md`
-- **Agent Contract**: See `AGENTS.md`
+- **Governance**: See [ARCH_WIKI_MCP_CONSTITUTION.md](ARCH_WIKI_MCP_CONSTITUTION.md)
+- **Agent Contract**: See [AGENTS.md](AGENTS.md)

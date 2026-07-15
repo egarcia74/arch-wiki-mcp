@@ -1,5 +1,44 @@
 # Changelog
 
+## 2.1.0
+
+A minor release. One new capability, and a large internal reorganization that no
+consumer can observe.
+
+### Added
+
+- **`arch-wiki-mcp --check <config-file>`.** `2.0.0` gave `--check` the power to
+  *print* a registration that works on this machine; it could not tell you the one
+  already in your config is dead — which is the failure this project actually
+  shipped. Now, given a config file, it finds every registration in it that names
+  this server and *runs* them, because "Failed to connect" names a dead path, a
+  missing package and an import error identically, and the only way to tell which
+  is to start the command and ask who answered. Each is reported `healthy`,
+  `fragile` (works, but resolved from a `PATH` a GUI client may not share), `dead`,
+  or `foreign` (answers as a different server), and a correct registration is
+  printed to replace any that fail.
+
+  It executes commands drawn from the file you name, so it identifies a Python
+  command's execution target the way CPython itself does — walking the argument
+  list, honouring attached and clustered short options — so a data argument that
+  merely *names* this project is never mistaken for the script to run. No released
+  version ever shipped without this; the guarantee holds from the feature's first
+  release.
+
+### Internal
+
+No behavioural change; the surface `2.0.0` documented is unchanged.
+
+- The `--check` machinery moved into its own `registration.py`, and the MCP server
+  was split from one ~1300-line `server.py` into `tools.py` (the seven wiki tools
+  and their schema validation), `protocol.py` (JSON-RPC over stdio), and `cli.py`
+  (argv parsing and the mode flags). `arch_wiki_mcp.server` remains the entry
+  point every client spawns.
+- Documentation: install instructions moved to the top of the README, the
+  constitution reads core-first with amendments in an appendix, cross-document
+  references are links, and every doc lints clean under a committed
+  `.markdownlint.jsonc`.
+
 ## 2.0.0
 
 The first release with a number that means anything. There were no tags before this
